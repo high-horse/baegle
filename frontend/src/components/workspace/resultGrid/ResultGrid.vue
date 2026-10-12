@@ -1,8 +1,8 @@
 <template>
-    <div class="h-full w-full min-h-0 min-w-0 flex flex-col flex-nowrap overflow-hidden bg-[#100e0c]">
+    <div class="h-full w-full min-h-0 min-w-0 flex flex-col flex-nowrap overflow-hidden bg-[#2d2d2d]">
         <!-- Result Header -->
         <div
-            class="h-8 shrink-0 bg-[#161310] border-b border-[#292521] flex items-center justify-between px-3 text-[11px] font-mono text-[#6b7280]"
+            class="h-8 shrink-0 bg-[#353535] border-b border-[#484848] flex items-center justify-between px-3 text-[11px] font-mono text-[#a0a0a0]"
         >
             <div class="flex items-center gap-3">
                 <span>RESULT GRID</span>
@@ -25,14 +25,14 @@
             <div class="flex items-center gap-3">
                 <span
                     v-if="result && !loading"
-                    class="text-[#6b7280]"
+                    class="text-[#a0a0a0]"
                 >
                     {{ result.Duration }}ms execution latency
                 </span>
 
                  <!-- <q-btn flat dense no-caps
                     type="button"
-                    class="w-5 h-5 flex items-center justify-center rounded text-[#4b4540] hover:text-[#d1d5db] hover:bg-[#292521]"
+                    class="w-5 h-5 flex items-center justify-center rounded text-[#909090] hover:text-[#d1d5db] hover:bg-[#484848]"
                     title="Hide resultsssssss"
                     @click="emit('close')"
                 >
@@ -48,7 +48,7 @@
         >
             <q-spinner-dots color="amber" size="32px" />
 
-            <span class="text-xs text-[#6b7280] font-mono">
+            <span class="text-xs text-[#a0a0a0] font-mono">
                 Executing query...
             </span>
         </div>
@@ -130,7 +130,7 @@
         <!-- Empty -->
         <div
             v-else
-            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap justify-center items-center gap-3 text-[#4b4540]"
+            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap justify-center items-center gap-3 text-[#909090]"
         >
             <q-icon
                 name="table_rows"
@@ -199,8 +199,8 @@ watch(
     height: 30px;
     min-height: 30px;
 
-    background: #161310;
-    border-bottom: 1px solid #292521;
+    background: #353535;
+    border-bottom: 1px solid #484848;
 }
 
 .result-sub-tabs :deep(.q-tab) {
@@ -210,17 +210,17 @@ watch(
     min-width: 70px;
     padding: 0 10px;
 
-    color: #6b7280;
+    color: #a0a0a0;
 
     font-family: monospace;
     font-size: 10px;
 
-    border-right: 1px solid #292521;
+    border-right: 1px solid #484848;
 }
 
 .result-sub-tabs :deep(.q-tab--active) {
     color: #f59e0b;
-    background: #100e0c;
+    background: #2d2d2d;
 }
 
 /* Important: align icon + text */

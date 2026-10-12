@@ -1,8 +1,8 @@
 <template>
-  <div class="h-full min-h-0 flex bg-[#100e0c]">
+  <div class="h-full min-h-0 flex bg-[#2d2d2d]">
 
     <!-- Sidebar -->
-    <div class="w-[150px] shrink-0 h-full border-r border-[#292521]">
+    <div class="w-[150px] shrink-0 h-full border-r border-[#484848]">
       <q-list>
         <q-item
           v-for="tab in tabs"

@@ -166,19 +166,19 @@ watch(activeConnection, (newConnection) => {
 </script>
 
 <style>
-.connection-portal { background: #0c0b09; color: #eeeae4; }
-.portal-header, .connection-card, .connection-menu { background: #161310; color: #eeeae4; }
-.portal-drawer { background: #100e0c; color: #eeeae4; }
-.connection-card { width: 100%; max-width: 600px; border-color: #34302b; border-radius: 12px; }
+.connection-portal { background: #282828; color: #eeeae4; }
+.portal-header, .connection-card, .connection-menu { background: #353535; color: #eeeae4; }
+.portal-drawer { background: #2d2d2d; color: #eeeae4; }
+.connection-card { width: 100%; max-width: 600px; border-color: #505050; border-radius: 12px; }
 .ssh-card { width: 560px; max-width: calc(100vw - 32px); }
-.connection-options, .saved-connection { border: 1px solid #34302b; border-radius: 8px; }
-.saved-connection { background: #161310; width: 100%; min-width: 0; }
-.saved-connection.q-item--active { border-color: #c99334; background: #241d12; }
+.connection-options, .saved-connection { border: 1px solid #505050; border-radius: 8px; }
+.saved-connection { background: #353535; width: 100%; min-width: 0; }
+.saved-connection.q-item--active { border-color: #c99334; background: #423c32; }
 .saved-connection .q-item__section--avatar { min-width: 32px; }
 .saved-connection > .q-item__section--main { min-width: 0; overflow: hidden; }
 .connection-actions { flex-shrink: 0; padding-left: 8px; }
 .connection-error-message { white-space: pre-wrap; overflow-wrap: anywhere; }
-.connection-note { background: #241f17; color: #d5cec3; }
+.connection-note { background: #3c3933; color: #d5cec3; }
 .connection-card .q-card__actions { gap: 8px; }
 .connection-card .q-card__actions > .q-btn { margin-left: 0; }
 </style>

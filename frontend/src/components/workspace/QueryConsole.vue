@@ -1,16 +1,16 @@
 <template>
     <div
-        class="h-full w-full min-w-0 min-h-0 flex flex-col flex-nowrap bg-[#0c0b09] overflow-hidden"
+        class="h-full w-full min-w-0 min-h-0 flex flex-col flex-nowrap bg-[#282828] overflow-hidden"
     >
 
         <!-- Query info -->
         <div
-            class="h-7 shrink-0 bg-[#100e0c] border-b border-[#292521] flex flex-nowrap items-center justify-between gap-2 min-w-0 overflow-hidden px-3"
+            class="h-7 shrink-0 bg-[#2d2d2d] border-b border-[#484848] flex flex-nowrap items-center justify-between gap-2 min-w-0 overflow-hidden px-3"
         >
             <div class="flex flex-nowrap items-center gap-3 min-w-0">
                 <span
                     v-if="activeTab"
-                    class="text-[10px] font-mono text-[#6b7280] truncate"
+                    class="text-[10px] font-mono text-[#a0a0a0] truncate"
                 >
                     {{ activeTab.title }}
                 </span>
@@ -25,7 +25,7 @@
 
             <div
                 v-if="activeTab"
-                class="flex flex-nowrap shrink-0 items-center gap-2 text-[10px] text-[#4b4540]"
+                class="flex flex-nowrap shrink-0 items-center gap-2 text-[10px] text-[#909090]"
             >
                 <span v-if="dbDriver === 'mongodb'">MongoDB JSON command</span>
                 <span>Ctrl + Enter</span>
@@ -52,7 +52,7 @@
             </div>
         </div>
 
-        <div v-if="dbDriver === 'mongodb'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#292521]">
+        <div v-if="dbDriver === 'mongodb'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#484848]">
             Example: {"find":"users","filter":{},"sort":{"_id":1}} · Double-click a result document to inspect it.
         </div>
         <!-- Query Editor -->
@@ -73,15 +73,15 @@
         <!-- No active query -->
         <div
             v-else
-            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap items-center justify-center gap-3 bg-[#0c0b09]"
+            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap items-center justify-center gap-3 bg-[#282828]"
         >
             <q-icon
                 name="code"
                 size="36px"
-                class="text-[#4b4540]"
+                class="text-[#909090]"
             />
 
-            <div class="text-xs text-[#6b7280]">
+            <div class="text-xs text-[#a0a0a0]">
                 No query tab open
             </div>
 

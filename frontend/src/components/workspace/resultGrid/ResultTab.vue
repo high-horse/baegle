@@ -1,5 +1,5 @@
 <template>
-    <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[#100e0c]">
+    <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[#2d2d2d]">
         <q-form v-if="result.IsQuery" class="result-filter-bar" @submit.prevent="applyFilter">
             <q-icon name="filter_alt" size="15px" :class="appliedFilter ? 'text-amber-400' : 'text-gray-500'" />
             <div class="result-filter-input" :class="{ 'has-error': filterError }">
@@ -11,7 +11,7 @@
             <q-btn flat dense no-caps type="button" class="filter-action" :disable="!filterDraft && !appliedFilter" title="Reset filter (Esc)" aria-label="Reset filter" @click="clearFilter"><q-icon name="close" size="15px" /></q-btn>
             <q-btn flat dense no-caps type="button" class="filter-action" title="Filter syntax" aria-label="Filter syntax">
                 <q-icon name="help_outline" size="15px" />
-                <q-menu class="border border-[#292521] bg-[#161310] text-gray-300">
+                <q-menu class="border border-[#484848] bg-[#353535] text-gray-300">
                     <div class="max-w-sm p-3 font-mono text-[11px] leading-6">
                         <div class="text-amber-400">Combine conditions with AND / OR</div>
                         <div>age &gt;= 18 AND status = 'active'</div>
@@ -55,15 +55,15 @@
                  ===================================================== -->
 
             <template #header="props">
-                <q-tr :props="props" class="bg-[#161310]">
+                <q-tr :props="props" class="bg-[#353535]">
                     <q-th
                         v-for="col in props.cols"
                         :key="col.name"
                         :props="props"
-                        class="relative box-border h-[28px] overflow-hidden whitespace-nowrap border-b-2 border-[#292521] px-2 py-0 align-middle font-mono text-[11px] font-bold text-amber-400"
+                        class="relative box-border h-[28px] overflow-hidden whitespace-nowrap border-b-2 border-[#484848] px-2 py-0 align-middle font-mono text-[11px] font-bold text-amber-400"
                         :class="{
                             'cursor-pointer': col.name !== 'sn' && (result.CanSort ?? result.CanNavigate),
-                            'sticky-col-header pl-2 pr-1 text-left font-normal text-[#4b5563]':
+                            'sticky-col-header pl-2 pr-1 text-left font-normal text-[#909090]':
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
@@ -124,7 +124,7 @@
                             anchor="bottom middle"
                             self="top middle"
                             :offset="[0, 6]"
-                            class="bg-[#1c1916] text-gray-300 shadow-lg"
+                            class="bg-[#383838] text-gray-300 shadow-lg"
                         >
                             <div class="font-mono text-[10px]">
                                 {{ col.Type }}
@@ -145,14 +145,14 @@
                         <q-menu
                             v-if="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate)"
                             context-menu
-                            class="min-w-[150px] border border-[#292521] bg-[#1c1916] text-gray-300 shadow-xl"
+                            class="min-w-[150px] border border-[#484848] bg-[#383838] text-gray-300 shadow-xl"
                         >
                             <!-- Sort Ascending -->
                             <q-item
                                 clickable
                                 v-close-popup
                                 dense
-                                class="min-h-[28px] px-2 hover:bg-[#292521]"
+                                class="min-h-[28px] px-2 hover:bg-[#484848]"
                                 :disable="loading"
                                 @click="sortColumn(col.name, 'asc')"
                             >
@@ -176,7 +176,7 @@
                                 clickable
                                 v-close-popup
                                 dense
-                                class="min-h-[28px] px-2 hover:bg-[#292521]"
+                                class="min-h-[28px] px-2 hover:bg-[#484848]"
                                 :disable="loading"
                                 @click="sortColumn(col.name, 'desc')"
                             >
@@ -195,7 +195,7 @@
                                 </q-item-section>
                             </q-item>
 
-                            <q-separator class="my-1 bg-[#292521]" />
+                            <q-separator class="my-1 bg-[#484848]" />
 
                             <!-- Clear Sort -->
                             <q-item
@@ -203,7 +203,7 @@
                                 clickable
                                 v-close-popup
                                 dense
-                                class="min-h-[28px] px-2 hover:bg-[#292521]"
+                                class="min-h-[28px] px-2 hover:bg-[#484848]"
                                 :disable="loading"
                                 @click="clearSort"
                             >
@@ -233,7 +233,7 @@
             <template #body="props">
                 <q-tr
                     :props="props"
-                    class="bg-[#100e0c] even:bg-[#13110f] hover:!bg-[#231f1a]"
+                    class="bg-[#2d2d2d] even:bg-[#303030] hover:!bg-[#404040]"
                     :class="{ 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
                     @click="selectedRowKey = props.row._editKey || ''"
                 >
@@ -241,9 +241,9 @@
                         v-for="col in props.cols"
                         :key="col.name"
                         :props="props"
-                        class="box-border overflow-hidden whitespace-nowrap border-b border-[#292521] px-2 py-1.5 font-mono text-[11px] text-gray-300"
+                        class="box-border overflow-hidden whitespace-nowrap border-b border-[#484848] px-2 py-1.5 font-mono text-[11px] text-gray-300"
                         :class="{
-                            'sticky-col-body pl-2 pr-1 text-left text-[#4b5563]':
+                            'sticky-col-body pl-2 pr-1 text-left text-[#909090]':
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
@@ -273,7 +273,7 @@
         </q-table>
 
         <q-dialog v-model="documentDialog">
-            <q-card class="bg-[#161310] text-gray-300" style="width: 800px; max-width: 90vw">
+            <q-card class="bg-[#353535] text-gray-300" style="width: 800px; max-width: 90vw">
                 <q-card-section class="flex items-center justify-between">
                     <span>{{ documentTitle }}</span>
                     <q-btn flat round dense icon="close" aria-label="Close JSON details" v-close-popup />
@@ -289,7 +289,7 @@
              ========================================================= -->
 
         <div
-            class="data-grid-footer absolute bottom-0 left-0 right-0 z-[100] flex h-[36px] items-center justify-between border-t border-[#292521] bg-[#161310] px-2"
+            class="data-grid-footer absolute bottom-0 left-0 right-0 z-[100] flex h-[36px] items-center justify-between border-t border-[#484848] bg-[#353535] px-2"
         >
             <!-- Left side -->
             <div class="flex items-center gap-2">
@@ -321,7 +321,7 @@
 
                 <!-- Page -->
                 <div
-                    class="mx-1 flex h-[24px] min-w-[80px] items-center justify-center border border-[#292521] bg-[#100e0c] px-2 font-mono text-[10px] text-gray-400"
+                    class="mx-1 flex h-[24px] min-w-[80px] items-center justify-center border border-[#484848] bg-[#2d2d2d] px-2 font-mono text-[10px] text-gray-400"
                 >
                     Page {{ currentPage }} of {{ totalPages ?? '…' }}
                 </div>
@@ -888,8 +888,8 @@ const mappedColumns =
     align-items: center;
     gap: 6px;
     padding: 0 8px;
-    background: #161310;
-    border-bottom: 1px solid #292521;
+    background: #353535;
+    border-bottom: 1px solid #484848;
     font-family: monospace;
     font-size: 11px;
 }
@@ -901,19 +901,19 @@ const mappedColumns =
     min-width: 0;
     height: 25px;
     padding: 0 8px;
-    border: 1px solid #292521;
-    background: #100e0c;
+    border: 1px solid #484848;
+    background: #2d2d2d;
 }
 .result-filter-input:focus-within { border-color: #a97724; }
 .result-filter-input.has-error { border-color: #b45353; }
 .filter-expression { flex: 1; min-width: 0; }
 .filter-expression :deep(.q-field__control), .filter-expression :deep(.q-field__marginal) { min-height: 23px; height: 23px; }
 .filter-expression :deep(.q-field__native) { padding: 0; color: #d1d5db; }
-.filter-expression :deep(input::placeholder) { color: #6b7280; }
+.filter-expression :deep(input::placeholder) { color: #a0a0a0; }
 .filter-action { min-height: 25px; padding: 0; display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; color: #9ca3af; border: 1px solid transparent; }
-.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: #fbbf24; background: #292521; border-color: #40382e; }
+.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: #fbbf24; background: #484848; border-color: #555555; }
 .filter-action.disabled { opacity: .3; cursor: default; }
-.filter-count { color: #6b7280; white-space: nowrap; padding-left: 6px; }
+.filter-count { color: #a0a0a0; white-space: nowrap; padding-left: 6px; }
 @media (max-width: 600px) { .filter-scope { display: none; } }
 
 .row-number {
@@ -956,7 +956,7 @@ const mappedColumns =
 
     width: 1px;
 
-    background: #3a342e;
+    background: #5a5a5a;
 
     transition:
         background-color 80ms ease,
@@ -1014,7 +1014,7 @@ const mappedColumns =
 }
 
 .data-explorer-grid :deep(.q-table__middle) {
-    background: #100e0c;
+    background: #2d2d2d;
 
     min-width: 0;
     min-height: 0;
@@ -1025,8 +1025,8 @@ const mappedColumns =
     scrollbar-width: thin;
 
     scrollbar-color:
-        #292521
-        #100e0c;
+        #484848
+        #2d2d2d;
 }
 
 /* =========================================================
@@ -1079,7 +1079,7 @@ const mappedColumns =
 
     z-index: 40;
 
-    background: #161310;
+    background: #353535;
 
     overflow: hidden;
 
@@ -1109,9 +1109,9 @@ const mappedColumns =
 
     max-width: var(--row-number-width);
 
-    background: #161310;
+    background: #353535;
 
-    border-right: 1px solid #332e28;
+    border-right: 1px solid #505050;
 }
 
 /* =========================================================
@@ -1136,9 +1136,9 @@ const mappedColumns =
     overflow: visible;
     text-overflow: clip;
 
-    background: #100e0c;
+    background: #2d2d2d;
 
-    border-right: 1px solid #292521;
+    border-right: 1px solid #484848;
 }
 
 /* =========================================================
@@ -1150,7 +1150,7 @@ const mappedColumns =
         tbody tr:nth-child(even)
             td:first-child
     ) {
-    background: #13110f;
+    background: #303030;
 }
 
 /* =========================================================
@@ -1159,7 +1159,7 @@ const mappedColumns =
 
 .data-explorer-grid
     :deep(tbody tr:hover td:first-child) {
-    background: #231f1a;
+    background: #404040;
 }
 
 /* =========================================================
@@ -1197,12 +1197,12 @@ const mappedColumns =
 
 .data-explorer-grid :deep(th + th),
 .data-explorer-grid :deep(td + td) {
-    border-left: 1px solid #292521;
+    border-left: 1px solid #484848;
 }
 
 .data-explorer-grid
     :deep(thead th + th) {
-    border-left-color: #332e28;
+    border-left-color: #505050;
 }
 
 /* =========================================================
@@ -1231,19 +1231,19 @@ const mappedColumns =
 
 .data-explorer-grid
     :deep(.q-table__middle::-webkit-scrollbar-track) {
-    background: #100e0c;
+    background: #2d2d2d;
 }
 
 .data-explorer-grid
     :deep(.q-table__middle::-webkit-scrollbar-thumb) {
-    background: #292521;
+    background: #484848;
 
     border-radius: 4px;
 }
 
 .data-explorer-grid
     :deep(.q-table__middle::-webkit-scrollbar-thumb:hover) {
-    background: #3a342e;
+    background: #5a5a5a;
 }
 
 /* =========================================================
@@ -1271,11 +1271,11 @@ const mappedColumns =
     align-items: center;
     justify-content: center;
 
-    border: 1px solid #292521;
+    border: 1px solid #484848;
 
-    background: #100e0c;
+    background: #2d2d2d;
 
-    color: #6b7280;
+    color: #a0a0a0;
 
     cursor: pointer;
 
@@ -1288,9 +1288,9 @@ const mappedColumns =
 .pagination-button:hover:not(
         .disabled
     ) {
-    background: #292521;
+    background: #484848;
 
-    border-color: #3a342e;
+    border-color: #5a5a5a;
 
     color: #f59e0b;
 }

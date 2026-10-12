@@ -1,6 +1,6 @@
 <template>
     <div
-        class="h-9 shrink-0 bg-[#161310] border-b border-[#292521] flex items-center min-w-0"
+        class="h-9 shrink-0 bg-[#353535] border-b border-[#484848] flex items-center min-w-0"
     >
         <!-- Horizontally scrollable tabs -->
         <q-scroll-area
@@ -12,7 +12,7 @@
                 <div
                     v-for="tab in tabs"
                     :key="tab.id"
-                    class="workspace-tab h-full shrink-0 flex items-center border-r border-[#292521]"
+                    class="workspace-tab h-full shrink-0 flex items-center border-r border-[#484848]"
                     :data-tab-id="tab.id"
                     draggable="true"
                     @dragstart="startDrag($event, tab.id)"
@@ -22,8 +22,8 @@
                     :data-drop-side="dropTarget?.id === tab.id ? dropTarget.side : undefined"
                     :class="
                         tab.id === activeTabId
-                            ? 'bg-[#0c0b09]'
-                            : 'bg-[#161310] hover:bg-[#231f1a]'
+                            ? 'bg-[#282828]'
+                            : 'bg-[#353535] hover:bg-[#404040]'
                     "
                 >
                     <!-- Tab button -->
@@ -36,7 +36,7 @@
                         :class="
                             tab.id === activeTabId
                                 ? 'text-amber-400 active-tab'
-                                : 'text-[#6b7280] hover:text-[#d1d5db]'
+                                : 'text-[#a0a0a0] hover:text-[#d1d5db]'
                         "
                         @click="selectTab(tab.id)"
                     >
@@ -90,8 +90,8 @@
                         @dragstart.stop.prevent
                         :class="
                             tab.id === activeTabId
-                                ? 'text-[#6b7280]'
-                                : 'text-[#4b4540]'
+                                ? 'text-[#a0a0a0]'
+                                : 'text-[#909090]'
                         "
                         @click.stop="closeTab(tab.id)"
                     >
@@ -329,7 +329,7 @@ function closeTab(id: string) {
 
 .tab-close:hover {
     color: #ffffff !important;
-    background: #292521 !important;
+    background: #484848 !important;
 }
 
 
@@ -343,6 +343,6 @@ function closeTab(id: string) {
 
 .new-tab-button:hover {
     color: #f59e0b !important;
-    background: #231f1a !important;
+    background: #404040 !important;
 }
 </style>

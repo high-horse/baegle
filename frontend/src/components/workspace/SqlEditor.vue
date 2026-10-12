@@ -200,7 +200,7 @@ onMounted(() => {
                     minHeight: "0",
                     maxWidth: "100%",
             
-                    backgroundColor: "#0c0b09",
+                    backgroundColor: "#282828",
                     color: "#d1d5db",
                 },
             
@@ -231,13 +231,13 @@ onMounted(() => {
                 },
             
                 ".cm-gutters": {
-                    backgroundColor: "#100e0c",
-                    color: "#4b4540",
+                    backgroundColor: "#2d2d2d",
+                    color: "#909090",
                     border: "none",
                 },
             
                 ".cm-activeLineGutter": {
-                    backgroundColor: "#231f1a",
+                    backgroundColor: "#404040",
                     color: "#f59e0b",
                 },
             
@@ -251,13 +251,13 @@ onMounted(() => {
                 },
             
                 ".cm-tooltip-autocomplete": {
-                    backgroundColor: "#161310",
+                    backgroundColor: "#353535",
                     color: "#d1d5db",
-                    border: "1px solid #34302b",
+                    border: "1px solid #505050",
                     borderRadius: "6px",
                 },
                 ".cm-tooltip-autocomplete ul li[aria-selected]": {
-                    backgroundColor: "#292115",
+                    backgroundColor: "#494236",
                     color: "#f59e0b",
                 },
                 ".cm-completionDetail": {

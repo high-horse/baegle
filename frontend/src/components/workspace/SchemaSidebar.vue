@@ -1,10 +1,10 @@
 <template>
     <div
-        class="h-full bg-[#100e0c] border-r border-[#292521] flex flex-col font-sans"
+        class="h-full bg-[#2d2d2d] border-r border-[#484848] flex flex-col font-sans"
     >
         <!-- Sidebar Header -->
         <div
-            class="p-3 border-b border-[#292521] flex justify-between items-center bg-[#161310]"
+            class="p-3 border-b border-[#484848] flex justify-between items-center bg-[#353535]"
         >
             <div class="flex items-center gap-2 min-w-0">
                 <q-icon name="storage" size="15px" class="text-amber-400" />
@@ -14,7 +14,7 @@
                         {{ activeConnection?.name }}
                     </div>
 
-                    <div class="text-[10px] text-[#6b7280] truncate">
+                    <div class="text-[10px] text-[#a0a0a0] truncate">
                         <span class="font-bold">
                             {{ activeConnection?.driver }}
                         </span>
@@ -29,7 +29,7 @@
                 round
                 icon="refresh"
                 size="xs"
-                class="text-[#6b7280] hover:text-amber-400"
+                class="text-[#a0a0a0] hover:text-amber-400"
                 :loading="loading"
                 @click="refreshSchema"
             />
@@ -58,7 +58,7 @@
             >
                 <template #default-header="prop">
                     <div
-                        class="flex items-center gap-1 py-[4px] px-1 rounded cursor-pointer group w-full hover:bg-[#231f1a] compact-tree-header"
+                        class="flex items-center gap-1 py-[4px] px-1 rounded cursor-pointer group w-full hover:bg-[#404040] compact-tree-header"
                         @dblclick="handleNodeDoubleClick(prop.node)"
                     >
                         <q-icon
@@ -90,7 +90,7 @@
             <!-- Empty state -->
             <div
                 v-if="!schemaNodes.length && !loading"
-                class="flex flex-col items-center justify-center py-8 gap-2 text-[#4b4540]"
+                class="flex flex-col items-center justify-center py-8 gap-2 text-[#909090]"
             >
                 <q-icon name="table_rows" size="24px" />
 
@@ -102,14 +102,14 @@
 
         <!-- Sidebar Footer -->
         <div
-            class="h-7 px-3 flex items-center justify-between border-t border-[#292521] bg-[#161310]"
+            class="h-7 px-3 flex items-center justify-between border-t border-[#484848] bg-[#353535]"
         >
             <div class="flex items-center gap-3">
-                <span class="text-[10px] text-[#4b4540] font-mono">
+                <span class="text-[10px] text-[#909090] font-mono">
                     {{ tableCount }} {{ activeConnection?.driver === 'mongodb' ? 'collections' : 'tables' }}
                 </span>
 
-                <span class="text-[10px] text-[#4b4540] font-mono">
+                <span class="text-[10px] text-[#909090] font-mono">
                     {{ viewCount }} views
                 </span>
             </div>

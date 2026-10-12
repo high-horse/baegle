@@ -223,7 +223,7 @@
                                 emit-value
                                 map-options
                                 :options="valueModes(field)"
-                                popup-content-class="bg-[#161310] text-gray-300 font-mono text-xs"
+                                popup-content-class="bg-[#353535] text-gray-300 font-mono text-xs"
                             />
                         </div>
                     </div>
@@ -558,8 +558,8 @@ defineExpose({ openRow });
     align-items: center;
     gap: 5px;
     padding: 0 8px;
-    background: #161310;
-    border-bottom: 1px solid #292521;
+    background: #353535;
+    border-bottom: 1px solid #484848;
     font-family: monospace;
     font-size: 11px;
 }
@@ -574,7 +574,7 @@ defineExpose({ openRow });
     white-space: nowrap;
 }
 .table-edit-bar .q-btn:hover:not(.disabled) {
-    background: #292521;
+    background: #484848;
     color: #fbbf24;
 }
 .table-edit-bar .q-btn.disabled {
@@ -586,15 +586,15 @@ defineExpose({ openRow });
 }
 .divider {
     height: 16px;
-    border-left: 1px solid #40382e;
+    border-left: 1px solid #555555;
     margin: 0 3px;
 }
 .row-editor-card {
     width: 720px;
     max-width: 95vw;
-    background: #161310;
+    background: #353535;
     color: #d1d5db;
-    border: 1px solid #40382e;
+    border: 1px solid #555555;
     border-radius: 4px;
     font-family: monospace;
     font-size: 11px;
@@ -605,11 +605,11 @@ defineExpose({ openRow });
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
-    background: #161310;
+    background: #353535;
 }
 .row-editor-header {
     justify-content: space-between;
-    border-bottom: 1px solid #292521;
+    border-bottom: 1px solid #484848;
 }
 .row-editor-heading {
     display: flex;
@@ -634,14 +634,14 @@ defineExpose({ openRow });
     color: #9ca3af;
 }
 .editor-icon-button:hover {
-    background: #292521;
+    background: #484848;
     color: #fbbf24;
 }
 .row-editor-body {
     max-height: 65vh;
     overflow: auto;
     padding: 12px;
-    background: #100e0c;
+    background: #2d2d2d;
 }
 .row-editor-fields {
     display: flex;
@@ -661,7 +661,7 @@ defineExpose({ openRow });
 .field-type {
     display: block;
     font-size: 10px;
-    color: #6b7280;
+    color: #a0a0a0;
     margin-top: 2px;
     font-weight: 400;
 }
@@ -676,11 +676,11 @@ defineExpose({ openRow });
     min-height: 28px;
     height: 28px;
     border-radius: 2px;
-    background: #161310;
+    background: #353535;
 }
 .editor-input :deep(.q-field__control::before),
 .value-mode :deep(.q-field__control::before) {
-    border-color: #40382e;
+    border-color: #555555;
 }
 .editor-input :deep(.q-field__native),
 .value-mode :deep(.q-field__native) {
@@ -692,16 +692,16 @@ defineExpose({ openRow });
     height: 28px;
 }
 .locked-input :deep(.q-field__native) {
-    color: #6b7280;
+    color: #a0a0a0;
 }
 .locked-input :deep(.q-field__control) {
-    background: #13110f;
+    background: #303030;
 }
 .field-lock {
     display: flex;
     align-items: center;
     gap: 5px;
-    color: #6b7280;
+    color: #a0a0a0;
     font-size: 10px;
     white-space: nowrap;
 }
@@ -723,25 +723,25 @@ defineExpose({ openRow });
     margin-top: 12px;
 }
 .row-editor-footer {
-    border-top: 1px solid #292521;
+    border-top: 1px solid #484848;
 }
 .row-editor-footer > span {
     flex: 1;
-    color: #6b7280;
+    color: #a0a0a0;
     font-size: 10px;
 }
 .editor-button {
     min-height: 28px;
     font: inherit;
     padding: 6px 10px;
-    border: 1px solid #40382e;
+    border: 1px solid #555555;
     border-radius: 2px;
     color: #9ca3af;
-    background: #161310;
+    background: #353535;
     white-space: nowrap;
 }
 .editor-button:hover {
-    background: #292521;
+    background: #484848;
     color: #fbbf24;
 }
 .editor-button-primary {

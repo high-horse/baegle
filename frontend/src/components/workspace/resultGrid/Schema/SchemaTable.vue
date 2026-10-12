@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full relative overflow-hidden bg-[#100e0c]">
+    <div class="h-full relative overflow-hidden bg-[#2d2d2d]">
         <div class="q-ma-lg">
             <q-table
                 flat
@@ -87,7 +87,7 @@
     
                                 <span
                                     v-else
-                                    class="text-[#4b4540]"
+                                    class="text-[#909090]"
                                 >
                                     —
                                 </span>

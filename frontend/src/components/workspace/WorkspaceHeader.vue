@@ -1,6 +1,6 @@
 <template>
     <header
-        class="h-12 bg-[#161310] border-b border-[#292521] flex items-center justify-between px-4 z-10"
+        class="h-12 bg-[#353535] border-b border-[#484848] flex items-center justify-between px-4 z-10"
     >
         <!-- Left -->
         <div class="flex items-center gap-3">
@@ -36,7 +36,7 @@
                 round
                 icon="tune"
                 size="sm"
-                class="text-[#6b7280] hover:text-white"
+                class="text-[#a0a0a0] hover:text-white"
                 @click="handleSettings"
             />
 

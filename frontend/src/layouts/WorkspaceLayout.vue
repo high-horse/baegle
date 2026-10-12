@@ -1,6 +1,6 @@
 <template>
     <div
-        class="h-screen w-screen flex flex-col flex-nowrap bg-[#0c0b09] text-[#94a3b8] overflow-hidden select-text"
+        class="h-screen w-screen flex flex-col flex-nowrap bg-[#282828] text-[#94a3b8] overflow-hidden select-text"
     >
         <!-- select-none -->
         <WorkspaceHeader @disconnect="handleDisconnect(false)" />
@@ -164,10 +164,10 @@
                                     <q-icon
                                         name="tab"
                                         size="36px"
-                                        class="text-[#4b4540]"
+                                        class="text-[#909090]"
                                     />
 
-                                    <span class="text-xs text-[#6b7280]">
+                                    <span class="text-xs text-[#a0a0a0]">
                                         No tab selected
                                     </span>
 
