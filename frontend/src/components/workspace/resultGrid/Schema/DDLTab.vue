@@ -6,7 +6,7 @@
         </div>
         <div v-if="loading" class="flex items-center gap-2 text-xs"><q-spinner color="amber" />Loading DDL…</div>
         <div v-else-if="error" role="alert" class="text-xs text-red-300">{{ error }}</div>
-        <pre v-else-if="ddl" class="flex-1 min-h-0 overflow-auto text-xs font-mono whitespace-pre select-text">{{ ddl }}</pre>
+        <SqlPreview v-else-if="ddl" :text="ddl" :driver="connectionStore.activeConnection?.driver" class="flex-1" />
         <div v-else class="text-xs text-gray-500">Open a table from the sidebar to view its DDL.</div>
     </div>
 </template>
@@ -15,9 +15,12 @@
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { DbService } from '@bindings/db-lens/internal/app';
 import { useTableEditsStore } from '@/stores/tableEditsStore';
+import { useConnectionStore } from '@/stores/connectionStore';
+import SqlPreview from '@/components/workspace/SqlPreview.vue';
 
 const props = defineProps<{ tableTabId?: string }>();
 const tableEdits = useTableEditsStore();
+const connectionStore = useConnectionStore();
 const table = computed(() => props.tableTabId ? tableEdits.states[props.tableTabId]?.table : undefined);
 const ddl = ref('');
 const error = ref('');

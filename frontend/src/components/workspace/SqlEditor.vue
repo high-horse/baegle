@@ -16,9 +16,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { search, searchKeymap } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { sql, PostgreSQL, MySQL, SQLite, keywordCompletionSource, schemaCompletionSource } from "@codemirror/lang-sql";
-import { nord } from "@fsegurai/codemirror-theme-nord";
-import { materialDark } from "@fsegurai/codemirror-theme-material-dark";
-import { oneDark } from "@codemirror/theme-one-dark";
+import { sqlTheme } from "@/utils/sqlTheme";
 import { buildSQLCompletionSchema, getSQLTableReferences, matchingSQLTable } from "@/utils/sqlCompletion";
 import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -184,7 +182,7 @@ onMounted(() => {
             // }),
             // 
             // Dark editor theme
-            materialDark, // oneDark, // nord,
+            sqlTheme,
             // Basic editing
             //
             search({ top: true }),
