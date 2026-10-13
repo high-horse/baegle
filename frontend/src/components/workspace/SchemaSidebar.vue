@@ -41,6 +41,7 @@
                 placeholder="Search..."
                 class="w-full"
                 dense rounded
+                outlined
                 @keyup.enter="handleSearch"
             />
         </div>
