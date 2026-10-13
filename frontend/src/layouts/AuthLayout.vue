@@ -35,7 +35,13 @@
                             <q-item-label class="ellipsis">{{ connection.name }}</q-item-label>
                             <q-item-label v-if="connectingConnectionId === connection.id" caption class="text-amber" role="status">{{ connectionStage }}</q-item-label>
                             <q-item-label caption class="ellipsis">{{ connection.driver }} · {{ connection.host ? `${connection.host}:${connection.port.Int64}` : connection.dbname?.split('/').pop() }}</q-item-label>
-
+                            <q-tooltip :delay="350" max-width="420px" class="connection-tooltip">
+                                <div class="text-weight-medium">{{ connection.name }}</div>
+                                <div>Driver: {{ connection.driver }}</div>
+                                <div v-if="connection.host">Host: {{ connection.host }}</div>
+                                <div v-if="connection.host && connection.port.Valid">Port: {{ connection.port.Int64 }}</div>
+                                <div v-if="connection.dbname">Database: {{ connection.dbname }}</div>
+                            </q-tooltip>
                         </q-item-section>
                         <q-item-section side class="connection-actions">
                             <q-btn flat round dense icon="more_vert" color="amber" :aria-label="`Actions for ${connection.name}`" @click.stop="actionMenuId = actionMenuId === connection.id ? null : connection.id" @dblclick.stop @keydown.enter.stop @keydown.space.stop>
@@ -178,6 +184,7 @@ watch(activeConnection, (newConnection) => {
 .saved-connection > .q-item__section--main { min-width: 0; overflow: hidden; }
 .connection-actions { flex-shrink: 0; padding-left: 8px; }
 .connection-error-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+.connection-tooltip { white-space: normal; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
 .connection-note { background: #3c3933; color: #d5cec3; }
 .connection-card .q-card__actions { gap: 8px; }
 .connection-card .q-card__actions > .q-btn { margin-left: 0; }
