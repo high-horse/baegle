@@ -4,6 +4,7 @@
     >
         <!-- select-none -->
         <WorkspaceHeader @disconnect="handleDisconnect(false)" />
+        <TableQuickOpen @selectTable="handleTableSelect" />
 
         <div class="flex-1 flex flex-nowrap relative min-w-0 min-h-0 overflow-hidden">
             <q-splitter
@@ -205,6 +206,7 @@ import { DbService } from "@bindings/db-lens/internal/app";
 
 import WorkspaceHeader from "@/components/workspace/WorkspaceHeader.vue";
 import SchemaSidebar from "@/components/workspace/SchemaSidebar.vue";
+import TableQuickOpen from "@/components/workspace/TableQuickOpen.vue";
 import QueryConsole from "@/components/workspace/QueryConsole.vue";
 // import ResultGrid from "@/components/workspace/ResultGrid.vue";
 import ResultGrid from "@/components/workspace/resultGrid/ResultGrid.vue";
