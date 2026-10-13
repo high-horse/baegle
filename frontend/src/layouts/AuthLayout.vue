@@ -11,9 +11,9 @@
                 <q-btn unelevated no-caps color="amber" text-color="black" icon="add" label="New connection" @click="$router.push({ name: 'Welcome', query: {} })" />
             </q-toolbar>
         </q-header>
-        <q-drawer v-model="drawerOpen" show-if-above :breakpoint="1023" :width="280" bordered class="portal-drawer">
+        <q-drawer v-model="drawerOpen" show-if-above :breakpoint="1023" :width="drawerWidth" bordered class="portal-drawer" :class="{ 'portal-drawer-resizing': resizingDrawer }">
             <q-scroll-area class="fit" :content-style="{ width: '100%' }">
-                <q-list padding class="q-pa-md">
+                <q-list padding class="connection-list q-pa-md">
                     <q-item dense class="q-mb-sm">
                         <q-item-section class="text-caption text-grey-5">Saved connections</q-item-section>
                         <q-item-section side>
@@ -33,9 +33,9 @@
                             <q-icon v-else name="lan" color="amber" size="20px" />
                         </q-item-section>
                         <q-item-section>
-                            <q-item-label class="ellipsis">{{ connection.name }}</q-item-label>
+                            <q-item-label class="connection-name">{{ connection.name }}</q-item-label>
                             <q-item-label v-if="connectingConnectionId === connection.id" caption class="text-amber" role="status">{{ connectionStage }}</q-item-label>
-                            <q-item-label caption class="ellipsis">{{ connection.driver }} · {{ connection.host ? `${connection.host}:${connection.port.Int64}` : connection.dbname?.split('/').pop() }}</q-item-label>
+                            <q-item-label caption class="connection-address">{{ connection.driver }} · {{ connection.host ? `${connection.host}:${connection.port.Int64}` : connection.dbname?.split('/').pop() }}</q-item-label>
                             <q-tooltip :delay="350" max-width="420px" class="connection-tooltip">
                                 <div class="text-weight-medium">{{ connection.name }}</div>
                                 <div>Driver: {{ connection.driver }}</div>
@@ -68,6 +68,10 @@
                     </q-expansion-item>
                 </q-list>
             </q-scroll-area>
+            <div class="connection-drawer-resizer" role="separator" tabindex="0" aria-label="Resize saved connections sidebar" aria-orientation="vertical"
+                :aria-valuemin="drawerMinWidth" :aria-valuemax="drawerMaxWidth" :aria-valuenow="drawerWidth"
+                @pointerdown="startDrawerResize" @pointermove="resizeDrawer" @pointerup="finishDrawerResize"
+                @pointercancel="finishDrawerResize" @lostpointercapture="finishDrawerResize" @keydown="resizeDrawerWithKeyboard" />
         </q-drawer>
         <q-dialog :model-value="!!groupConnection" :persistent="savingGroup" @update:model-value="open => { if (!open) groupConnection = null; }">
             <q-card class="connection-card" style="width: 420px">
@@ -123,6 +127,7 @@
 <script setup lang="ts">
 import ConnectionGroupSelect from "@/components/connections/ConnectionGroupSelect.vue";
 import { computed, ref, watch } from "vue";
+import { useQuasar } from "quasar";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -131,6 +136,62 @@ import type { Connection } from "@bindings/db-lens/internal/types";
 
 const $router = useRouter();
 const drawerOpen = ref(false);
+const $q = useQuasar();
+const drawerMinWidth = 220;
+const drawerMaxWidth = computed(() => Math.max(drawerMinWidth, Math.min(560,
+    $q.screen.width > 1023 ? $q.screen.width - 480 : $q.screen.width - 32)));
+const drawerWidthKey = "baegle.connection-sidebar-width";
+function readDrawerWidth() {
+    try {
+        const value = Number(localStorage.getItem(drawerWidthKey));
+        return Number.isFinite(value) && value >= drawerMinWidth ? value : 280;
+    } catch { return 280; }
+}
+const preferredDrawerWidth = ref(readDrawerWidth());
+const drawerWidth = computed(() => Math.round(Math.max(drawerMinWidth, Math.min(drawerMaxWidth.value, preferredDrawerWidth.value))));
+const resizingDrawer = ref(false);
+let resizePointerId: number | null = null;
+let resizeStartX = 0;
+let resizeStartWidth = 0;
+function persistDrawerWidth() {
+    try { localStorage.setItem(drawerWidthKey, String(drawerWidth.value)); } catch { /* Resizing still works without storage. */ }
+}
+function startDrawerResize(event: PointerEvent) {
+    if (event.button !== 0 || resizePointerId !== null) return;
+    event.preventDefault();
+    const handle = event.currentTarget as HTMLElement;
+    handle.focus();
+    handle.setPointerCapture(event.pointerId);
+    resizePointerId = event.pointerId;
+    resizeStartX = event.clientX;
+    resizeStartWidth = drawerWidth.value;
+    resizingDrawer.value = true;
+}
+function resizeDrawer(event: PointerEvent) {
+    if (resizePointerId !== event.pointerId) return;
+    preferredDrawerWidth.value = Math.max(drawerMinWidth, Math.min(drawerMaxWidth.value,
+        resizeStartWidth + event.clientX - resizeStartX));
+}
+function finishDrawerResize(event: PointerEvent) {
+    if (resizePointerId !== event.pointerId) return;
+    resizePointerId = null;
+    resizingDrawer.value = false;
+    const handle = event.currentTarget as HTMLElement;
+    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    persistDrawerWidth();
+}
+function resizeDrawerWithKeyboard(event: KeyboardEvent) {
+    let width = drawerWidth.value;
+    const step = event.shiftKey ? 40 : 10;
+    if (event.key === "ArrowLeft") width -= step;
+    else if (event.key === "ArrowRight") width += step;
+    else if (event.key === "Home") width = drawerMinWidth;
+    else if (event.key === "End") width = drawerMaxWidth.value;
+    else return;
+    event.preventDefault();
+    preferredDrawerWidth.value = Math.max(drawerMinWidth, Math.min(drawerMaxWidth.value, width));
+    persistDrawerWidth();
+}
 const actionMenuId = ref<number | null>(null);
 const activeConnectionStore = useActiveConnection();
 const store = useConnectionStore();
@@ -222,7 +283,24 @@ watch(activeConnection, (newConnection) => {
 <style>
 .connection-portal { background: #282828; color: #eeeae4; }
 .portal-header, .connection-card, .connection-menu { background: #353535; color: #eeeae4; }
-.portal-drawer { background: #2d2d2d; color: #eeeae4; }
+.portal-drawer { background: #2d2d2d; color: #eeeae4; container-type: inline-size; }
+.portal-drawer-resizing, .portal-drawer-resizing * { user-select: none; cursor: col-resize !important; }
+.connection-drawer-resizer { position: absolute; top: 0; right: 0; bottom: 0; width: 7px; z-index: 5; cursor: col-resize; touch-action: none; }
+.connection-drawer-resizer::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 2px; background: #505050; transition: background 120ms; }
+.connection-drawer-resizer:hover::after, .connection-drawer-resizer:focus-visible::after, .portal-drawer-resizing .connection-drawer-resizer::after { background: #ffca28; }
+.connection-drawer-resizer:focus-visible { outline: 2px solid #ffca28; outline-offset: -2px; }
+.connection-list { padding-right: 20px; }
+.connection-group > .q-expansion-item__container > .q-item > .q-item__section--main { min-width: 0; overflow-wrap: anywhere; }
+.connection-name, .connection-address { overflow-wrap: anywhere; white-space: normal; line-height: 1.4; }
+@container (max-width: 300px) {
+    .connection-list { padding: 12px 14px 12px 8px; }
+    .connection-group > .q-expansion-item__container > .q-item { padding-left: 8px; padding-right: 8px; }
+    .connection-group > .q-expansion-item__container > .q-item > .q-item__section--avatar { min-width: 28px; padding-right: 8px; }
+    .saved-connection { padding: 10px 8px; }
+    .saved-connection .q-item__section--avatar { display: none; }
+    .connection-actions { padding-left: 4px; }
+    .connection-address { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
 .connection-card { width: 100%; max-width: 600px; border-color: #505050; border-radius: 12px; }
 .ssh-card { width: 560px; max-width: calc(100vw - 32px); }
 .connection-options, .saved-connection { border: 1px solid #505050; border-radius: 8px; }
