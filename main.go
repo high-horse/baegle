@@ -4,9 +4,11 @@ import (
 	"db-lens/internal/app"
 	"db-lens/internal/db"
 	"embed"
+	"fmt"
 
 	"log"
 	"os"
+	"os/exec"
 	"runtime"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -30,6 +32,13 @@ func main() {
 		log.Fatalf("failed to initialise local database: %v", err)
 	}
 
+	// GTK4 registers Options.Name on D-Bus even without SingleInstance options.
+	// Distinct identities let independent connection processes activate windows.
+	applicationName := "DB Lens"
+	if runtime.GOOS == "linux" {
+		applicationName = fmt.Sprintf("DB Lens %d", os.Getpid())
+	}
+
 	dbService := app.NewDbService(db.NewHistoryRepository(db.Conn))
 
 	// Create a new Wails application by providing the necessary options.
@@ -38,7 +47,7 @@ func main() {
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running an macOS.
 	app := application.New(application.Options{
-		Name:        "DB Lens",
+		Name:        applicationName,
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
 			application.NewService(dbService),
@@ -71,6 +80,16 @@ func main() {
 		URL:              "/",
 	})
 
+	// Each process owns its active database connection and result cursors.
+	// A second webview in this process would otherwise share that state.
+	app.KeyBinding.Add("Ctrl+Shift+N", func(window application.Window) {
+		if err := openConnectionWindow(); err != nil {
+			log.Printf("failed to open connection window: %v", err)
+			app.Dialog.Error().SetTitle("New connection window").
+				SetMessage("Could not open a new window: " + err.Error()).Show()
+		}
+	})
+
 	// Run the application. This blocks until the application has been exited.
 	err := app.Run()
 
@@ -78,4 +97,29 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// openConnectionWindow starts the app at its connection screen with an
+// independent backend. Do not forward command-line flags from the parent.
+func openConnectionWindow() error {
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	// Relaunch the original AppImage rather than its temporary mounted binary.
+	if runtime.GOOS == "linux" && os.Getenv("APPIMAGE") != "" {
+		executable = os.Getenv("APPIMAGE")
+	}
+	cmd := exec.Command(executable)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Printf("connection window exited: %v", err)
+		}
+	}()
+	return nil
 }

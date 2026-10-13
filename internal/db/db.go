@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -34,7 +35,10 @@ func InitDb() (*sql.DB, error) {
 	}
 	log.Println("using app database:", path)
 
-	Conn, err = sql.Open("sqlite", path)
+	// Each window uses a separate process. Wait briefly for writes from other
+	// windows instead of failing immediately with SQLITE_BUSY.
+	dsn := url.URL{Scheme: "file", Path: path, RawQuery: "_pragma=busy_timeout%285000%29"}
+	Conn, err = sql.Open("sqlite", dsn.String())
 	if err != nil {
 		return nil, err
 	}
