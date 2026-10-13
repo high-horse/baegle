@@ -566,9 +566,7 @@ defineExpose({ openRow });
 .table-edit-bar .q-btn {
     min-height: 24px;
     font: inherit;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    line-height: 1.2;
     padding: 3px 6px;
     color: #9ca3af;
     white-space: nowrap;

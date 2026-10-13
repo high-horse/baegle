@@ -19,6 +19,7 @@
                     class="text-amber-400 font-bold"
                 >
                     • {{ fetchingLast ? 'Fetching remaining pages…' : result ? 'Fetching page…' : 'Executing…' }}
+                    <template v-if="queryStartedAt != null"> · <QueryElapsedTime :started-at="queryStartedAt" /></template>
                 </span>
             </div>
 
@@ -50,6 +51,7 @@
 
             <span class="text-xs text-[#a0a0a0] font-mono">
                 Executing query...
+                <QueryElapsedTime v-if="queryStartedAt != null" :started-at="queryStartedAt" />
             </span>
         </div>
 
@@ -150,11 +152,13 @@ import { ref, watch } from "vue";
 import type { QueryResult } from "@/types/queryTab";
 import ResultTab from "./ResultTab.vue";
 import IndexSchema from "./Schema/Index.vue";
+import QueryElapsedTime from "../QueryElapsedTime.vue";
 
 const props = defineProps<{
     result: QueryResult | null;
     tableTabId?: string;
     loading?: boolean;
+    queryStartedAt?: number;
     canFirst?: boolean;
     canPrevious?: boolean;
     canNext?: boolean;

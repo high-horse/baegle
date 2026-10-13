@@ -3,5 +3,6 @@
 
 export type {
     Connection,
+    ResultSettings,
     SSHConfig
 } from "./models.js";

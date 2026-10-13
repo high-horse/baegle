@@ -20,6 +20,14 @@ export function GetConnections(): $CancellablePromise<types$0.Connection[] | nul
     return $Call.ByID(2001799027);
 }
 
+export function GetResultSettings(): $CancellablePromise<types$0.ResultSettings> {
+    return $Call.ByID(197874898);
+}
+
+export function SaveResultSettings(settings: types$0.ResultSettings): $CancellablePromise<void> {
+    return $Call.ByID(3845194987, settings);
+}
+
 export function UpdateConnection(config: entities$0.ConnectionConfig): $CancellablePromise<void> {
     return $Call.ByID(3106709187, config);
 }

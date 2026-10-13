@@ -28,27 +28,25 @@
                 class="flex flex-nowrap shrink-0 items-center gap-2 text-[10px] text-[#909090]"
             >
                 <span v-if="dbDriver === 'mongodb'">MongoDB JSON command</span>
-                <span>Ctrl + Enter</span>
-                <span>Run</span>
+                <span>{{ activeTab.stopping ? 'Stopping query…' : activeTab.runningQuery ? 'Query running…' : 'Ctrl + Enter' }}</span>
+                <QueryElapsedTime v-if="activeTab.runningQuery && activeTab.queryStartedAt != null" :started-at="activeTab.queryStartedAt" />
+
+                <q-btn v-if="activeTab.runningQuery" unelevated dense no-caps color="negative" size="sm" class="query-action" icon="stop" :label="activeTab.stopping ? 'Stopping…' : 'Stop'" :disable="activeTab.stopping" aria-label="Cancel running query" @click="queryTabsStore.cancelQuery(activeTab.id)" />
 
                 <q-btn
                     unelevated
+                    dense
+                    no-caps
                     color="amber"
                     text-color="black"
                     size="sm"
-                    class="font-bold px-3 tracking-wide"
-                    :disable="!activeTab || !activeTab.sql.trim()"
+                    class="query-action"
+                    icon="play_arrow"
+                    label="Run"
+                    :disable="!activeTab || activeTab.loading || !activeTab.sql.trim()"
                     :loading="activeTab?.loading"
                     @click.prevent="sqlEditorRef?.execute()"
-                >
-                    <q-icon
-                        name="play_arrow"
-                        size="16px"
-                        class="mr-1"
-                    />
-
-                    RUN
-                </q-btn>
+                />
             </div>
         </div>
 
@@ -103,6 +101,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { useQueryTabsStore } from "@/stores/queryTabsStore";
+const queryTabsStore = useQueryTabsStore();
 const connectionStore = useConnectionStore();
 const dbDriver = computed(() => {
  const driver = connectionStore.activeConnection?.driver;
@@ -111,6 +111,7 @@ const dbDriver = computed(() => {
 import type { QueryTab } from "@/types/queryTab";
 import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 import SqlEditor from "./SqlEditor.vue";
+import QueryElapsedTime from "./QueryElapsedTime.vue";
 
 const sqlEditorRef =
     ref<InstanceType<typeof SqlEditor> | null>(null);
@@ -157,3 +158,15 @@ function executeActiveTab(sql: string) {
     );
 }
 </script>
+
+<style scoped>
+.query-action {
+    height: 24px;
+    min-height: 24px;
+    padding: 0 8px;
+    line-height: 1.2;
+    font-weight: 600;
+}
+.query-action :deep(.q-icon) { font-size: 16px; }
+.query-action :deep(.q-icon.on-left) { margin-right: 4px; }
+</style>

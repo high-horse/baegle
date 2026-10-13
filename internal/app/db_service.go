@@ -18,15 +18,18 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type DbService struct {
-	factory     *factory.Factory
-	manager     *manager.ConnectionManager
-	pager       *sqlExecutor.Pager
-	mongoPager  *mongodb.Pager
-	historyRepo *db.HistoryRepository
+	factory        *factory.Factory
+	manager        *manager.ConnectionManager
+	pager          *sqlExecutor.Pager
+	mongoPager     *mongodb.Pager
+	historyRepo    *db.HistoryRepository
+	consoleMu      sync.Mutex
+	consoleQueries map[string]*consoleQuery
 }
 
 func NewDbService(historyRepo *db.HistoryRepository) *DbService {
@@ -127,6 +130,11 @@ func (s *DbService) Disconnect(ctx context.Context, connID string) error {
 }
 
 func (s *DbService) ServiceShutdown() error {
+	s.consoleMu.Lock()
+	for _, query := range s.consoleQueries {
+		query.cancel()
+	}
+	s.consoleMu.Unlock()
 	for _, conn := range s.manager.List() {
 		s.pager.CloseConnection(conn.ID())
 		s.mongoPager.CloseConnection(conn.ID())

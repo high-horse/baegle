@@ -21,6 +21,13 @@ export interface Connection {
     "ssh_config": SSHConfig;
 }
 
+export interface ResultSettings {
+    "rowsPerPage": number;
+    "fontSize": number;
+    "stripedRows": boolean;
+    "showNulls": boolean;
+}
+
 export interface SSHConfig {
     "id": number;
     "name": string;

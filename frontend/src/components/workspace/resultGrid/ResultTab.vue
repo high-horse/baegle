@@ -1,5 +1,5 @@
 <template>
-    <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[#2d2d2d]">
+    <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[#2d2d2d]" :class="{ 'striped-rows': resultSettings.settings.stripedRows }" :style="{ '--grid-font-size': `${resultSettings.settings.fontSize}px` }">
         <q-form v-if="result.IsQuery" class="result-filter-bar" @submit.prevent="applyExpressions">
             <q-icon name="filter_alt" size="15px" :class="appliedFilter ? 'text-amber-400' : 'text-gray-500'" />
             <div class="result-filter-input" :class="{ 'has-error': filterError }">
@@ -240,8 +240,8 @@
             <template #body="props">
                 <q-tr
                     :props="props"
-                    class="bg-[#2d2d2d] even:bg-[#303030] hover:!bg-[#404040]"
-                    :class="{ 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
+                    class="bg-[#2d2d2d] hover:!bg-[#404040]"
+                    :class="{ 'even:bg-[#303030]': resultSettings.settings.stripedRows, 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
                     @click="selectedRowKey = props.row._editKey || ''"
                 >
                     <q-td
@@ -271,7 +271,8 @@
                                 class="block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
                                 :title="getCellTitle(props.row[col.field])"
                             >
-                                {{ props.row[col.field] }}
+                                <span v-if="props.row[col.field] == null && resultSettings.settings.showNulls" class="text-gray-500 italic">NULL</span>
+                                <template v-else>{{ props.row[col.field] }}</template>
                             </div>
                         </template>
                     </q-td>
@@ -304,6 +305,7 @@
                     title="Run this query again" aria-label="Run this query again" @click="emit('refresh')">
                     <q-icon name="refresh" size="16px" />
                 </q-btn>
+                <ResultSettings />
                 <span class="font-mono text-[10px] text-gray-500">
                     <template v-if="result.Rows.length">Rows {{ result.StartRow }}–{{ result.StartRow + result.Rows.length - 1 }}</template>
                     <template v-else>{{ result.IsQuery ? 'No rows' : 'Statement completed' }}</template>
@@ -371,6 +373,9 @@ import {
 import type { QTableColumn } from "quasar";
 
 import TableDataEditor from "./TableDataEditor.vue";
+import ResultSettings from "./ResultSettings.vue";
+import { useResultSettingsStore } from "@/stores/resultSettingsStore";
+const resultSettings = useResultSettingsStore();
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 import type { QueryResult } from "@/types/queryTab";
 import { compileResultFilter } from "@/utils/resultFilter";
@@ -959,7 +964,7 @@ const mappedColumns =
     font-variant-numeric: tabular-nums;
     text-align: right;
     white-space: nowrap;
-    font-size: 11px;
+    font-size: var(--grid-font-size, 11px);
 }
 
 /* =========================================================
@@ -1084,6 +1089,7 @@ const mappedColumns =
 
 .data-explorer-grid :deep(th),
 .data-explorer-grid :deep(td) {
+    font-size: var(--grid-font-size, 11px);
     box-sizing: border-box;
 
     min-width: 0;
@@ -1182,7 +1188,7 @@ const mappedColumns =
    ALTERNATING ROWS
    ========================================================= */
 
-.data-explorer-grid
+.striped-rows .data-explorer-grid
     :deep(
         tbody tr:nth-child(even)
             td:first-child

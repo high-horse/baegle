@@ -48,6 +48,11 @@ CREATE TABLE IF NOT EXISTS query_history (
     status TEXT NOT NULL -- 'SUCCESS' or 'ERROR'
 );
 
+CREATE TABLE IF NOT EXISTS app_preferences (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 
 -- INSERT INTO connections (
 --     name, driver, host, port, user, password, dbname

@@ -76,6 +76,7 @@
                                             class="h-full min-w-0 min-h-0 overflow-hidden"
                                         >
                                             <ResultGrid
+                                        :query-started-at="queryTabsStore.activeTab.queryStartedAt"
                                         :key="queryTabsStore.activeTab.id"
                                         :can-first="!!queryTabsStore.activeTab.result && queryTabsStore.activeTab.result.StartRow > 1 && (queryTabsStore.activeTab.result.CanNavigate || !!queryTabsStore.activeTab.pages?.some(page => page.StartRow === 1))"
                                         @first="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'first')"
@@ -122,6 +123,7 @@
                                     class="h-full w-full min-w-0 min-h-0 overflow-hidden"
                                 >
                                     <ResultGrid
+                                        :query-started-at="queryTabsStore.activeTab.queryStartedAt"
                                         :table-tab-id="queryTabsStore.activeTab.id"
                                         :key="queryTabsStore.activeTab.id"
                                         :can-first="!!queryTabsStore.activeTab.result && queryTabsStore.activeTab.result.StartRow > 1 && (queryTabsStore.activeTab.result.CanNavigate || !!queryTabsStore.activeTab.pages?.some(page => page.StartRow === 1))"

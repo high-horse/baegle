@@ -2,6 +2,26 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Center compact toolbar contents within their fixed-height buttons. */
+.query-action > .q-btn__content,
+.table-edit-bar .q-btn > .q-btn__content,
+.filter-action > .q-btn__content,
+.pagination-button > .q-btn__content,
+.tab-close > .q-btn__content,
+.new-tab-button > .q-btn__content {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
+    line-height: 1.2;
+}
+
+.table-edit-bar .q-btn > .q-btn__content { gap: 4px; }
+
 
 /*@layer utilities {
     .bg-radial-gradient {

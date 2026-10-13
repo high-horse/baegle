@@ -7,6 +7,7 @@ import "quasar/src/css/index.sass"
 import "@quasar/extras/material-icons/material-icons.css"
 import "./style.css"
 import router from './router'
+import { useResultSettingsStore } from './stores/resultSettingsStore'
 const app = createApp(App)
 const pinia = createPinia()
 
@@ -29,4 +30,6 @@ Dark.set(true)
 // CRITICAL FOR TAILWIND: Sync the HTML element class on startup
 document.documentElement.classList.toggle("dark", isDark)
 
-app.mount("#app")
+useResultSettingsStore(pinia).load().catch(() => {
+  Notify.create({ message: "Could not load result settings. Using defaults.", color: "negative" })
+}).finally(() => app.mount("#app"))

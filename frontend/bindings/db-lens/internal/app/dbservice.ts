@@ -15,6 +15,14 @@ import * as entities$0 from "../engine/entities/models.js";
 // @ts-ignore: Unused imports
 import * as types$0 from "../types/models.js";
 
+/**
+ * CancelConsoleQuery targets only this execution, so a delayed Stop cannot
+ * cancel a newer query in the same console. The execution call acknowledges completion.
+ */
+export function CancelConsoleQuery(consoleID: string, requestID: string): $CancellablePromise<boolean> {
+    return $Call.ByID(3200948304, consoleID, requestID);
+}
+
 export function Connect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
     return $Call.ByID(2446242533, config);
 }
@@ -25,6 +33,14 @@ export function DescribeTableEdit(table: entities$0.TableRef): $CancellablePromi
 
 export function Disconnect(connID: string): $CancellablePromise<void> {
     return $Call.ByID(753429703, connID);
+}
+
+/**
+ * ExecuteConsoleQuery keeps one operation per console until the driver returns,
+ * including while cancellation is in progress. Different consoles are independent.
+ */
+export function ExecuteConsoleQuery(consoleID: string, requestID: string, input: entities$0.QueryInput): $CancellablePromise<entities$0.QueryResult | null> {
+    return $Call.ByID(2387609227, consoleID, requestID, input);
 }
 
 export function ExecuteQuery(queryInput: entities$0.QueryInput): $CancellablePromise<entities$0.QueryResult | null> {

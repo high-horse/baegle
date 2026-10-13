@@ -30,6 +30,9 @@ export interface QueryTab {
   result: QueryResult | null;
 
   loading: boolean;
+  runningQuery?: boolean;
+  queryStartedAt?: number;
+  stopping?: boolean;
   error: string | null;
   dirty: boolean;
 
