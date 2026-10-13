@@ -47,6 +47,22 @@ export const useConnectionStore = defineStore("connection", () => {
   const searchTerm = ref<string>("");
   
   const connections = ref<Connection[]>([]);
+  const connectionGroups = computed(() => Array.from(new Set([
+    "Live", "Prod", "Dev", ...connections.value.map(connection => connection.group).filter(Boolean),
+  ])).sort((a, b) => a.localeCompare(b)));
+  async function setConnectionGroup(id: number, group: string): Promise<boolean> {
+    try {
+      await DatabaseService.SetConnectionGroup(id, group.trim());
+      const connection = connections.value.find(item => item.id === id);
+      if (connection) connection.group = group.trim();
+      if (selectedConnection.value?.id === id) selectedConnection.value.group = group.trim();
+      if (activeConnection.value?.id === id) activeConnection.value.group = group.trim();
+      return true;
+    } catch (error) {
+      Notify.create({ type: "negative", message: error instanceof Error ? error.message : String(error) });
+      return false;
+    }
+  }
   const showNewConnectionDialog = ref(false);
   const loadingStates = ref<Record<string, boolean>>({
     getConnections: false,
@@ -114,6 +130,7 @@ export const useConnectionStore = defineStore("connection", () => {
     return {
       ID: String(connection.id),
       Name: connection.name,
+      Group: connection.group,
       Host: connection.host,
       Port: Number(connection.port.Int64),
       User: connection.user,
@@ -251,6 +268,8 @@ export const useConnectionStore = defineStore("connection", () => {
     clearActiveSession,
     getConnections,
     deleteConnection,
+    connectionGroups,
+    setConnectionGroup,
     pingConnection,
     connectToSession,
     setActiveConnectionMetadata,

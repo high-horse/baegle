@@ -40,6 +40,10 @@ export function SaveResultSettings(settings: types$0.ResultSettings): $Cancellab
     return $Call.ByID(3845194987, settings);
 }
 
+export function SetConnectionGroup(id: number, group: string): $CancellablePromise<void> {
+    return $Call.ByID(2229203089, id, group);
+}
+
 export function UpdateConnection(config: entities$0.ConnectionConfig): $CancellablePromise<void> {
     return $Call.ByID(3106709187, config);
 }

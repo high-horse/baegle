@@ -6,6 +6,7 @@
 import * as sql$0 from "../../../database/sql/models.js";
 
 export interface Connection {
+    "group": string;
     "id": number;
     "name": string;
     "driver": string;

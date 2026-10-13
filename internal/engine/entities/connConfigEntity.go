@@ -13,9 +13,10 @@ type SSHConfig struct {
 }
 
 type ConnectionConfig struct {
-	ID   string
-	Name string
-	Type string
+	Group string
+	ID    string
+	Name  string
+	Type  string
 
 	Host string
 	Port int

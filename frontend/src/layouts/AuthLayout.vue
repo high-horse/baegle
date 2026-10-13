@@ -26,7 +26,8 @@
                             <q-item-label caption>Save a connection to find it here.</q-item-label>
                         </q-item-section>
                     </q-item>
-                    <q-item v-for="connection in connections" :key="connection.id" clickable :active="String(connection.id) === $route.query.edit" active-class="text-amber" class="saved-connection q-mb-sm" @click="selectConnection(connection)" @keydown.enter.prevent="selectConnection(connection)" @contextmenu.prevent.stop="actionMenuId = connection.id">
+                    <q-expansion-item v-for="group in groupedConnections" :key="group.name" default-opened icon="folder_open" :label="group.name || 'Ungrouped'" :caption="`${group.connections.length} connection${group.connections.length === 1 ? '' : 's'}`" header-class="text-grey-4" class="connection-group">
+                    <q-item v-for="connection in group.connections" :key="connection.id" clickable :active="String(connection.id) === $route.query.edit" active-class="text-amber" class="saved-connection q-mb-sm" @click="selectConnection(connection)" @keydown.enter.prevent="selectConnection(connection)" @contextmenu.prevent.stop="actionMenuId = connection.id">
                         <q-item-section avatar>
                             <q-spinner v-if="connectingConnectionId === connection.id" color="amber" size="20px" />
                             <q-icon v-else name="lan" color="amber" size="20px" />
@@ -51,6 +52,10 @@
                                             <q-item-section avatar><q-icon name="edit" size="18px" /></q-item-section>
                                             <q-item-section>Edit connection</q-item-section>
                                         </q-item>
+                                        <q-item clickable v-close-popup @click="openGroupDialog(connection)">
+                                            <q-item-section avatar><q-icon name="drive_file_move" size="18px" /></q-item-section>
+                                            <q-item-section>Move to group</q-item-section>
+                                        </q-item>
                                         <q-item clickable v-close-popup class="text-red-4" @click="actionMenuId = null; connectionToDelete = connection">
                                             <q-item-section avatar><q-icon name="delete_outline" size="18px" /></q-item-section>
                                             <q-item-section>Delete connection</q-item-section>
@@ -60,9 +65,25 @@
                             </q-btn>
                         </q-item-section>
                     </q-item>
+                    </q-expansion-item>
                 </q-list>
             </q-scroll-area>
         </q-drawer>
+        <q-dialog :model-value="!!groupConnection" :persistent="savingGroup" @update:model-value="open => { if (!open) groupConnection = null; }">
+            <q-card class="connection-card" style="width: 420px">
+                <q-form @submit="saveGroup">
+                    <q-card-section>
+                        <div class="text-h6">Move to group</div>
+                        <div class="text-caption q-mb-md">{{ groupConnection?.name }}</div>
+                        <ConnectionGroupSelect v-model="groupName" :groups="store.connectionGroups" :disable="savingGroup" />
+                    </q-card-section>
+                    <q-card-actions align="right">
+                        <q-btn flat label="Cancel" :disable="savingGroup" @click="groupConnection = null" />
+                        <q-btn type="submit" label="Save" color="amber" text-color="black" :loading="savingGroup" />
+                    </q-card-actions>
+                </q-form>
+            </q-card>
+        </q-dialog>
         <q-page-container><router-view /></q-page-container>
         <q-dialog :model-value="!!connectionError" @update:model-value="open => { if (!open) store.connectionError = null; }">
             <q-card flat bordered class="connection-card" style="width: 520px">
@@ -100,7 +121,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import ConnectionGroupSelect from "@/components/connections/ConnectionGroupSelect.vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -114,6 +136,32 @@ const activeConnectionStore = useActiveConnection();
 const store = useConnectionStore();
 const connectionToDelete = ref<Connection | null>(null);
 const deletingConnection = ref(false);
+const groupedConnections = computed(() => {
+    const groups = new Map<string, Connection[]>();
+    for (const connection of store.connections) {
+        const name = connection.group || "";
+        if (!groups.has(name)) groups.set(name, []);
+        groups.get(name)!.push(connection);
+    }
+    return [...groups].sort(([a], [b]) => a ? (b ? a.localeCompare(b) : -1) : 1)
+        .map(([name, connections]) => ({ name, connections }));
+});
+const groupConnection = ref<Connection | null>(null);
+const groupName = ref<string | null>("");
+const savingGroup = ref(false);
+function openGroupDialog(connection: Connection) {
+    actionMenuId.value = null;
+    groupConnection.value = connection;
+    groupName.value = connection.group || "";
+}
+async function saveGroup() {
+    if (!groupConnection.value || savingGroup.value) return;
+    savingGroup.value = true;
+    try {
+        if (await store.setConnectionGroup(groupConnection.value.id, groupName.value || "")) groupConnection.value = null;
+    } finally { savingGroup.value = false; }
+}
+
 
 async function deleteConnection() {
     const connection = connectionToDelete.value;

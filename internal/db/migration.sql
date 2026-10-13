@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS connections (
     pinned BOOLEAN DEFAULT false,
     read_only BOOLEAN NOT NULL DEFAULT false,
     color TEXT,
+    group_name TEXT NOT NULL DEFAULT '',
 
     ssh_config_id INTEGER,
     

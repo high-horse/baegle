@@ -21,6 +21,9 @@
                     <div class="col-12">
                         <q-input v-model="form.connection_name" label="Connection name" :rules="[required]" outlined dense color="amber" hide-bottom-space />
                     </div>
+                    <div class="col-12">
+                        <ConnectionGroupSelect v-model="form.group" :groups="store.connectionGroups" :disable="saving || loadingSavedConnection" />
+                    </div>
                     <template v-if="form.type !== 'sqlite'">
                         <div class="col-12 col-sm-8">
                             <q-input v-model="form.host" :label="form.type === 'mongodb' ? 'Host or MongoDB URI' : 'Database host'" :rules="[required]" outlined dense color="amber" hide-bottom-space />
@@ -121,6 +124,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from "vue";
+import ConnectionGroupSelect from "@/components/connections/ConnectionGroupSelect.vue";
 import type { QForm } from "quasar";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { DbService, DatabaseService } from "@bindings/db-lens/internal/app";
@@ -149,6 +153,7 @@ const form = ref({
     database: "",
     connection_name: "",
     color: "",
+    group: "" as string | null,
     save_connection: true,
     readonly: false,
     use_ssh: false,
@@ -248,6 +253,7 @@ function parseToConfig() {
         InMemory: false,
         ReadOnly: form.value.readonly,
         Color: form.value.color,
+        Group: (form.value.group || "").trim(),
     };
 }
 
@@ -342,7 +348,7 @@ async function loadSavedConnection() {
             form.value = {
                 type: connection.driver, host: connection.host, port: Number(connection.port.Int64),
                 user: connection.user, password: connection.password, database: connection.dbname,
-                connection_name: connection.name, color: connection.color.Valid ? connection.color.String : "",
+                group: connection.group || "", connection_name: connection.name, color: connection.color.Valid ? connection.color.String : "",
                 save_connection: true, readonly: connection.read_only, use_ssh: !!connection.ssh_config_id.Valid,
             };
             sshForm.value = {
@@ -351,7 +357,7 @@ async function loadSavedConnection() {
                 passphrase: ssh.passphrase.Valid ? ssh.passphrase.String : "", password: ssh.password.Valid ? ssh.password.String : "",
             };
         } else {
-            form.value = { type: "pgx", host: "", port: 5432, user: "", password: "", database: "", connection_name: "", color: "", save_connection: true, readonly: false, use_ssh: false };
+            form.value = { type: "pgx", host: "", port: 5432, user: "", password: "", database: "", connection_name: "", color: "", group: "", save_connection: true, readonly: false, use_ssh: false };
             resetSshForm();
         }
         sshDialog.value = false;

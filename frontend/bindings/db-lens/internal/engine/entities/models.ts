@@ -16,6 +16,7 @@ export interface ColumnInfo {
 }
 
 export interface ConnectionConfig {
+    "Group": string;
     "ID": string;
     "Name": string;
     "Type": string;

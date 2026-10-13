@@ -61,6 +61,7 @@ func runMigration(db *sql.DB) error {
 		return err
 	}
 	found := false
+	groupFound := false
 	for rows.Next() {
 		var id, notNull, primaryKey int
 		var name, kind string
@@ -68,6 +69,9 @@ func runMigration(db *sql.DB) error {
 		if err := rows.Scan(&id, &name, &kind, &notNull, &defaultValue, &primaryKey); err != nil {
 			rows.Close()
 			return err
+		}
+		if name == "group_name" {
+			groupFound = true
 		}
 		if name == "read_only" {
 			found = true
@@ -80,6 +84,12 @@ func runMigration(db *sql.DB) error {
 	}
 	if !found {
 		_, err = db.Exec("ALTER TABLE connections ADD COLUMN read_only BOOLEAN NOT NULL DEFAULT false")
+		if err != nil {
+			return err
+		}
+	}
+	if !groupFound {
+		_, err = db.Exec("ALTER TABLE connections ADD COLUMN group_name TEXT NOT NULL DEFAULT ''")
 	}
 	return err
 }

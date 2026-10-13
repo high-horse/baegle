@@ -110,6 +110,7 @@ func TestConnectionMigrationExistingDatabase(t *testing.T) {
 	}
 	defer database.Close()
 	old := strings.ReplaceAll(migrationSQL, "    read_only BOOLEAN NOT NULL DEFAULT false,\n", "")
+	old = strings.ReplaceAll(old, "    group_name TEXT NOT NULL DEFAULT '',\n", "")
 	if _, err := database.Exec(old); err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +124,8 @@ func TestConnectionMigrationExistingDatabase(t *testing.T) {
 	}
 	var name string
 	var readOnly bool
-	if err := database.QueryRow(`SELECT name, read_only FROM connections`).Scan(&name, &readOnly); err != nil || name != "existing" || readOnly {
+	var group string
+	if err := database.QueryRow(`SELECT name, read_only, group_name FROM connections`).Scan(&name, &readOnly, &group); err != nil || name != "existing" || readOnly || group != "" {
 		t.Fatalf("migration lost saved settings: %s %v %v", name, readOnly, err)
 	}
 }
@@ -172,6 +174,49 @@ func TestDeleteConnectionSharedSSHAndRollback(t *testing.T) {
 	for _, missingID := range []int{0, -1, int(id)} {
 		if err := DeleteConnection(missingID); err == nil {
 			t.Fatalf("deleted invalid or missing connection %d", missingID)
+		}
+	}
+}
+
+func TestConnectionGroups(t *testing.T) {
+	testConnectionsDB(t)
+	config := entities.ConnectionConfig{Name: "database", Type: "pgx", Host: "localhost", Password: "secret", Group: " Prod "}
+	id, err := StoreConnection(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(want string) {
+		t.Helper()
+		list, err := GetConnectionList()
+		if err != nil || len(list) != 1 {
+			t.Fatalf("list: %v %v", list, err)
+		}
+		if list[0].Group != want || list[0].Password != "secret" || list[0].Name != "database" {
+			t.Fatalf("unexpected connection: %+v", list[0])
+		}
+	}
+	check("Prod")
+	config.ID = fmt.Sprint(id)
+	config.Group = "Dev"
+	if err := UpdateConnection(config); err != nil {
+		t.Fatal(err)
+	}
+	check("Dev")
+	if err := SetConnectionGroup(int(id), " Live "); err != nil {
+		t.Fatal(err)
+	}
+	check("Live")
+	if err := runMigration(Conn); err != nil {
+		t.Fatal(err)
+	}
+	check("Live")
+	if err := SetConnectionGroup(int(id), "  "); err != nil {
+		t.Fatal(err)
+	}
+	check("")
+	for _, invalid := range []int{0, -1, int(id) + 100} {
+		if err := SetConnectionGroup(invalid, "Prod"); err == nil {
+			t.Fatalf("accepted invalid id %d", invalid)
 		}
 	}
 }

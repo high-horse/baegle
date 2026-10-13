@@ -15,6 +15,7 @@ type SSHConfig struct {
 }
 
 type Connection struct {
+	Group       string         `json:"group"`
 	Id          int            `json:"id"`
 	Name        string         `json:"name"`
 	Driver      string         `json:"driver"`

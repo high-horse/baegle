@@ -27,3 +27,7 @@ func (s *DatabaseService) DeleteConnection(id int) error {
 func (s *DatabaseService) UpdateConnection(config entities.ConnectionConfig) error {
 	return db.UpdateConnection(config)
 }
+
+func (s *DatabaseService) SetConnectionGroup(id int, group string) error {
+	return db.SetConnectionGroup(id, group)
+}
