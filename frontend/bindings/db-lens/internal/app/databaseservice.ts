@@ -16,12 +16,24 @@ export function DeleteConnection(id: number): $CancellablePromise<void> {
     return $Call.ByID(287776345, id);
 }
 
+export function DeleteSavedConsole(connectionID: number, id: string): $CancellablePromise<void> {
+    return $Call.ByID(4034427229, connectionID, id);
+}
+
 export function GetConnections(): $CancellablePromise<types$0.Connection[] | null> {
     return $Call.ByID(2001799027);
 }
 
 export function GetResultSettings(): $CancellablePromise<types$0.ResultSettings> {
     return $Call.ByID(197874898);
+}
+
+export function GetSavedConsoles(connectionID: number): $CancellablePromise<types$0.SavedConsole[] | null> {
+    return $Call.ByID(870265931, connectionID);
+}
+
+export function SaveConsole(console: types$0.SavedConsole): $CancellablePromise<void> {
+    return $Call.ByID(3247858524, console);
 }
 
 export function SaveResultSettings(settings: types$0.ResultSettings): $CancellablePromise<void> {

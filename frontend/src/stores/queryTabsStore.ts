@@ -1,11 +1,11 @@
-import { Dialog } from "quasar";
+import { Dialog, Notify } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 import type { QueryTab, QueryResult } from "@/types/queryTab";
-import { DbService } from "@bindings/db-lens/internal/app";
+import { DbService, DatabaseService } from "@bindings/db-lens/internal/app";
 import { QueryExecutionType } from "@bindings/db-lens/internal/engine/entities";
 import type { QueryResult as BackendResult } from "@bindings/db-lens/internal/engine/entities";
 
@@ -30,10 +30,13 @@ const initialTab: QueryTab = {
 };
 
 export const useQueryTabsStore = defineStore("queryTabs", () => {
-  const tabs = ref<QueryTab[]>([initialTab]);
+  const tabs = ref<QueryTab[]>([{ ...initialTab, id: crypto.randomUUID() }]);
   const runningQueries = new Map<string, { requestID: string; stopping: boolean }>();
+  const pendingSaves = new Map<string, Promise<boolean>>();
+  const restoringConsoles = ref(false);
+  let restoreVersion = 0;
 
-  const activeTabId = ref<string | null>("query-1");
+  const activeTabId = ref<string | null>(tabs.value[0].id);
 
   const activeTab = computed(() => {
     return tabs.value.find((tab) => tab.id === activeTabId.value) ?? null;
@@ -52,7 +55,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       error: null,
       dirty: false,
       createdAt: Date.now(),
-      connectionId,
+      connectionId: connectionId ?? (useConnectionStore().activeConnection ? String(useConnectionStore().activeConnection!.id) : undefined),
     };
 
     tabs.value.push(tab);
@@ -104,19 +107,31 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tabs.value.splice(target + (side === "after" ? 1 : 0), 0, tab);
   }
 
-  function closeTab(id: string, discard = false) {
+  async function closeTab(id: string, discard = false) {
     const edits = useTableEditsStore();
     if (edits.isSaving(id)) return;
     if (!discard && edits.hasPending(id)) {
       Dialog.create({ title: "Unsaved changes", message: "Discard the staged row changes and close this tab?", cancel: true, ok: "Discard" }).onOk(() => closeTab(id, true));
       return;
     }
-    edits.clear(id);
-    const index = tabs.value.findIndex((tab) => tab.id === id);
-
-    if (index === -1) {
+    const tab = tabs.value.find(tab => tab.id === id);
+    if (!tab || tab.closing) return;
+    tab.closing = true;
+    try {
+      // Wait for an in-flight Save before deleting, so it cannot recreate a closed tab.
+      const saving = pendingSaves.get(id);
+      if (saving) await saving;
+      if (tab.savedSql !== undefined && tab.connectionId) {
+        await DatabaseService.DeleteSavedConsole(Number(tab.connectionId), id);
+      }
+    } catch (error) {
+      tab.closing = false;
+      Notify.create({ type: "negative", message: `Could not close saved console: ${String(error)}` });
       return;
     }
+    const index = tabs.value.findIndex(tab => tab.id === id);
+    if (index === -1) return;
+    edits.clear(id);
 
     const wasActive = activeTabId.value === id;
 
@@ -140,6 +155,65 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     activeTabId.value = tabs.value[nextIndex].id;
   }
 
+  function saveConsole(id: string): Promise<boolean> {
+    const tab = tabs.value.find(tab => tab.id === id);
+    if (!tab || tab.type !== "query" || tab.closing) return Promise.resolve(false);
+    const pending = pendingSaves.get(id);
+    if (pending) return pending.then(() => saveConsole(id));
+    const connectionID = Number(tab.connectionId ?? useConnectionStore().activeConnection?.id);
+    if (!Number.isSafeInteger(connectionID) || connectionID < 1) {
+      Notify.create({ type: "warning", message: "Save this connection first to keep its consoles between sessions." });
+      return Promise.resolve(false);
+    }
+    tab.connectionId = String(connectionID);
+    const snapshot = { connectionId: connectionID, id: tab.id, title: tab.title, sql: tab.sql,
+      position: tabs.value.indexOf(tab), createdAt: tab.createdAt };
+    tab.savingConsole = true;
+    const task = Promise.resolve().then(async () => {
+      try {
+        await DatabaseService.SaveConsole(snapshot);
+        tab.savedSql = snapshot.sql;
+        tab.dirty = tab.sql !== snapshot.sql;
+        return true;
+      } catch (error) {
+        Notify.create({ type: "negative", message: `Could not save console: ${String(error)}` });
+        return false;
+      } finally {
+        tab.savingConsole = false;
+        pendingSaves.delete(id);
+      }
+    });
+    pendingSaves.set(id, task);
+    return task;
+  }
+
+  async function restoreConsoles(connectionId: string) {
+    const version = ++restoreVersion;
+    restoringConsoles.value = true;
+    try {
+      await Promise.all([...pendingSaves.values()]);
+      const saved = Number(connectionId) > 0 ? await DatabaseService.GetSavedConsoles(Number(connectionId)) : [];
+      if (version !== restoreVersion) return;
+      // Keep any text entered while the saved tabs were loading.
+      const existing = tabs.value.filter(tab => (!tab.connectionId || tab.connectionId === connectionId)
+        && (tab.type !== "query" || tab.sql.length > 0 || tab.loading || tab.savedSql !== undefined));
+      const restored: QueryTab[] = (saved ?? []).map(console => existing.find(tab => tab.id === console.id) ?? ({
+        id: console.id, title: console.title, type: "query", sql: console.sql, savedSql: console.sql,
+        connectionId, createdAt: console.createdAt, result: null, loading: false, error: null, dirty: false,
+      }));
+      tabs.value = [...restored, ...existing.filter(tab => !restored.some(saved => saved.id === tab.id))];
+      for (const tab of tabs.value) tab.connectionId ??= connectionId;
+      if (!tabs.value.length) createTab(connectionId);
+      else if (!tabs.value.some(tab => tab.id === activeTabId.value)) activeTabId.value = tabs.value[0].id;
+    } catch (error) {
+      if (version !== restoreVersion) return;
+      Notify.create({ type: "negative", message: `Could not restore saved consoles: ${String(error)}` });
+      if (!tabs.value.length) createTab(connectionId);
+    } finally {
+      if (version === restoreVersion) restoringConsoles.value = false;
+    }
+  }
+
   function updateSql(id: string, sql: string) {
     const tab = tabs.value.find((tab) => tab.id === id);
 
@@ -148,7 +222,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     }
 
     tab.sql = sql;
-    tab.dirty = true;
+    tab.dirty = tab.savedSql === undefined ? sql.length > 0 : sql !== tab.savedSql;
   }
 
   function setResult(id: string, result: QueryResult) {
@@ -161,7 +235,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tab.result = result;
     tab.loading = false;
     tab.error = null;
-    tab.dirty = false;
+    // Executing SQL does not save the console text.
   }
 
   function setLoading(id: string, loading: boolean) {
@@ -387,6 +461,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
   }
 
   function clearResults() {
+    restoreVersion++;
+    restoringConsoles.value = false;
     useTableEditsStore().clearAll();
     for (const tab of tabs.value) { void cancelQuery(tab.id); releaseCursor(tab.cursor); }
     tabs.value = [];
@@ -403,6 +479,9 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     selectTab,
     moveTab,
     closeTab,
+    saveConsole,
+    restoreConsoles,
+    restoringConsoles,
     updateSql,
     setResult,
     setLoading,

@@ -4,5 +4,6 @@
 export type {
     Connection,
     ResultSettings,
-    SSHConfig
+    SSHConfig,
+    SavedConsole
 } from "./models.js";

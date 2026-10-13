@@ -229,6 +229,10 @@ const tableEdits = useTableEditsStore();
 const { activeConnection, activeConnectionMetadata } =
     storeToRefs(connectionStore);
 
+watch(() => activeConnection.value?.id, id => {
+    if (id !== undefined) void queryTabsStore.restoreConsoles(String(id));
+}, { immediate: true });
+
 watch(() => activeConnection.value?.driver, (driver) => {
     for (const tab of queryTabsStore.tabs) {
         if (tab.type === "query" && !tab.sql.trim()) {
@@ -351,6 +355,16 @@ function handleCreateTabShortcut(event: KeyboardEvent) {
     }
 }
 
+function handleSaveConsoleShortcut(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && !event.isComposing && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!event.repeat && queryTabsStore.activeTab?.type === "query") {
+            void queryTabsStore.saveConsole(queryTabsStore.activeTab.id);
+        }
+    }
+}
+
 function handleCloseTabShortcut(event: KeyboardEvent) {
     if (event.ctrlKey && event.key.toLowerCase() === "w") {
         event.preventDefault();
@@ -372,12 +386,14 @@ function handleToggleResultTabShortcut(event: KeyboardEvent) {
 }
 
 onBeforeMount(() => {
+    window.addEventListener("keydown", handleSaveConsoleShortcut, true);
     window.addEventListener("keydown", handleCreateTabShortcut);
     window.addEventListener("keydown", handleCloseTabShortcut);
     window.addEventListener("keydown", handleToggleResultTabShortcut);
 });
 
 onBeforeUnmount(() => {
+    window.removeEventListener("keydown", handleSaveConsoleShortcut, true);
     window.removeEventListener("keydown", handleCreateTabShortcut);
     window.removeEventListener("keydown", handleCloseTabShortcut);
     window.removeEventListener("keydown", handleToggleResultTabShortcut);

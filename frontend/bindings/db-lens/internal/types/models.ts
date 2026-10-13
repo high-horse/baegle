@@ -39,3 +39,12 @@ export interface SSHConfig {
     "passphrase": sql$0.NullString;
     "password": sql$0.NullString;
 }
+
+export interface SavedConsole {
+    "connectionId": number;
+    "id": string;
+    "title": string;
+    "sql": string;
+    "position": number;
+    "createdAt": number;
+}

@@ -86,6 +86,7 @@
                         size="xs"
                         icon="close"
                         class="tab-close"
+                        :disable="tab.closing"
                         @pointerdown.stop
                         @dragstart.stop.prevent
                         :class="
@@ -97,6 +98,7 @@
                     >
                         <q-tooltip>
                             Close {{ tab.title }}
+                            <span v-if="tab.savedSql !== undefined"> and remove its saved console</span>
                         </q-tooltip>
                     </q-btn>
                 </div>

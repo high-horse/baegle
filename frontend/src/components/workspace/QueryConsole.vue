@@ -21,6 +21,8 @@
                 >
                     Modified
                 </span>
+                <span v-else-if="activeTab?.savingConsole" class="text-[10px] text-[#a0a0a0]">Saving…</span>
+                <span v-else-if="activeTab?.savedSql !== undefined" class="text-[10px] text-teal-400">Saved</span>
             </div>
 
             <div
@@ -28,6 +30,7 @@
                 class="flex flex-nowrap shrink-0 items-center gap-2 text-[10px] text-[#909090]"
             >
                 <span v-if="dbDriver === 'mongodb'">MongoDB JSON command</span>
+                <q-btn flat dense no-caps size="sm" class="query-action" icon="save" label="Save" color="amber" :loading="activeTab.savingConsole" :disable="activeTab.closing" title="Save console (Ctrl+S)" aria-label="Save console" @click="queryTabsStore.saveConsole(activeTab.id)" />
                 <span>{{ activeTab.stopping ? 'Stopping query…' : activeTab.runningQuery ? 'Query running…' : 'Ctrl + Enter' }}</span>
                 <QueryElapsedTime v-if="activeTab.runningQuery && activeTab.queryStartedAt != null" :started-at="activeTab.queryStartedAt" />
 

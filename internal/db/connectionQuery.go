@@ -142,6 +142,10 @@ func DeleteConnection(id int) error {
 	if _, err := tx.Exec("DELETE FROM connections WHERE id = ?", id); err != nil {
 		return err
 	}
+	// SQLite foreign-key enforcement may be disabled on an existing database.
+	if _, err := tx.Exec("DELETE FROM saved_consoles WHERE connection_id = ?", id); err != nil {
+		return err
+	}
 	if sshID.Valid {
 		if _, err := tx.Exec(`DELETE FROM ssh_configs WHERE id = ? AND NOT EXISTS (SELECT 1 FROM connections WHERE ssh_config_id = ?)`, sshID.Int64, sshID.Int64); err != nil {
 			return err

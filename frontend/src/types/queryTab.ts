@@ -35,6 +35,9 @@ export interface QueryTab {
   stopping?: boolean;
   error: string | null;
   dirty: boolean;
+  savedSql?: string;
+  savingConsole?: boolean;
+  closing?: boolean;
 
   createdAt: number;
 
