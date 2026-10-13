@@ -305,7 +305,6 @@
                     title="Run this query again" aria-label="Run this query again" @click="emit('refresh')">
                     <q-icon name="refresh" size="16px" />
                 </q-btn>
-                <ResultSettings />
                 <span class="font-mono text-[10px] text-gray-500">
                     <template v-if="result.Rows.length">Rows {{ result.StartRow }}–{{ result.StartRow + result.Rows.length - 1 }}</template>
                     <template v-else>{{ result.IsQuery ? 'No rows' : 'Statement completed' }}</template>
@@ -373,7 +372,6 @@ import {
 import type { QTableColumn } from "quasar";
 
 import TableDataEditor from "./TableDataEditor.vue";
-import ResultSettings from "./ResultSettings.vue";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 const resultSettings = useResultSettingsStore();
 import { useTableEditsStore } from "@/stores/tableEditsStore";

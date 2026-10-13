@@ -30,15 +30,7 @@
 
         <!-- Right -->
         <div class="flex items-center gap-2">
-            <q-btn
-                flat
-                dense
-                round
-                icon="tune"
-                size="sm"
-                class="text-[#a0a0a0] hover:text-white"
-                @click="handleSettings"
-            />
+            <ResultSettings />
 
             <q-btn
                 flat
@@ -57,6 +49,7 @@
 import { ref, watch } from "vue";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { DbService } from "@bindings/db-lens/internal/app";
+import ResultSettings from "@/components/workspace/resultGrid/ResultSettings.vue";
 
 const connectionStore = useConnectionStore();
 const connected = ref(false);
@@ -87,14 +80,10 @@ watch(() => connectionStore.activeConnection?.id, (id, _previous, onCleanup) => 
 
 const emit = defineEmits<{
     disconnect: [];
-    settings: [];
 }>();
 
 function handleDisconnect() {
     emit("disconnect");
 }
 
-function handleSettings() {
-    emit("settings");
-}
 </script>

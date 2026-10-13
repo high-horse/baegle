@@ -45,5 +45,11 @@ func validateResultSettings(settings types.ResultSettings) error {
 	if settings.FontSize < 10 || settings.FontSize > 18 {
 		return fmt.Errorf("font size must be between 10 and 18")
 	}
+	if settings.SidebarFontSize < 10 || settings.SidebarFontSize > 24 {
+		return fmt.Errorf("sidebar font size must be between 10 and 24")
+	}
+	if settings.ConsoleFontSize < 10 || settings.ConsoleFontSize > 24 {
+		return fmt.Errorf("console font size must be between 10 and 24")
+	}
 	return nil
 }

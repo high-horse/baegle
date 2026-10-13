@@ -24,6 +24,8 @@ export interface Connection {
 export interface ResultSettings {
     "rowsPerPage": number;
     "fontSize": number;
+    "sidebarFontSize": number;
+    "consoleFontSize": number;
     "stripedRows": boolean;
     "showNulls": boolean;
 }

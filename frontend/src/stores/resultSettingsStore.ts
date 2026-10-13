@@ -6,6 +6,8 @@ import type { ResultSettings } from "@bindings/db-lens/internal/types";
 export const defaultResultSettings: ResultSettings = {
     rowsPerPage: 100,
     fontSize: 11,
+    sidebarFontSize: 12,
+    consoleFontSize: 12,
     stripedRows: true,
     showNulls: false,
 };

@@ -30,7 +30,17 @@ func TestResultSettingsSurviveDatabaseReopen(t *testing.T) {
 	if err != nil || defaults != types.DefaultResultSettings() {
 		t.Fatalf("defaults: %+v %v", defaults, err)
 	}
-	saved := types.ResultSettings{RowsPerPage: 250, FontSize: 14, StripedRows: false, ShowNulls: true}
+	// Older installations have no sidebar or console keys in their saved JSON.
+	if _, err := Conn.Exec(`INSERT INTO app_preferences (key, value) VALUES ('result_grid',
+		'{"rowsPerPage":250,"fontSize":14,"stripedRows":false,"showNulls":true}')`); err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := GetResultSettings(ctx)
+	if err != nil || legacy.RowsPerPage != 250 || legacy.FontSize != 14 || legacy.StripedRows || !legacy.ShowNulls ||
+		legacy.SidebarFontSize != defaults.SidebarFontSize || legacy.ConsoleFontSize != defaults.ConsoleFontSize {
+		t.Fatalf("legacy preferences lost values or new defaults: %+v %v", legacy, err)
+	}
+	saved := types.ResultSettings{RowsPerPage: 250, FontSize: 14, SidebarFontSize: 16, ConsoleFontSize: 20, StripedRows: false, ShowNulls: true}
 	if err := SaveResultSettings(ctx, saved); err != nil {
 		t.Fatal(err)
 	}
@@ -48,10 +58,18 @@ func TestResultSettingsSurviveDatabaseReopen(t *testing.T) {
 	if err != nil || actual != saved {
 		t.Fatalf("connections changed preferences: %+v %v", actual, err)
 	}
-	for _, invalid := range []types.ResultSettings{
-		{RowsPerPage: 0, FontSize: 11}, {RowsPerPage: 501, FontSize: 11},
-		{RowsPerPage: 100, FontSize: 9}, {RowsPerPage: 100, FontSize: 19},
+	for _, invalidate := range []func(*types.ResultSettings){
+		func(s *types.ResultSettings) { s.RowsPerPage = 0 },
+		func(s *types.ResultSettings) { s.RowsPerPage = 501 },
+		func(s *types.ResultSettings) { s.FontSize = 9 },
+		func(s *types.ResultSettings) { s.FontSize = 19 },
+		func(s *types.ResultSettings) { s.SidebarFontSize = 9 },
+		func(s *types.ResultSettings) { s.SidebarFontSize = 25 },
+		func(s *types.ResultSettings) { s.ConsoleFontSize = 9 },
+		func(s *types.ResultSettings) { s.ConsoleFontSize = 25 },
 	} {
+		invalid := saved
+		invalidate(&invalid)
 		if err := SaveResultSettings(ctx, invalid); err == nil {
 			t.Fatalf("accepted invalid settings: %+v", invalid)
 		}

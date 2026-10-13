@@ -201,7 +201,7 @@ import { ref, watch, onMounted, onBeforeMount, onBeforeUnmount } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 
-import { Dialog } from "quasar";
+import { Dialog, Notify } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { DbService } from "@bindings/db-lens/internal/app";
 
@@ -312,7 +312,10 @@ function quoteIdentifier(identifier: string, driver: string = "pgx"): string {
   
 }
 
+let disconnecting = false;
+
 async function handleDisconnect(discard = false) {
+    if (disconnecting) return;
     if (Object.values(tableEdits.states).some(state => state.saving)) return;
     if (tableEdits.anyPending && !discard) {
         Dialog.create({ title: "Unsaved changes", message: "Discard staged row changes and disconnect?", cancel: true, ok: "Discard" }).onOk(() => handleDisconnect(true));
@@ -321,13 +324,43 @@ async function handleDisconnect(discard = false) {
     const session = connectionStore.getActiveSession();
 
     if (session) {
-        await DbService.Disconnect(String(session.id));
+        disconnecting = true;
+        try {
+            await DbService.Disconnect(String(session.id));
+            connectionStore.clearActiveSession();
+            await $router.push({ name: "Welcome" });
+        } catch (error) {
+            Notify.create({ type: "negative", message: `Failed to disconnect: ${String(error)}` });
+        } finally {
+            disconnecting = false;
+        }
+    }
+}
 
-        connectionStore.clearActiveSession();
+let lastEscapeAt: number | undefined;
 
-        $router.push({
-            name: "Welcome",
-        });
+function resetEscapeShortcut() {
+    lastEscapeAt = undefined;
+}
+
+function handleDisconnectShortcut(event: KeyboardEvent) {
+    if (event.key !== "Escape" || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.isComposing) {
+        resetEscapeShortcut();
+        return;
+    }
+    // Escape should dismiss dialogs, menus and editor completions normally.
+    if (event.repeat || document.querySelector(".q-dialog, .q-menu, .cm-tooltip-autocomplete")) {
+        resetEscapeShortcut();
+        return;
+    }
+    const now = performance.now();
+    if (lastEscapeAt !== undefined && now - lastEscapeAt <= 500) {
+        resetEscapeShortcut();
+        event.preventDefault();
+        event.stopPropagation();
+        void handleDisconnect();
+    } else {
+        lastEscapeAt = now;
     }
 }
 
@@ -386,6 +419,8 @@ function handleToggleResultTabShortcut(event: KeyboardEvent) {
 }
 
 onBeforeMount(() => {
+    window.addEventListener("keydown", handleDisconnectShortcut, true);
+    window.addEventListener("blur", resetEscapeShortcut);
     window.addEventListener("keydown", handleSaveConsoleShortcut, true);
     window.addEventListener("keydown", handleCreateTabShortcut);
     window.addEventListener("keydown", handleCloseTabShortcut);
@@ -393,6 +428,9 @@ onBeforeMount(() => {
 });
 
 onBeforeUnmount(() => {
+    window.removeEventListener("keydown", handleDisconnectShortcut, true);
+    window.removeEventListener("blur", resetEscapeShortcut);
+    resetEscapeShortcut();
     window.removeEventListener("keydown", handleSaveConsoleShortcut, true);
     window.removeEventListener("keydown", handleCreateTabShortcut);
     window.removeEventListener("keydown", handleCloseTabShortcut);

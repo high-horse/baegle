@@ -58,7 +58,8 @@
                 no-connectors
                 dense
                 default-expand-all
-                class="text-xs compact-tree"
+                class="compact-tree"
+                :style="{ fontSize: `${resultSettings.settings.sidebarFontSize}px` }"
             >
                 <template #default-header="prop">
                     <div
@@ -126,8 +127,10 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
 import type { QInput } from "quasar";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 
 const connectionStore = useConnectionStore();
+const resultSettings = useResultSettingsStore();
 const expanded = ref<string[]>([]);
 const searchQuery = ref("");
 const searchInput = ref<QInput | null>(null);

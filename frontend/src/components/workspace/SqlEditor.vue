@@ -20,6 +20,7 @@ import { sqlTheme } from "@/utils/sqlTheme";
 import { buildSQLCompletionSchema, getSQLTableReferences, matchingSQLTable, sqlTableAtPosition } from "@/utils/sqlCompletion";
 import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 import { acceptCompletion, autocompletion, type CompletionContext } from "@codemirror/autocomplete";
 
 const props = defineProps<{
@@ -35,11 +36,23 @@ const emit = defineEmits<{
 }>();
 
 const connectionStore = useConnectionStore();
+const resultSettings = useResultSettingsStore();
 
 const editorContainer = ref<HTMLElement | null>(null);
 
 let editorView: EditorView | null = null;
 const sqlDialect = new Compartment();
+const editorFont = new Compartment();
+
+function fontExtension() {
+    return EditorView.theme({
+        "&": { fontSize: `${resultSettings.settings.consoleFontSize}px` },
+    });
+}
+
+watch(() => resultSettings.settings.consoleFontSize, () => {
+    editorView?.dispatch({ effects: editorFont.reconfigure(fontExtension()) });
+});
 
 function getDialect(driver: string) {
     switch (driver) {
@@ -184,6 +197,7 @@ onMounted(() => {
             // 
             // Dark editor theme
             sqlTheme,
+            editorFont.of(fontExtension()),
             EditorView.domEventHandlers({
                 mousedown(event, view) {
                     if (props.dbDriver === "mongodb" || event.button !== 0 || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return false;
@@ -238,7 +252,6 @@ onMounted(() => {
                     fontFamily:
                         "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             
-                    fontSize: "12px",
                     lineHeight: "1.7",
                     caretColor: "#f59e0b",
             
