@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=db-lens
-Exec=db-lens
-Icon=db-lens
+Name=baegle
+Exec=baegle
+Icon=baegle
 Categories=Development;
 Terminal=false
 Keywords=wails

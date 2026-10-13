@@ -8,17 +8,17 @@
         AllowPromptForPassword="false">
     </Settings>
     <Installer
-        Path="db-viewer"
+        Path="baegle"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\My Company\baegle">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
+        PackageName="baegle"
+        PackageDisplayName="baegle"
         PublisherName="CN=My Company"
         PublisherDisplayName="My Company"
         Version="0.1.0.0"
-        PackageDescription="A db-viewer application">
+        PackageDescription="A baegle application">
         <Capabilities>
             <Capability Name="runFullTrust" />
             
@@ -26,9 +26,9 @@
         <Applications>
             <Application
                 Id="com.example.dbviewer"
-                Description="A db-viewer application"
-                DisplayName="My Product"
-                ExecutableName="db-viewer"
+                Description="A baegle application"
+                DisplayName="baegle"
+                ExecutableName="baegle"
                 EntryPoint="Windows.FullTrustApplication">
                 
             </Application>
@@ -41,13 +41,13 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
+            <DisplayName>baegle</DisplayName>
             <PublisherDisplayName>My Company</PublisherDisplayName>
-            <Description>A db-viewer application</Description>
+            <Description>A baegle application</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>
-    <SaveLocation PackagePath="db-viewer.msix" />
+    <SaveLocation PackagePath="baegle.msix" />
     <PackageIntegrity>
         <CertificatePath></CertificatePath>
     </PackageIntegrity>

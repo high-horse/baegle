@@ -86,9 +86,9 @@ jobs:
         run: |
           mkdir -p bin
           go build -tags production,gtk3 -trimpath -buildvcs=false \
-            -ldflags='-w -s' -o bin/db-viewer .
-          file bin/db-viewer
-          if ldd bin/db-viewer | grep -q 'not found'; then
+            -ldflags='-w -s' -o bin/baegle .
+          file bin/baegle
+          if ldd bin/baegle | grep -q 'not found'; then
             echo 'The executable has missing shared libraries.' >&2
             exit 1
           fi
@@ -96,22 +96,23 @@ jobs:
       - name: Package AppImage
         run: |
           mkdir -p dist
-          wails3 generate .desktop -name db-viewer -exec db-viewer \
-            -icon db-viewer -outputfile bin/db-viewer.desktop -categories 'Development;'
-          wails3 generate appimage -binary bin/db-viewer -icon build/linux/appimage/db-viewer.png \
-            -desktopfile bin/db-viewer.desktop -outputdir bin \
-            -builddir "$RUNNER_TEMP/db-viewer-appimage"
-          install -m 755 bin/db-viewer-x86_64.AppImage \
-            "dist/db-viewer-${RELEASE_TAG}-linux-x86_64.AppImage"
+          cp build/appicon.png bin/baegle.png
+          wails3 generate .desktop -name baegle -exec baegle \
+            -icon baegle -outputfile bin/baegle.desktop -categories 'Development;'
+          wails3 generate appimage -binary bin/baegle -icon bin/baegle.png \
+            -desktopfile bin/baegle.desktop -outputdir bin \
+            -builddir "$RUNNER_TEMP/baegle-appimage"
+          install -m 755 bin/baegle-x86_64.AppImage \
+            "dist/baegle-${RELEASE_TAG}-linux-x86_64.AppImage"
 
       - name: Verify package and create checksums
         working-directory: dist
         run: |
-          appimage="db-viewer-${RELEASE_TAG}-linux-x86_64.AppImage"
+          appimage="baegle-${RELEASE_TAG}-linux-x86_64.AppImage"
           test -s "$appimage"
           "./$appimage" --appimage-extract > /dev/null
           test -x squashfs-root/AppRun
-          test -x squashfs-root/usr/bin/db-viewer
+          test -x squashfs-root/usr/bin/baegle
           sha256sum "$appimage" > SHA256SUMS
           sha256sum --check SHA256SUMS
 
@@ -131,10 +132,10 @@ jobs:
             fi
           else
             gh release create "$RELEASE_TAG" --verify-tag --draft \
-              --title "DB Viewer $RELEASE_TAG" --generate-notes \
+              --title "baegle $RELEASE_TAG" --generate-notes \
               --prerelease="$prerelease"
           fi
           # Upload everything before publishing, including for immutable releases.
           gh release upload "$RELEASE_TAG" \
-            "dist/db-viewer-${RELEASE_TAG}-linux-x86_64.AppImage" dist/SHA256SUMS --clobber
+            "dist/baegle-${RELEASE_TAG}-linux-x86_64.AppImage" dist/SHA256SUMS --clobber
           gh release edit "$RELEASE_TAG" --draft=false --prerelease="$prerelease"

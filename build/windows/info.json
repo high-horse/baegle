@@ -6,9 +6,9 @@
 		"0000": {
 			"ProductVersion": "0.1.0",
 			"CompanyName": "My Company",
-			"FileDescription": "A db-viewer application",
+			"FileDescription": "A baegle application",
 			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
+			"ProductName": "baegle",
 			"Comments": "This is a comment"
 		}
 	}

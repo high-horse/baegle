@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=My Product
-Comment=A db-viewer application
+Name=baegle
+Comment=A baegle application
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/db-viewer %u
+Exec=/usr/local/bin/baegle %u
 Terminal=false
 Type=Application
-Icon=db-viewer
+Icon=baegle
 Categories=Utility;
-StartupWMClass=db-viewer
+StartupWMClass=baegle
 
  

@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  APP_NAME: "db-lens"
+  APP_NAME: "baegle"
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "yarn"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'

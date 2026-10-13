@@ -4,9 +4,9 @@
         <key>CFBundlePackageType</key>
             <string>APPL</string>
         <key>CFBundleName</key>
-            <string>My Product</string>
+            <string>baegle</string>
         <key>CFBundleExecutable</key>
-            <string>db-viewer</string>
+            <string>baegle</string>
         <key>CFBundleIdentifier</key>
             <string>com.example.dbviewer</string>
         <key>CFBundleVersion</key>

@@ -22,6 +22,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/appicon.png
+var appIcon []byte
+
 func main() {
 	if runtime.GOOS == "linux" {
 		if err := os.Setenv("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1"); err != nil {
@@ -34,9 +37,9 @@ func main() {
 
 	// GTK4 registers Options.Name on D-Bus even without SingleInstance options.
 	// Distinct identities let independent connection processes activate windows.
-	applicationName := "DB Lens"
+	applicationName := "baegle"
 	if runtime.GOOS == "linux" {
-		applicationName = fmt.Sprintf("DB Lens %d", os.Getpid())
+		applicationName = fmt.Sprintf("baegle %d", os.Getpid())
 	}
 
 	dbService := app.NewDbService(db.NewHistoryRepository(db.Conn))
@@ -48,7 +51,8 @@ func main() {
 	// 'Mac' options tailor the application when running an macOS.
 	app := application.New(application.Options{
 		Name:        applicationName,
-		Description: "A demo of using raw HTML & CSS",
+		Description: "A database viewer",
+		Icon:        appIcon,
 		Services: []application.Service{
 			application.NewService(dbService),
 			application.NewService(app.NewDatabaseService()),
@@ -67,7 +71,7 @@ func main() {
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title: "DB Viewer",
+		Title: "baegle",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:  1000,
 		Height: 618,

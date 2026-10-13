@@ -14,9 +14,9 @@
     ProcessorArchitecture="x64" />
   
   <Properties>
-    <DisplayName>My Product</DisplayName>
+    <DisplayName>baegle</DisplayName>
     <PublisherDisplayName>My Company</PublisherDisplayName>
-    <Description>A db-viewer application</Description>
+    <Description>A baegle application</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   
@@ -29,10 +29,10 @@
   </Resources>
   
   <Applications>
-    <Application Id="com.example.dbviewer" Executable="db-viewer" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="com.example.dbviewer" Executable="baegle" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="My Product"
-        Description="A db-viewer application"
+        DisplayName="baegle"
+        Description="A baegle application"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
@@ -41,7 +41,7 @@
       </uap:VisualElements>
       
       <Extensions>
-        <desktop:Extension Category="windows.fullTrustProcess" Executable="db-viewer" />
+        <desktop:Extension Category="windows.fullTrustProcess" Executable="baegle" />
         
         
       </Extensions>
