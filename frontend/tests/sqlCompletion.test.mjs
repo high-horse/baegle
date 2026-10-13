@@ -13,7 +13,7 @@ const compiled = ts.transpileModule(readFileSync(new URL('../src/utils/sqlComple
 }).outputText;
 const module = { exports: {} };
 new Function('module', 'exports', 'require', compiled)(module, module.exports, name => name === '@codemirror/language' ? languageModule : completionModule);
-const { buildSQLCompletionSchema, getSQLTableReferences, tableAlias } = module.exports;
+const { buildSQLCompletionSchema, getSQLTableReferences, tableAlias, sqlTableAtPosition } = module.exports;
 function suggestions(doc, tables, driver = 'pgx', columns = () => []) {
     const dialect = driver === 'mysql' ? MySQL : driver === 'sqlite' ? SQLite : PostgreSQL;
     const config = { dialect, schema: buildSQLCompletionSchema(tables, driver, columns) };
@@ -24,6 +24,23 @@ const tables = [
     { name: 'table_one', schema: 'public', type: 'TABLE' },
     { name: 'table_view', schema: 'public', type: 'VIEW' },
 ];
+
+test('table navigation resolves quoted schema names and JOIN targets', () => {
+    const doc = 'SELECT t.id FROM "public"."table_one" t JOIN table_view v ON v.id = t.id';
+    const state = EditorState.create({ doc, extensions: [sql({ dialect: PostgreSQL })] });
+    assert.equal(sqlTableAtPosition(state, doc.indexOf('table_one') + 2, tables), tables[0]);
+    assert.equal(sqlTableAtPosition(state, doc.indexOf('table_view') + 2, tables), tables[1]);
+    assert.equal(sqlTableAtPosition(state, doc.indexOf('t.id'), tables), undefined);
+});
+
+test('table navigation ignores literals, comments, unknown names, and other statements', () => {
+    const doc = "SELECT 'table_one' FROM missing; SELECT * FROM table_view -- table_one";
+    const state = EditorState.create({ doc, extensions: [sql({ dialect: PostgreSQL })] });
+    assert.equal(sqlTableAtPosition(state, doc.indexOf('table_one') + 2, tables), undefined);
+    assert.equal(sqlTableAtPosition(state, doc.indexOf('missing') + 2, tables), undefined);
+    assert.equal(sqlTableAtPosition(state, doc.lastIndexOf('table_one') + 2, tables), undefined);
+    assert.equal(sqlTableAtPosition(state, doc.indexOf('table_view') + 2, tables), tables[1]);
+});
 
 function applyTable(doc, label, metadata = tables, driver = 'pgx') {
     const result = suggestions(doc, metadata, driver);

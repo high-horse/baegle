@@ -59,6 +59,7 @@
                                                     queryTabsStore.activeTab
                                                 "
                                                 :on-execute="executeQuery"
+                                                @open-table="table => handleTableSelect({ id: `${table.schema || 'public'}.${table.name}`, label: table.name, type: table.type.toUpperCase() === 'VIEW' ? 'view' : 'table', schema: table.schema || 'public', database: table.database })"
                                                 @create-tab="
                                                     queryTabsStore.createTab()
                                                 "

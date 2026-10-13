@@ -66,6 +66,11 @@ export function matchingSQLTable<T extends TableMetadata>(tables: readonly T[], 
     return matches.find(table => table.schema === "public") || (matches.length === 1 ? matches[0] : undefined);
 }
 
+export function sqlTableAtPosition<T extends TableMetadata>(state: EditorState, pos: number, tables: readonly T[]): T | undefined {
+    const reference = getSQLTableReferences(state, pos).find(ref => pos >= ref.from && pos < ref.to);
+    return reference ? matchingSQLTable(tables, reference.path) : undefined;
+}
+
 export function tableAlias(name: string, used: readonly string[] = []): string {
     const words = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").split(/[^a-zA-Z0-9]+/).filter(Boolean);
     let base = words.map(word => word[0]).join("").toLowerCase() || "t";

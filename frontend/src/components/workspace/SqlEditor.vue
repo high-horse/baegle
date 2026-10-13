@@ -17,7 +17,7 @@ import { search, searchKeymap } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { sql, PostgreSQL, MySQL, SQLite, keywordCompletionSource, schemaCompletionSource } from "@codemirror/lang-sql";
 import { sqlTheme } from "@/utils/sqlTheme";
-import { buildSQLCompletionSchema, getSQLTableReferences, matchingSQLTable } from "@/utils/sqlCompletion";
+import { buildSQLCompletionSchema, getSQLTableReferences, matchingSQLTable, sqlTableAtPosition } from "@/utils/sqlCompletion";
 import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { acceptCompletion, autocompletion, type CompletionContext } from "@codemirror/autocomplete";
@@ -31,6 +31,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     "update:modelValue": [value: string];
     execute: [sql: string];
+    openTable: [table: InspectTableInfo];
 }>();
 
 const connectionStore = useConnectionStore();
@@ -183,6 +184,26 @@ onMounted(() => {
             // 
             // Dark editor theme
             sqlTheme,
+            EditorView.domEventHandlers({
+                mousedown(event, view) {
+                    if (props.dbDriver === "mongodb" || event.button !== 0 || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return false;
+                    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+                    const table = pos === null ? undefined : sqlTableAtPosition(view.state, pos, props.tables ?? []);
+                    if (!table) return false;
+                    event.preventDefault();
+                    emit("openTable", table);
+                    return true;
+                },
+                mousemove(event, view) {
+                    const pos = props.dbDriver !== "mongodb" && (event.ctrlKey || event.metaKey)
+                        ? view.posAtCoords({ x: event.clientX, y: event.clientY }) : null;
+                    const table = pos === null ? undefined : sqlTableAtPosition(view.state, pos, props.tables ?? []);
+                    view.contentDOM.style.cursor = table ? "pointer" : "";
+                    view.contentDOM.title = table ? `Open ${[table.schema, table.name].filter(Boolean).join(".")} in a new tab` : "";
+                },
+                keyup(_event, view) { view.contentDOM.style.cursor = ""; view.contentDOM.title = ""; },
+                mouseleave(_event, view) { view.contentDOM.style.cursor = ""; view.contentDOM.title = ""; },
+            }),
             // Basic editing
             //
             search({ top: true }),

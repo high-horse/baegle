@@ -67,6 +67,7 @@
                 :tables="connectionStore.activeConnectionMetadata ?? []"
                 @update:model-value="handleSqlUpdate"
                 @execute="executeActiveTab"
+                @open-table="emit('openTable', $event)"
             />
         </div>
 
@@ -108,6 +109,7 @@ const dbDriver = computed(() => {
  return driver === "mysql" || driver === "sqlite" || driver === "mongodb" ? driver : "pgx";
 });
 import type { QueryTab } from "@/types/queryTab";
+import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 import SqlEditor from "./SqlEditor.vue";
 
 const sqlEditorRef =
@@ -121,6 +123,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     createTab: [];
     updateSql: [id: string, sql: string];
+    openTable: [table: InspectTableInfo];
 }>();
 
 function createTab() {
