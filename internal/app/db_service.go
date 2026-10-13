@@ -30,6 +30,8 @@ type DbService struct {
 	historyRepo    *db.HistoryRepository
 	consoleMu      sync.Mutex
 	consoleQueries map[string]*consoleQuery
+	transferMu     sync.Mutex
+	importing      bool
 }
 
 func NewDbService(historyRepo *db.HistoryRepository) *DbService {

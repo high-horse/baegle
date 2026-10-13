@@ -1,7 +1,7 @@
 <template>
     <q-card flat bordered class="connection-card">
         <q-card-section class="row items-center no-wrap q-pa-lg">
-            <q-avatar rounded color="amber-10" text-color="amber-3" icon="storage" size="44px" />
+            <q-avatar rounded color="amber" text-color="black" icon="storage" size="44px" />
             <div class="q-ml-md col">
                 <div class="text-h6">{{ editingId ? 'Edit connection' : 'Database connection' }}</div>
                 <div class="text-caption text-grey-5">{{ editingId ? 'Update your saved connection settings.' : 'Choose a database and enter your connection details.' }}</div>

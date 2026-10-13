@@ -30,6 +30,7 @@
 
         <!-- Right -->
         <div class="flex items-center gap-2">
+            <DataTransfer action="import" />
             <ResultSettings />
 
             <q-btn
@@ -50,6 +51,7 @@ import { ref, watch } from "vue";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { DbService } from "@bindings/db-lens/internal/app";
 import ResultSettings from "@/components/workspace/resultGrid/ResultSettings.vue";
+import DataTransfer from "@/components/workspace/DataTransfer.vue";
 
 const connectionStore = useConnectionStore();
 const connected = ref(false);

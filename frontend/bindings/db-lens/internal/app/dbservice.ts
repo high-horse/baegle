@@ -15,12 +15,20 @@ import * as entities$0 from "../engine/entities/models.js";
 // @ts-ignore: Unused imports
 import * as types$0 from "../types/models.js";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
 /**
  * CancelConsoleQuery targets only this execution, so a delayed Stop cannot
  * cancel a newer query in the same console. The execution call acknowledges completion.
  */
 export function CancelConsoleQuery(consoleID: string, requestID: string): $CancellablePromise<boolean> {
     return $Call.ByID(3200948304, consoleID, requestID);
+}
+
+export function ChooseImportFile(): $CancellablePromise<string> {
+    return $Call.ByID(959574191);
 }
 
 export function Connect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
@@ -47,6 +55,10 @@ export function ExecuteQuery(queryInput: entities$0.QueryInput): $CancellablePro
     return $Call.ByID(940505008, queryInput);
 }
 
+export function ExportData(input: $models.ExportRequest): $CancellablePromise<$models.ExportResult | null> {
+    return $Call.ByID(557646671, input);
+}
+
 export function GetActiveConnection(): $CancellablePromise<string> {
     return $Call.ByID(3424422817);
 }
@@ -61,6 +73,10 @@ export function GetDDL(table: entities$0.TableRef): $CancellablePromise<string> 
 
 export function GetQueryHistory(limit: number, since: string): $CancellablePromise<db$0.QueryHistoryEntity[] | null> {
     return $Call.ByID(1944907923, limit, since);
+}
+
+export function ImportData(input: $models.ImportRequest): $CancellablePromise<entities$0.TableSaveResult | null> {
+    return $Call.ByID(4021862224, input);
 }
 
 export function InspectDatabase(): $CancellablePromise<entities$0.InspectTableInfo[] | null> {
@@ -80,6 +96,10 @@ export function PingConfig(config: entities$0.ConnectionConfig): $CancellablePro
 
 export function PingConnection(connID: string): $CancellablePromise<boolean> {
     return $Call.ByID(105455865, connID);
+}
+
+export function PreviewImport(input: $models.ImportRequest): $CancellablePromise<$models.ImportPreview | null> {
+    return $Call.ByID(3512357010, input);
 }
 
 export function SaveAndConnect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {

@@ -305,6 +305,8 @@
                     title="Run this query again" aria-label="Run this query again" @click="emit('refresh')">
                     <q-icon name="refresh" size="16px" />
                 </q-btn>
+                <DataTransfer v-if="result.IsQuery" action="export" :result="result" :table-tab-id="tableTabId"
+                    :disabled="loading || navigationBlocked" />
                 <span class="font-mono text-[10px] text-gray-500">
                     <template v-if="result.Rows.length">Rows {{ result.StartRow }}–{{ result.StartRow + result.Rows.length - 1 }}</template>
                     <template v-else>{{ result.IsQuery ? 'No rows' : 'Statement completed' }}</template>
@@ -372,6 +374,7 @@ import {
 import type { QTableColumn } from "quasar";
 
 import TableDataEditor from "./TableDataEditor.vue";
+import DataTransfer from "../DataTransfer.vue";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 const resultSettings = useResultSettingsStore();
 import { useTableEditsStore } from "@/stores/tableEditsStore";
