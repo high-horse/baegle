@@ -37,8 +37,11 @@
 
         <div class="q-pa-md">
             <q-input
+                ref="searchInput"
                 v-model="searchTerm"
                 placeholder="Search..."
+                aria-label="Search database objects"
+                aria-keyshortcuts="Control+Shift+F"
                 class="w-full"
                 dense rounded
                 outlined
@@ -119,13 +122,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from "vue";
+import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
+import type { QInput } from "quasar";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
 
 const connectionStore = useConnectionStore();
 const expanded = ref<string[]>([]);
 const searchQuery = ref("");
+const searchInput = ref<QInput | null>(null);
 
 const {
     activeConnectionMetadata,
@@ -278,6 +283,18 @@ function handleSearch() {
     searchQuery.value = searchTerm.value;
 }
 
+function handleSearchShortcut(event: KeyboardEvent) {
+    if (!activeConnection.value || event.isComposing || !event.ctrlKey ||
+        !event.shiftKey || event.altKey || event.metaKey || event.key.toLowerCase() !== "f") {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    searchInput.value?.focus();
+    searchInput.value?.select();
+}
+
 watch(
     schemaNodes,
     (nodes) => {
@@ -287,8 +304,14 @@ watch(
 );
 
 onMounted(() => {
+    // Capture the shortcut before the SQL editor handles search keys.
+    window.addEventListener("keydown", handleSearchShortcut, true);
     if (!activeConnectionMetadata.value) {
         connectionStore.setActiveConnectionMetadata();
     }
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener("keydown", handleSearchShortcut, true);
 });
 </script>
