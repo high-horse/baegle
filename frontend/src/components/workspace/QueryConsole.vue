@@ -1,11 +1,11 @@
 <template>
     <div
-        class="h-full w-full min-w-0 min-h-0 flex flex-col flex-nowrap bg-[#282828] overflow-hidden"
+        class="h-full w-full min-w-0 min-h-0 flex flex-col flex-nowrap bg-[#343638] overflow-hidden"
     >
 
         <!-- Query info -->
         <div
-            class="h-7 shrink-0 bg-[#2d2d2d] border-b border-[#484848] flex flex-nowrap items-center justify-between gap-2 min-w-0 overflow-hidden px-3"
+            class="h-7 shrink-0 bg-[#303234] border-b border-[#484848] flex flex-nowrap items-center justify-between gap-2 min-w-0 overflow-hidden px-3"
         >
             <div class="flex flex-nowrap items-center gap-3 min-w-0">
                 <span
@@ -73,7 +73,7 @@
         <!-- No active query -->
         <div
             v-else
-            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap items-center justify-center gap-3 bg-[#282828]"
+            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap items-center justify-center gap-3 bg-[#343638]"
         >
             <q-icon
                 name="code"

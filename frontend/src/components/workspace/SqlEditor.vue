@@ -198,7 +198,7 @@ onMounted(() => {
                     minHeight: "0",
                     maxWidth: "100%",
             
-                    backgroundColor: "#282828",
+                    backgroundColor: "#343638",
                     color: "#d1d5db",
                 },
             
@@ -229,7 +229,7 @@ onMounted(() => {
                 },
             
                 ".cm-gutters": {
-                    backgroundColor: "#2d2d2d",
+                    backgroundColor: "#303234",
                     color: "#909090",
                     border: "none",
                 },
