@@ -15,7 +15,6 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-const MaxImportBytes = 32 << 20
 const MaxImportRows = 100000
 
 type Options struct {
@@ -75,9 +74,6 @@ func textValue(value, nullToken string) json.RawMessage {
 }
 
 func Read(content []byte, options Options, dialect string) (*Data, error) {
-	if len(content) > MaxImportBytes {
-		return nil, fmt.Errorf("import files must be 32 MiB or smaller")
-	}
 	content = bytes.TrimPrefix(content, []byte{0xef, 0xbb, 0xbf})
 	d := &Data{Columns: []string{}, Rows: [][]json.RawMessage{}, Sheets: []string{}}
 	switch options.Format {

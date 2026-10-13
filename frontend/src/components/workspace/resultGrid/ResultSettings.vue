@@ -1,13 +1,13 @@
 <template>
-    <q-btn flat dense type="button" class="pagination-button" title="Result grid and text settings"
-        aria-label="Result grid and text settings" @click="openSettings">
+    <q-btn flat dense type="button" class="pagination-button" title="Workspace settings"
+        aria-label="Workspace settings" @click="openSettings">
         <q-icon name="settings" size="16px" />
     </q-btn>
     <q-dialog v-model="visible" :persistent="saving">
         <q-card class="result-settings-card">
             <q-form @submit.prevent="save">
                 <q-card-section>
-                    <div class="text-h6">Result grid and text settings</div>
+                    <div class="text-h6">Workspace settings</div>
                     <div class="text-caption text-grey-5">Shared across all connections and saved for next time.</div>
                 </q-card-section>
                 <q-card-section class="q-pt-none">
@@ -22,6 +22,10 @@
                         label="Sidebar table list font size (px)" outlined dense class="q-mt-md" :disable="loading || saving" />
                     <q-select v-model="draft.consoleFontSize" :options="[10, 11, 12, 13, 14, 16, 18, 20, 22, 24]"
                         label="Query console font size (px)" outlined dense class="q-mt-md" :disable="loading || saving" />
+                    <q-input v-model.number="draft.importLimitMiB" type="number" clearable label="Import file size limit (MiB)" outlined dense
+                        class="q-mt-md" :min="0" :disable="loading || saving"
+                        :rules="[value => value == null || value === '' || Number.isSafeInteger(value) && value >= 0 || 'Enter a nonnegative whole number']"
+                        hint="Empty or 0 means unlimited. Applies to SQL scripts and data imports." />
                     <q-toggle v-model="draft.stripedRows" label="Alternating row colors" color="amber"
                         class="block q-mt-sm" :disable="loading || saving" />
                     <q-toggle v-model="draft.showNulls" label="Show NULL values explicitly" color="amber" class="block"
@@ -69,7 +73,7 @@ async function save() {
     saving.value = true;
     error.value = "";
     try {
-        await store.save(draft.value);
+        await store.save({ ...draft.value, importLimitMiB: Number(draft.value.importLimitMiB) || 0 });
         visible.value = false;
     } catch (failure) {
         error.value = `Could not save settings: ${String(failure)}`;

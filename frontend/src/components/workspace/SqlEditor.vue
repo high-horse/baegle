@@ -32,6 +32,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     "update:modelValue": [value: string];
     execute: [sql: string];
+    'execute-script': [];
     openTable: [table: InspectTableInfo];
 }>();
 
@@ -170,11 +171,16 @@ function executeCurrentQuery() {
         return;
     }
 
-    console.log("Executing SQL:", sql);
     emit("execute", sql);
 }
 defineExpose({
     execute: executeCurrentQuery,
+    focusLine(line: number) {
+        if (!editorView) return;
+        const position = editorView.state.doc.line(Math.min(editorView.state.doc.lines, Math.max(1, line))).from;
+        editorView.dispatch({ selection: { anchor: position }, effects: EditorView.scrollIntoView(position, { y: 'center' }) });
+        editorView.focus();
+    },
 });
 
 onMounted(() => {
@@ -310,6 +316,7 @@ onMounted(() => {
             }),
             Prec.highest(
                 keymap.of([
+                    { key: 'Alt-x', run: () => { emit('execute-script'); return true; } },
                     {
                         key: "Mod-Enter",
 

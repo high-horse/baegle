@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"db-lens/internal/db"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -15,6 +16,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	manager "db-lens/internal/engine/connectionManager"
 	"db-lens/internal/engine/datatransfer"
@@ -57,32 +59,91 @@ type ExportResult struct {
 func (s *DbService) ChooseImportFile() (string, error) {
 	return application.Get().Dialog.OpenFile().SetTitle("Import table data").AddFilter("Data files", "*.csv;*.json;*.sql;*.xlsx").PromptForSingleSelection()
 }
-func readImport(path string, options datatransfer.Options, dialect string) (*datatransfer.Data, string, error) {
+func readTransferFile(ctx context.Context, path string) ([]byte, error) {
+	var limitMiB int64
+	if db.Conn != nil {
+		settings, err := db.GetResultSettings(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("could not load import settings: %w", err)
+		}
+		limitMiB = settings.ImportLimitMiB
+	}
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	defer file.Close()
 	stat, err := file.Stat()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	if !stat.Mode().IsRegular() || stat.Size() > datatransfer.MaxImportBytes {
-		return nil, "", fmt.Errorf("choose a regular file no larger than 32 MiB")
+	if !stat.Mode().IsRegular() {
+		return nil, fmt.Errorf("select a file, not a directory or special device")
 	}
-	content, err := io.ReadAll(io.LimitReader(file, datatransfer.MaxImportBytes+1))
+	limit := limitMiB * (1 << 20)
+	tooLarge := func() error {
+		return fmt.Errorf("this file exceeds your %d MiB import limit; increase it in Settings or set it to 0 for unlimited", limitMiB)
+	}
+	if limit > 0 && stat.Size() > limit {
+		return nil, tooLarge()
+	}
+	var reader io.Reader = file
+	if limit > 0 {
+		reader = io.LimitReader(file, limit+1)
+	}
+	var content bytes.Buffer
+	buffer := make([]byte, 64<<10)
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		n, err := reader.Read(buffer)
+		content.Write(buffer[:n])
+		if limit > 0 && int64(content.Len()) > limit {
+			return nil, tooLarge()
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return content.Bytes(), nil
+}
+
+type SQLScriptFile struct {
+	Name string `json:"name"`
+	SQL  string `json:"sql"`
+}
+
+// ReadSQLScript only loads text. Opening a file never executes its SQL.
+func (s *DbService) ReadSQLScript(ctx context.Context, path string) (*SQLScriptFile, error) {
+	content, err := readTransferFile(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	content = bytes.TrimPrefix(content, []byte{0xef, 0xbb, 0xbf})
+	if !utf8.Valid(content) || bytes.IndexByte(content, 0) >= 0 {
+		return nil, fmt.Errorf("SQL scripts must be UTF-8 text; convert this file to UTF-8 before opening it")
+	}
+	return &SQLScriptFile{Name: filepath.Base(path), SQL: string(content)}, nil
+}
+
+func readImport(ctx context.Context, path string, options datatransfer.Options, dialect string) (*datatransfer.Data, string, error) {
+	content, err := readTransferFile(ctx, path)
 	if err != nil {
 		return nil, "", err
 	}
 	data, err := datatransfer.Read(content, options, dialect)
 	return data, fmt.Sprintf("%x", sha256.Sum256(content)), err
 }
-func (s *DbService) PreviewImport(input ImportRequest) (*ImportPreview, error) {
+func (s *DbService) PreviewImport(ctx context.Context, input ImportRequest) (*ImportPreview, error) {
 	conn, ok := s.manager.Active()
 	if !ok || conn.ID() != input.Table.ConnectionID {
 		return nil, fmt.Errorf("active connection changed")
 	}
-	data, sha, err := readImport(input.Path, input.Options, conn.Type())
+	data, sha, err := readImport(ctx, input.Path, input.Options, conn.Type())
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +187,7 @@ func (s *DbService) ImportData(ctx context.Context, input ImportRequest) (*entit
 	if !ok || conn.ID() != input.Table.ConnectionID {
 		return nil, fmt.Errorf("active connection changed")
 	}
-	data, sha, err := readImport(input.Path, input.Options, conn.Type())
+	data, sha, err := readImport(ctx, input.Path, input.Options, conn.Type())
 	if err != nil {
 		return nil, err
 	}

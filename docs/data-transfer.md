@@ -14,6 +14,12 @@ MongoDB supports entire-collection export as canonical Extended JSON. Current-pa
 
 ## Import
 
+For **SQL**, choose the file and click **Open SQL in editor**. The file opens as a new console named after the file; opening it never executes SQL. Edit the text, then use **Run script** (Alt+X) to execute all statements, or **Run / Ctrl+Enter** for the current statement or selection. Ctrl+S persists the edited console in the app.
+
+Scripts run sequentially on one database session, stop on the first error, and report the statement number and source line. **Stop** cancels the running script. Earlier commits remain; explicit BEGIN/COMMIT statements control transactions, and unfinished transactions are discarded on exit. Script SELECT results are discarded; use Run on an individual SELECT to view its grid. SQL scripts support quoted strings/comments, PostgreSQL dollar-quoted bodies and COPY FROM STDIN blocks, MySQL DELIMITER directives, and SQLite trigger bodies. Command-line client directives such as psql `\connect` and SQLite `.read` are rejected before execution. Binary database dump archives must be restored with a native restore tool.
+
+For **CSV, JSON and XLSX**:
+
 1. Select an existing destination table or collection and a file.
 2. Choose the format, CSV delimiter, and (for XLSX) worksheet.
 3. Select **Preview file**. The dialog shows the total row count, first five rows, and column mappings.
@@ -31,10 +37,10 @@ SQL databases use one transaction per import; row errors roll back the batch. My
 | CSV | UTF-8, header row, selectable comma/semicolon/tab/pipe delimiter, quoted multiline fields. |
 | JSON | Array of objects; missing properties use database defaults, explicit `null` stays NULL. Numbers are parsed without passing through JavaScript floating point. Binary SQL values use Extended JSON `$binary`. |
 | Excel | XLSX, selectable input worksheet, first row is column headers. Export uses text cells to preserve large IDs and strings beginning with `=`. Import reads stored cell values, not recalculated formulas. |
-| SQL | Data-only `INSERT INTO … (columns) VALUES (literal values)` statements, using the connected database's quoting rules. Multiple tuples are supported. One source table and a consistent column order per file; source values are mapped into the chosen destination. |
+| SQL | Export writes INSERT statements. Import opens the script as editable SQL; Run script executes the edited statements against the active connection. |
 
 CSV/XLSX use `\N` for NULL and an empty field for an empty string. Literal `\N` and strings beginning with a backslash are escaped with an additional backslash. Binary fields use base64. CSV has no cell types: use XLSX if spreadsheet software must treat exported strings as text.
 
-SQL import does not execute arbitrary scripts. DDL, COPY, INSERT SELECT, expressions, stored routines, client directives and complete database dumps are rejected. It does not create tables or reset identity sequences. Use a native database restore tool for full backups.
+The gear dialog has an **Import file size limit (MiB)** setting shared across all connections and sessions. Empty or 0 means unlimited (the default); a positive value applies to SQL file loading and data imports. A file above the configured limit explains how to change it. Limits are checked again when importing, including if the file grows after preview.
 
-Import limits: 32 MiB per file, 100,000 rows, 128 MiB expanded XLSX content. Excel export rejects values beyond its worksheet/cell limits instead of truncating them. Larger exports should use CSV or JSON. Imports have a ten-minute timeout and exports a thirty-minute timeout.
+Row-based imports allow 100,000 rows and 128 MiB expanded XLSX content. These restrictions do not apply to SQL scripts. Excel export rejects values beyond its worksheet/cell limits instead of truncating them. Larger exports should use CSV or JSON. Data imports have a ten-minute timeout and exports a thirty-minute timeout; SQL scripts can be stopped from the console.

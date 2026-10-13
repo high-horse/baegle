@@ -33,6 +33,38 @@ function setup(rowsPerPage = 100) {
     return { store: module.exports.useQueryTabsStore(), calls, cancellations, backend };
 }
 
+test('SQL files open without execution; Run script uses edited text and shares the console lock', async () => {
+    const { store, calls, cancellations, backend } = setup();
+    const tab = store.openSQLScript('dump.sql', 'SELECT 1;', '7');
+    assert.equal(calls.length, 0);
+    assert.equal(tab.title, 'dump.sql');
+    assert.equal(tab.dirty, true);
+    assert.equal(tab.importedScript, true);
+    store.updateSql(tab.id, 'CREATE TABLE edited(id INTEGER); SELECT 2;');
+    let finish;
+    let scriptCall;
+    backend.ExecuteConsoleScript = (...args) => {
+        scriptCall = args;
+        return new Promise(resolve => { finish = resolve; });
+    };
+    const run = store.executeScript(tab.id);
+    assert.equal(scriptCall[2], '7');
+    assert.equal(scriptCall[3], 'CREATE TABLE edited(id INTEGER); SELECT 2;');
+    assert.equal(tab.runningScript, true);
+    await store.execute(tab.id, 'SELECT overlap');
+    assert.equal(calls.length, 0);
+    await store.cancelQuery(tab.id);
+    assert.equal(cancellations.length, 1);
+    assert.equal(tab.loading, true);
+    finish({ completed: 1, total: 2, error: 'Cancelled', errorLine: 2, cancelled: true, duration: 123 });
+    await run;
+    assert.equal(tab.scriptResult.completed, 1);
+    assert.equal(tab.scriptResult.cancelled, true);
+    assert.equal(tab.loading, false);
+    assert.equal(tab.runningScript, false);
+    assert.equal(tab.dirty, true);
+});
+
 test('Run and Ctrl+Enter cannot overlap, including while Stop is pending', async () => {
     const { store, calls, cancellations } = setup();
     const id = store.tabs[0].id;

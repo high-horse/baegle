@@ -1,12 +1,13 @@
 package types
 
 type ResultSettings struct {
-	RowsPerPage     int  `json:"rowsPerPage"`
-	FontSize        int  `json:"fontSize"`
-	SidebarFontSize int  `json:"sidebarFontSize"`
-	ConsoleFontSize int  `json:"consoleFontSize"`
-	StripedRows     bool `json:"stripedRows"`
-	ShowNulls       bool `json:"showNulls"`
+	RowsPerPage     int   `json:"rowsPerPage"`
+	FontSize        int   `json:"fontSize"`
+	SidebarFontSize int   `json:"sidebarFontSize"`
+	ConsoleFontSize int   `json:"consoleFontSize"`
+	ImportLimitMiB  int64 `json:"importLimitMiB"`
+	StripedRows     bool  `json:"stripedRows"`
+	ShowNulls       bool  `json:"showNulls"`
 }
 
 func DefaultResultSettings() ResultSettings {

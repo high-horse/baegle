@@ -274,13 +274,15 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     };
   }
 
-  async function execute(id: string, sql: string, afterSave = false) {
+  async function execute(id: string, sql: string, afterSave = false, script = false) {
     if (!afterSave && (useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id))) return;
     const tab = tabs.value.find(tab => tab.id === id);
     if (!tab || tab.loading || runningQueries.has(id) || !sql.trim()) return;
     const operation = { requestID: crypto.randomUUID(), stopping: false };
     runningQueries.set(id, operation);
     tab.runningQuery = true;
+    tab.runningScript = script;
+    tab.scriptResult = undefined;
     tab.queryStartedAt = performance.now();
     tab.stopping = false;
     const previousCursor = tab.cursor ?? "";
@@ -302,8 +304,18 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tab.pages = [];
     tab.pageIndex = 0;
     tab.cursor = "";
-    tab.executedSql = sql;
+    tab.executedSql = script ? undefined : sql;
     try {
+      if (script) {
+        releaseCursor(previousCursor);
+        const response = await DbService.ExecuteConsoleScript(id, operation.requestID,
+          tab.connectionId ?? String(useConnectionStore().activeConnection?.id ?? ''), sql);
+        if (!response) throw new Error('Script returned no response');
+        if (!tabs.value.includes(tab)) return;
+        tab.scriptResult = response;
+        tab.error = response.error || null;
+        return;
+      }
       const response = await DbService.ExecuteConsoleQuery(id, operation.requestID, { query: sql, cursor: previousCursor,
         type: afterSave && tab.result?.CanNavigate ? QueryExecutionType.QueryExecutionNavigate : QueryExecutionType.QueryExecutionExecute,
         pageSize, page: refreshPage, sortColumn: refreshSortColumn, sortDirection: refreshSortDirection ?? "",
@@ -319,16 +331,33 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       else if (!result.HasMore) tab.totalRows = result.StartRow - 1 + result.Rows.length;
       setResult(id, result);
     } catch (error) {
-      const message = operation.stopping ? "Query cancelled" : error instanceof Error ? error.message : String(error);
+      const message = operation.stopping ? script ? "Script cancelled; earlier commits may remain" : "Query cancelled" : error instanceof Error ? error.message : String(error);
+      if (script) tab.scriptResult = { completed: 0, total: 0, error: message, errorLine: 0,
+        cancelled: operation.stopping, duration: Math.round(performance.now() - (tab.queryStartedAt ?? performance.now())) };
       if (afterSave && tab.result) tab.pageError = message;
       else setError(id, message);
     } finally {
       runningQueries.delete(id);
       tab.loading = false;
       tab.runningQuery = false;
+      tab.runningScript = false;
       tab.queryStartedAt = undefined;
       tab.stopping = false;
     }
+  }
+
+  function executeScript(id: string) {
+    const tab = tabs.value.find(tab => tab.id === id);
+    if (tab?.type === 'query') return execute(id, tab.sql, false, true);
+  }
+
+  function openSQLScript(name: string, sql: string, connectionId: string) {
+    const created = createTab(connectionId);
+    const tab = tabs.value.find(tab => tab.id === created.id)!;
+    tab.title = name;
+    tab.importedScript = true;
+    updateSql(tab.id, sql);
+    return tab;
   }
 
   async function cancelQuery(id: string) {
@@ -487,6 +516,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     setLoading,
     setError,
     execute,
+    executeScript,
+    openSQLScript,
     cancelQuery,
     navigate,
     stopFetching,

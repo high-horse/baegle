@@ -12,5 +12,7 @@ export type {
     ExportRequest,
     ExportResult,
     ImportPreview,
-    ImportRequest
+    ImportRequest,
+    SQLScriptFile,
+    ScriptResult
 } from "./models.js";

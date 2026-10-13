@@ -31,6 +31,9 @@ export interface QueryTab {
 
   loading: boolean;
   runningQuery?: boolean;
+  runningScript?: boolean;
+  importedScript?: boolean;
+  scriptResult?: { completed: number; total: number; error: string; errorLine: number; cancelled: boolean; duration: number };
   queryStartedAt?: number;
   stopping?: boolean;
   error: string | null;

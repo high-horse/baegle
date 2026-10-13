@@ -34,7 +34,7 @@ func TestTransferTableRoundTrip(t *testing.T) {
 			target := table
 			target.Name = "target"
 			input := ImportRequest{Path: path, Table: target, Options: options, Mapping: map[string]string{"id": "id", "name": "name", "note": "note", "blob": "blob"}}
-			preview, err := s.PreviewImport(input)
+			preview, err := s.PreviewImport(ctx, input)
 			if err != nil || preview.Total != 2 {
 				t.Fatalf("preview: %+v %v", preview, err)
 			}
@@ -59,7 +59,7 @@ func TestTransferValidationAndRollback(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "input.json")
 	os.WriteFile(path, []byte(`[{"name":"same"},{"name":"same"}]`), 0600)
 	input := ImportRequest{Path: path, Table: table, Options: datatransfer.Options{Format: "json"}, Mapping: map[string]string{"name": "name"}}
-	preview, err := s.PreviewImport(input)
+	preview, err := s.PreviewImport(ctx, input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestTransferValidationAndRollback(t *testing.T) {
 	if _, err = s.ImportData(ctx, input); err == nil || !strings.Contains(err.Error(), "file changed") {
 		t.Fatalf("changed file accepted: %v", err)
 	}
-	preview, _ = s.PreviewImport(input)
+	preview, _ = s.PreviewImport(ctx, input)
 	input.SHA = preview.SHA
 	input.Mapping = map[string]string{"name": "unknown"}
 	if _, err = s.ImportData(ctx, input); err == nil {

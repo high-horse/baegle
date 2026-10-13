@@ -26,6 +26,7 @@ export interface ResultSettings {
     "fontSize": number;
     "sidebarFontSize": number;
     "consoleFontSize": number;
+    "importLimitMiB": number;
     "stripedRows": boolean;
     "showNulls": boolean;
 }

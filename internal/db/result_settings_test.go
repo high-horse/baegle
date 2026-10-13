@@ -37,10 +37,10 @@ func TestResultSettingsSurviveDatabaseReopen(t *testing.T) {
 	}
 	legacy, err := GetResultSettings(ctx)
 	if err != nil || legacy.RowsPerPage != 250 || legacy.FontSize != 14 || legacy.StripedRows || !legacy.ShowNulls ||
-		legacy.SidebarFontSize != defaults.SidebarFontSize || legacy.ConsoleFontSize != defaults.ConsoleFontSize {
+		legacy.SidebarFontSize != defaults.SidebarFontSize || legacy.ConsoleFontSize != defaults.ConsoleFontSize || legacy.ImportLimitMiB != 0 {
 		t.Fatalf("legacy preferences lost values or new defaults: %+v %v", legacy, err)
 	}
-	saved := types.ResultSettings{RowsPerPage: 250, FontSize: 14, SidebarFontSize: 16, ConsoleFontSize: 20, StripedRows: false, ShowNulls: true}
+	saved := types.ResultSettings{RowsPerPage: 250, FontSize: 14, SidebarFontSize: 16, ConsoleFontSize: 20, ImportLimitMiB: 64, StripedRows: false, ShowNulls: true}
 	if err := SaveResultSettings(ctx, saved); err != nil {
 		t.Fatal(err)
 	}
@@ -67,6 +67,7 @@ func TestResultSettingsSurviveDatabaseReopen(t *testing.T) {
 		func(s *types.ResultSettings) { s.SidebarFontSize = 25 },
 		func(s *types.ResultSettings) { s.ConsoleFontSize = 9 },
 		func(s *types.ResultSettings) { s.ConsoleFontSize = 25 },
+		func(s *types.ResultSettings) { s.ImportLimitMiB = -1 },
 	} {
 		invalid := saved
 		invalidate(&invalid)

@@ -51,6 +51,14 @@ export function ExecuteConsoleQuery(consoleID: string, requestID: string, input:
     return $Call.ByID(2387609227, consoleID, requestID, input);
 }
 
+/**
+ * ExecuteConsoleScript runs the edited text on one session. Explicit transaction
+ * statements in the script control commits; autocommitted statements remain on error.
+ */
+export function ExecuteConsoleScript(consoleID: string, requestID: string, connectionID: string, text: string): $CancellablePromise<$models.ScriptResult | null> {
+    return $Call.ByID(471629218, consoleID, requestID, connectionID, text);
+}
+
 export function ExecuteQuery(queryInput: entities$0.QueryInput): $CancellablePromise<entities$0.QueryResult | null> {
     return $Call.ByID(940505008, queryInput);
 }
@@ -100,6 +108,13 @@ export function PingConnection(connID: string): $CancellablePromise<boolean> {
 
 export function PreviewImport(input: $models.ImportRequest): $CancellablePromise<$models.ImportPreview | null> {
     return $Call.ByID(3512357010, input);
+}
+
+/**
+ * ReadSQLScript only loads text. Opening a file never executes its SQL.
+ */
+export function ReadSQLScript(path: string): $CancellablePromise<$models.SQLScriptFile | null> {
+    return $Call.ByID(1094763116, path);
 }
 
 export function SaveAndConnect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {

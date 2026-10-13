@@ -42,3 +42,17 @@ export interface ImportRequest {
     "table": entities$0.TableRef;
     "mapping": { [_ in string]?: string } | null;
 }
+
+export interface SQLScriptFile {
+    "name": string;
+    "sql": string;
+}
+
+export interface ScriptResult {
+    "completed": number;
+    "total": number;
+    "error": string;
+    "errorLine": number;
+    "cancelled": boolean;
+    "duration": number;
+}

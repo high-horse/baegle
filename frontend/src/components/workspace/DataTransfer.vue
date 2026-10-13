@@ -57,7 +57,7 @@
                     </div>
                 </template>
                 <template v-else>
-                <q-select v-model="tableKey"
+                <q-select v-if="format !== 'sql'" v-model="tableKey"
                     :options="tableOptions" emit-value map-options label="Table / collection" outlined dense :disable="busy" class="q-mb-md" />
                 <q-select v-model="format" :options="formats" emit-value map-options label="File format" outlined dense :disable="busy" />
                 <p class="text-caption text-grey-5 q-mt-sm">{{ scopeHint }}</p>
@@ -70,8 +70,7 @@
                     A leading backslash is escaped with another backslash on export. Excel exports cells as text to preserve exact values.
                 </p>
                 <p v-if="format === 'sql'" class="text-caption text-grey-5">
-                    Data-only INSERT INTO … VALUES files for the current database dialect. Import maps their values into the selected table.
-                    DDL, functions, COPY, and full database dumps are not supported here.
+                    Open this SQL file in a new query console to review and edit it. Nothing executes until you choose Run or Run script.
                 </p>
                 <template v-if="mode === 'import'">
                     <div class="row items-center q-gutter-sm q-mb-md">
@@ -80,8 +79,10 @@
                     </div>
                     <q-select v-if="format === 'xlsx' && sheets.length" v-model="sheet" :options="sheets" clearable
                         label="Worksheet (first sheet by default)" outlined dense :disable="busy" class="q-mb-md" />
-                    <q-btn outline no-caps label="Preview file" :disable="busy || !path || !table" @click="previewFile" />
-                    <p class="text-caption text-grey-5">Up to 32 MiB and 100,000 rows per import. Inserts new rows; existing rows are retained.</p>
+                    <q-btn v-if="format !== 'sql'" outline no-caps label="Preview file" :disable="busy || !path || !table" @click="previewFile" />
+                    <p class="text-caption text-grey-5">File size is controlled in Settings; empty or 0 means unlimited.
+                        <template v-if="format !== 'sql'">Up to 100,000 rows per data import. Inserts new rows; existing rows are retained.</template>
+                    </p>
                     <template v-if="preview">
                         <div class="text-subtitle2 q-mt-md">{{ preview.total }} rows · Column mapping</div>
                         <p class="text-caption text-grey-5">Unmapped fields use database defaults. Generated columns are excluded. Map identity columns only to preserve source IDs.</p>
@@ -107,7 +108,9 @@
             </q-card-section>
             <q-card-actions align="right" class="q-pa-md">
                 <q-btn flat no-caps :label="success ? 'Close' : 'Cancel'" :disable="busy" v-close-popup />
-                <q-btn v-if="mode === 'import'" unelevated no-caps color="amber" text-color="black" :label="`Import ${preview?.total ?? 0} rows`"
+                <q-btn v-if="mode === 'import' && format === 'sql'" unelevated no-caps color="amber" text-color="black" label="Open SQL in editor"
+                    :disable="busy || !path" @click="openSQLFile" />
+                <q-btn v-else-if="mode === 'import'" unelevated no-caps color="amber" text-color="black" :label="`Import ${preview?.total ?? 0} rows`"
                     :disable="busy || !preview?.total || !hasMapping || !!success" @click="importData" />
                 <template v-else-if="!success">
                     <q-btn v-if="exportStep > 0" flat no-caps label="Back" :disable="busy" @click="exportStep--" />
@@ -190,7 +193,7 @@ const table = computed(() => {
 });
 const formats = computed(() => [
     { label: 'CSV (.csv)', value: 'csv' }, { label: 'JSON (.json)', value: 'json' },
-    { label: 'Excel (.xlsx)', value: 'xlsx' }, ...(!isMongo.value ? [{ label: 'SQL inserts (.sql)', value: 'sql' }] : []),
+    { label: 'Excel (.xlsx)', value: 'xlsx' }, ...(!isMongo.value ? [{ label: mode.value === 'import' ? 'SQL script (.sql)' : 'SQL inserts (.sql)', value: 'sql' }] : []),
 ]);
 const scopes = computed(() => [
     ...(sourceTable.value && (!isMongo.value || format.value === 'json') ? [{ label: isMongo.value ? 'Entire collection' : 'Entire source table / view', value: 'table' }] : []),
@@ -200,7 +203,7 @@ const scopes = computed(() => [
 const canExport = computed(() => scopes.value.some(item => item.value === scope.value) &&
     (exportStep.value === 0 || !((scope.value === 'table' || format.value === 'sql') && !table.value)));
 watch(scopes, items => { if (!items.some(item => item.value === scope.value)) scope.value = items[0]?.value ?? 'page'; });
-const scopeHint = computed(() => mode.value === 'import' ? 'Review the destination and mappings before importing.' :
+const scopeHint = computed(() => mode.value === 'import' ? format.value === 'sql' ? 'Review and edit the SQL in a console before executing it.' : 'Review the destination and mappings before importing.' :
     scope.value === 'page' ? 'Exports the loaded page only, before local WHERE / ORDER BY filters and staged edits.' :
     scope.value === 'query' ? 'Reruns the last executed SELECT and exports all returned rows. Local grid filters and staged edits are excluded.' :
     'Exports every stored row in the selected table or collection, independently of result pagination and grid filters.');
@@ -213,7 +216,7 @@ watch(formats, value => { if (!value.some(f => f.value === format.value)) format
 async function task(label: string, run: () => Promise<void>) {
     if (busy.value) return;
     busy.value = true; operation.value = label; startedAt.value = performance.now(); error.value = ''; success.value = '';
-    try { await run(); } catch (failure) { error.value = String(failure); }
+    try { await run(); } catch (failure) { error.value = failure instanceof Error ? failure.message : String(failure); }
     finally { busy.value = false; startedAt.value = null; }
 }
 async function open(value: 'import' | 'export') {
@@ -238,6 +241,16 @@ async function chooseFile() {
         path.value = selected; sheets.value = []; sheet.value = '';
         const extension = selected.split('.').pop()?.toLowerCase();
         if (extension && formats.value.some(f => f.value === extension)) format.value = extension;
+    });
+}
+async function openSQLFile() {
+    await task('Loading SQL into the editor…', async () => {
+        const connectionId = String(connection.activeConnection?.id ?? '');
+        const script = await DbService.ReadSQLScript(path.value);
+        if (!script) throw new Error('The SQL file could not be loaded');
+        if (!connectionId || connectionId !== String(connection.activeConnection?.id ?? '')) throw new Error('The connection changed; open the file again');
+        queries.openSQLScript(script.name, script.sql, connectionId);
+        visible.value = false;
     });
 }
 function importRequest() {

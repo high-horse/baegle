@@ -8,6 +8,7 @@ export const defaultResultSettings: ResultSettings = {
     fontSize: 11,
     sidebarFontSize: 12,
     consoleFontSize: 12,
+    importLimitMiB: 0,
     stripedRows: true,
     showNulls: false,
 };
