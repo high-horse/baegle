@@ -215,10 +215,10 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 		response.Duration = time.Duration(result.Duration.Milliseconds())
 		return &response, nil
 	}
-	if queryInput.Type != entities.QueryExecutionExecute && queryInput.Type != entities.QueryExecuteRefresh && queryInput.Type != entities.QueryExecutionNavigate {
+	if queryInput.Type != entities.QueryExecutionExecute && queryInput.Type != entities.QueryExecuteRefresh && queryInput.Type != entities.QueryExecutionNavigate && queryInput.Type != entities.QueryExecutionCount {
 		return nil, fmt.Errorf("unknown query execution type")
 	}
-	if queryInput.Cursor != "" {
+	if queryInput.Cursor != "" && queryInput.Type != entities.QueryExecutionCount {
 		s.pager.Close(queryInput.Cursor, conn.ID())
 	}
 	driver, err := s.factory.Driver(conn.Type())
@@ -234,6 +234,13 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 		return nil, fmt.Errorf("active SQL connection not available")
 	}
 	start := time.Now()
+	if queryInput.Type == entities.QueryExecutionCount {
+		total, err := sqlExecutor.CountRead(ctx, sqlConn.DB(), parsed.RawSQL)
+		if err != nil {
+			return nil, fmt.Errorf("count result rows: %w", err)
+		}
+		return &entities.QueryResult{TotalRows: &total, Duration: time.Duration(time.Since(start).Milliseconds())}, nil
+	}
 	var result *entities.QueryResult
 	if _, pageable := sqlExecutor.PageableSQL(parsed.RawSQL); pageable {
 		queryInput.Query = parsed.RawSQL

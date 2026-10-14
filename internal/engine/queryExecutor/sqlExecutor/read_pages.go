@@ -102,6 +102,18 @@ func PageableSQL(query string) (string, bool) {
 	return strings.TrimSpace(query[:end]), true
 }
 
+// CountRead runs only when the user requests an exact total. Original filters,
+// grouping and explicit limits remain part of the counted result.
+func CountRead(ctx context.Context, db *sql.DB, query string) (int64, error) {
+	base, ok := PageableSQL(query)
+	if !ok {
+		return 0, fmt.Errorf("this statement does not support row counting")
+	}
+	var total int64
+	err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM (\n"+base+"\n) AS _dbv_count").Scan(&total)
+	return total, err
+}
+
 // OpenRead fetches a bounded page and one lookahead row, without counting the
 // full result or retaining a database connection between navigation requests.
 func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect string, input entities.QueryInput) (*entities.QueryResult, error) {

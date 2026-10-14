@@ -71,6 +71,7 @@ export enum QueryExecutionType {
     QueryExecuteRefresh = 2,
     QueryExecutionClose = 3,
     QueryExecutionNavigate = 4,
+    QueryExecutionCount = 5,
 };
 
 export interface QueryInput {

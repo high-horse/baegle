@@ -1,5 +1,5 @@
 <template>
-    <div ref="container" class="min-h-0 min-w-0 overflow-hidden" />
+    <div ref="container" class="sql-preview min-h-0 min-w-0 overflow-hidden" />
 </template>
 
 <script setup lang="ts">
@@ -32,8 +32,8 @@ onMounted(() => {
                 EditorView.editable.of(false),
                 EditorView.contentAttributes.of({ tabindex: "0", "aria-label": "Table DDL", "aria-readonly": "true" }),
                 EditorView.theme({
-                    "&": { height: "100%", backgroundColor: "#282828", color: "#d1d5db" },
-                    ".cm-scroller": { overflow: "auto", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "12px", lineHeight: "1.7" },
+                    "&": { position: "absolute", inset: "0", height: "100%", width: "100%", minWidth: "0", minHeight: "0", backgroundColor: "#282828", color: "#d1d5db" },
+                    ".cm-scroller": { overflow: "auto", minWidth: "0", minHeight: "0", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "12px", lineHeight: "1.7" },
                     ".cm-content": { padding: "12px 0" },
                     ".cm-gutters": { backgroundColor: "#2d2d2d", color: "#909090", border: "none" },
                 }),
@@ -50,3 +50,11 @@ watch(() => props.text, text => {
 watch(() => props.driver, () => view?.dispatch({ effects: language.reconfigure(sqlLanguage()) }));
 onBeforeUnmount(() => { view?.destroy(); view = null; });
 </script>
+
+<style scoped>
+.sql-preview {
+    position: relative;
+    flex-basis: 0;
+    max-width: 100%;
+}
+</style>

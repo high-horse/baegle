@@ -7,8 +7,11 @@ The default page size is 100, configurable from 1 to 500 in workspace settings.
 The database connection is released after each page, including on MySQL.
 
 The total remains unknown until a final page is read. Next works using lookahead;
-Previous and First use the ten-page cache or a bounded offset query. Last is
-available only when the total is known. Opening a table never scans to the end
+Previous and First use the ten-page cache or a bounded offset query. The footer Count rows button starts an exact count on demand without replacing
+the current page. While running it offers Cancel; successful counts display the
+total rows. Last starts a cancellable count if needed, then jumps directly to the
+final page using its offset. Count operations obey the saved query timeout.
+Refresh, tab close, and disconnect cancel pending counts and discard late results. Opening a table never scans to the end
 just to populate the footer. Explicit limits, filters, grouping, and ordering
 remain inside the original query; global sorting uses an outer ORDER BY ordinal.
 Deep offsets and unindexed sorts can still be expensive. Use selective filters

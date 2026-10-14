@@ -32,6 +32,7 @@ const initialTab: QueryTab = {
 export const useQueryTabsStore = defineStore("queryTabs", () => {
   const tabs = ref<QueryTab[]>([{ ...initialTab, id: crypto.randomUUID() }]);
   const runningQueries = new Map<string, { requestID: string; stopping: boolean }>();
+  const rowCounts = new Map<string, { requestID: string; cancelled: boolean; stopping: boolean }>();
   const pendingSaves = new Map<string, Promise<boolean>>();
   const restoringConsoles = ref(false);
   let restoreVersion = 0;
@@ -136,6 +137,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     const wasActive = activeTabId.value === id;
 
     void cancelQuery(id);
+    void cancelRowCount(id);
 
     releaseCursor(tabs.value[index].cursor);
 
@@ -259,7 +261,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
 
   function releaseCursor(cursor?: string) {
     if (!cursor) return;
-    void DbService.ExecuteQuery({ query: "", cursor, type: QueryExecutionType.QueryExecutionClose, pageSize: 0, page: 0 }).catch(() => {});
+    void DbService.ExecuteQuery({ query: "", cursor, type: QueryExecutionType.QueryExecutionClose, pageSize: 0, page: 0, sortColumn: 0, sortDirection: "" }).catch(() => {});
   }
 
   function mapResult(response: BackendResult): QueryResult {
@@ -278,6 +280,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     if (!afterSave && (useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id))) return;
     const tab = tabs.value.find(tab => tab.id === id);
     if (!tab || tab.loading || runningQueries.has(id) || !sql.trim()) return;
+    void cancelRowCount(id);
+    tab.countError = undefined;
     const operation = { requestID: crypto.randomUUID(), stopping: false };
     runningQueries.set(id, operation);
     tab.runningQuery = true;
@@ -382,10 +386,64 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     }
   }
 
+  async function countRows(id: string): Promise<boolean> {
+    const tab = tabs.value.find(tab => tab.id === id);
+    if (!tab?.result?.CanSort || !tab.executedSql || tab.loading || tab.closing || rowCounts.has(id)
+        || useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id)) return false;
+    const operation = { requestID: crypto.randomUUID(), cancelled: false, stopping: false };
+    rowCounts.set(id, operation);
+    const query = tab.executedSql;
+    tab.countingRows = true;
+    tab.stoppingCount = false;
+    tab.countError = undefined;
+    try {
+      const response = await DbService.ExecuteConsoleQuery(`${id}:count`, operation.requestID, {
+        query, cursor: "", type: QueryExecutionType.QueryExecutionCount, pageSize: 0, page: 0, sortColumn: 0, sortDirection: "",
+      });
+      if (operation.cancelled || !tabs.value.includes(tab) || tab.executedSql !== query) return false;
+      if (response?.totalRows == null) throw new Error("No row count returned");
+      tab.totalRows = response.totalRows;
+      return true;
+    } catch (error) {
+      if (!operation.cancelled && tabs.value.includes(tab)) tab.countError = `Count failed: ${error instanceof Error ? error.message : String(error)}`;
+      return false;
+    } finally {
+      if (rowCounts.get(id) === operation) rowCounts.delete(id);
+      tab.countingRows = false;
+      tab.stoppingCount = false;
+    }
+  }
+
+  async function cancelRowCount(id: string) {
+    const operation = rowCounts.get(id);
+    if (!operation || operation.stopping) return;
+    operation.cancelled = true;
+    operation.stopping = true;
+    const tab = tabs.value.find(tab => tab.id === id);
+    if (tab) tab.stoppingCount = true;
+    try {
+      // Stop can arrive before the count registers with the backend.
+      while (rowCounts.get(id) === operation) {
+        if (await DbService.CancelConsoleQuery(`${id}:count`, operation.requestID)) return;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } catch (error) {
+      if (rowCounts.get(id) !== operation) return;
+      operation.stopping = false;
+      if (tab) {
+        tab.stoppingCount = false;
+        tab.countError = `Could not cancel count: ${String(error)}`;
+      }
+    }
+  }
+
   async function navigate(id: string, direction: "first" | "previous" | "next" | "last") {
     const tab = tabs.value.find(tab => tab.id === id);
     if (!tab || tab.loading || !tab.pages?.length || useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id)) return;
     if (tab.result?.CanNavigate) {
+      if (direction === "last" && tab.totalRows == null) {
+        if (!(await countRows(id)) || !tabs.value.includes(tab) || tab.loading) return;
+      }
       const page = Math.floor((tab.result.StartRow - 1) / tab.result.PageSize) + 1;
       const lastPage = tab.totalRows == null ? undefined : Math.max(1, Math.ceil(tab.totalRows / tab.result.PageSize));
       if (direction === "last" && lastPage == null || direction === "next" && !tab.result.HasMore) return;
@@ -414,7 +472,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     try {
       do {
         const last = tab.pages[tab.pages.length - 1];
-        const response = await DbService.ExecuteQuery({ query: "", cursor: tab.cursor, type: QueryExecutionType.QueryExecutionFetchPaged, pageSize: last.PageSize, page: Math.floor((last.StartRow - 1) / last.PageSize) + 2 });
+        const response = await DbService.ExecuteQuery({ query: "", cursor: tab.cursor, type: QueryExecutionType.QueryExecutionFetchPaged, pageSize: last.PageSize, page: Math.floor((last.StartRow - 1) / last.PageSize) + 2, sortColumn: 0, sortDirection: "" });
         if (!response) throw new Error("No result page returned");
         if (!tabs.value.includes(tab)) { releaseCursor(response.cursor); return; }
         const result = mapResult(response);
@@ -495,7 +553,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     restoreVersion++;
     restoringConsoles.value = false;
     useTableEditsStore().clearAll();
-    for (const tab of tabs.value) { void cancelQuery(tab.id); releaseCursor(tab.cursor); }
+    for (const tab of tabs.value) { void cancelQuery(tab.id); void cancelRowCount(tab.id); releaseCursor(tab.cursor); }
     tabs.value = [];
     activeTabId.value = null;
   }
@@ -521,6 +579,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     executeScript,
     openSQLScript,
     cancelQuery,
+    countRows,
+    cancelRowCount,
     navigate,
     stopFetching,
     sortResult,

@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full min-h-0 flex bg-[#2d2d2d]">
+  <div class="h-full w-full min-w-0 min-h-0 flex overflow-hidden bg-[#2d2d2d]">
 
     <!-- Sidebar -->
     <div class="w-[150px] shrink-0 h-full border-r border-[#484848]">

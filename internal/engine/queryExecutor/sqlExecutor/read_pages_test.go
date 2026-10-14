@@ -145,3 +145,35 @@ func TestReadExactBoundaryAndAggregate(t *testing.T) {
 		}
 	}
 }
+
+func TestExplicitCountHonorsResultShapeAndCancellation(t *testing.T) {
+	p, db := testPager(t)
+	_ = p
+	ctx := context.Background()
+	for _, tc := range []struct {
+		query string
+		total int64
+	}{
+		{"SELECT 1 WHERE false", 0},
+		{"SELECT x FROM (SELECT 1 AS x UNION ALL SELECT 2 UNION ALL SELECT 2) WHERE x = 2", 2},
+		{"SELECT x FROM (SELECT 1 AS x UNION ALL SELECT 2 UNION ALL SELECT 2) GROUP BY x", 2},
+		{"SELECT 1 UNION ALL SELECT 2 LIMIT 1", 1},
+		{"SELECT COUNT(*) FROM (SELECT 1 UNION ALL SELECT 2)", 1},
+	} {
+		total, err := CountRead(ctx, db, tc.query)
+		if err != nil || total != tc.total {
+			t.Fatalf("%s: got %d, %v", tc.query, total, err)
+		}
+	}
+	if _, err := CountRead(ctx, db, "CREATE TABLE should_not_run (id INT)"); err == nil {
+		t.Fatal("accepted a command")
+	}
+	timed, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancel()
+	if _, err := CountRead(timed, db, "WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n) SELECT x FROM n"); err == nil || timed.Err() == nil {
+		t.Fatal("count did not cancel", err)
+	}
+	if _, err := CountRead(ctx, db, "SELECT 1"); err != nil {
+		t.Fatal("connection unusable after count cancellation", err)
+	}
+}

@@ -17,6 +17,7 @@ const (
 	QueryExecuteRefresh
 	QueryExecutionClose
 	QueryExecutionNavigate
+	QueryExecutionCount
 )
 
 type QueryInput struct {

@@ -51,6 +51,9 @@ export interface QueryTab {
   executedSql?: string;
   pageError?: string;
   totalRows?: number;
+  countingRows?: boolean;
+  stoppingCount?: boolean;
+  countError?: string;
   fetchingLast?: boolean;
   streamNextPage?: number;
   sortColumn?: number;

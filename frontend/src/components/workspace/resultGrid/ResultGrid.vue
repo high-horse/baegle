@@ -108,6 +108,11 @@
                     :can-next="canNext"
                     :can-last="canLast"
                     :total-rows="totalRows"
+                    :counting-rows="countingRows"
+                    :stopping-count="stoppingCount"
+                    :count-error="countError"
+                    @count="emit('count')"
+                    @cancel-count="emit('cancelCount')"
                     :fetching-last="fetchingLast"
                     :sort-column="sortColumn"
                     :sort-direction="sortDirection"
@@ -165,6 +170,9 @@ const props = defineProps<{
     canNext?: boolean;
     canLast?: boolean;
     totalRows?: number;
+    countingRows?: boolean;
+    stoppingCount?: boolean;
+    countError?: string;
     fetchingLast?: boolean;
     sortColumn?: number;
     sortDirection?: "asc" | "desc";
@@ -180,6 +188,8 @@ const emit = defineEmits<{
     last: [];
     stop: [];
     refresh: [];
+    count: [];
+    cancelCount: [];
     sort: [column: number, direction?: "asc" | "desc"];
 }>();
 

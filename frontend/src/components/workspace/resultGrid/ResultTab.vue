@@ -312,8 +312,21 @@
                 <span class="font-mono text-[10px] text-gray-500">
                     <template v-if="result.Rows.length">Rows {{ result.StartRow }}–{{ result.StartRow + result.Rows.length - 1 }}</template>
                     <template v-else>{{ result.IsQuery ? 'No rows' : 'Statement completed' }}</template>
-                    <span v-if="result.IsQuery"> · {{ totalRows == null ? 'Total unknown' : `${totalRows} rows total` }}</span>
+                    <span v-if="result.IsQuery && !result.CanSort && totalRows != null"> · {{ totalRows.toLocaleString() }} rows total</span>
                 </span>
+                <template v-if="result.IsQuery && result.CanSort">
+                    <q-btn v-if="countingRows" flat dense no-caps type="button" size="sm" color="amber"
+                        :disable="stoppingCount" :label="stoppingCount ? 'Cancelling…' : 'Counting… Cancel'"
+                        aria-label="Cancel row count" @click="emit('cancelCount')">
+                        <q-spinner class="q-ml-xs" size="12px" />
+                    </q-btn>
+                    <q-btn v-else flat dense no-caps type="button" size="sm"
+                        :disable="loading || navigationBlocked"
+                        :label="totalRows == null ? 'Count rows' : `${totalRows.toLocaleString()} rows total`"
+                        :title="totalRows == null ? 'Calculate total rows' : 'Recalculate total rows'"
+                        aria-label="Count total rows" @click="emit('count')" />
+                    <span v-if="countError" class="text-red-300 text-xs max-w-40 truncate" :title="countError" role="alert">{{ countError }}</span>
+                </template>
             </div>
             <div v-if="result.IsQuery" class="flex items-center gap-1">
                 <q-btn flat dense no-caps type="button" class="pagination-button" :disable="loading || navigationBlocked || !canFirst"
@@ -335,7 +348,7 @@
                 <div
                     class="mx-1 flex h-[24px] min-w-[80px] items-center justify-center border border-[#484848] bg-[#2d2d2d] px-2 font-mono text-[10px] text-gray-400"
                 >
-                    Page {{ currentPage }} of {{ totalPages ?? '…' }}
+                    Page {{ currentPage }}
                 </div>
 
                 <!-- Next -->
@@ -350,8 +363,8 @@
                 </q-btn>
 
                 <q-btn flat dense no-caps type="button" class="pagination-button"
-                    :disable="loading || navigationBlocked || !canLast"
-                    :title="result.CanNavigate ? 'Go directly to last page' : 'Go to last page (fetches remaining rows)'" aria-label="Go to last page" @click="emit('last')">
+                    :disable="loading || countingRows || navigationBlocked || !canLast"
+                    :title="result.CanNavigate ? (totalRows == null ? 'Count rows and go to last page' : 'Go directly to last page') : 'Go to last page (fetches remaining rows)'" aria-label="Go to last page" @click="emit('last')">
                     <q-icon name="last_page" size="16px" />
                 </q-btn>
                 <q-btn flat dense no-caps v-if="fetchingLast" type="button" class="text-xs text-amber-400 px-2"
@@ -426,6 +439,9 @@ const props = defineProps<{
     canNext?: boolean;
     canLast?: boolean;
     totalRows?: number;
+    countingRows?: boolean;
+    stoppingCount?: boolean;
+    countError?: string;
     fetchingLast?: boolean;
     sortColumn?: number;
     sortDirection?: "asc" | "desc";
@@ -438,6 +454,8 @@ const emit = defineEmits<{
     last: [];
     stop: [];
     refresh: [];
+    count: [];
+    cancelCount: [];
     sort: [column: number, direction?: "asc" | "desc"];
 }>();
 
@@ -450,7 +468,6 @@ const gridElement = ref<HTMLElement | null>(null);
 const tableWidth = computed(() => snColumnWidth.value + props.result.Columns.reduce(
     (width, _column, index) => width + getColumnWidth(`column-${index}`), 0,
 ));
-const totalPages = computed(() => props.totalRows == null ? undefined : Math.max(1, Math.ceil(props.totalRows / props.result.PageSize)));
 
 const getColumnWidth = (columnName: string): number => {
     if (columnName === "sn") {

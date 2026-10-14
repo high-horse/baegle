@@ -24,7 +24,7 @@ function setup(rowsPerPage = 100) {
         '@/stores/connectionStore': { useConnectionStore: () => ({ activeConnection: { driver: 'sqlite' } }) },
         '@/stores/resultSettingsStore': { useResultSettingsStore: () => ({ settings: { rowsPerPage } }) },
         '@bindings/db-lens/internal/app': { DbService: backend },
-        '@bindings/db-lens/internal/engine/entities': { QueryExecutionType: { QueryExecutionExecute: 0, QueryExecutionClose: 2, QueryExecutionNavigate: 4, QueryExecutionFetchPaged: 1 } },
+        '@bindings/db-lens/internal/engine/entities': { QueryExecutionType: { QueryExecutionExecute: 0, QueryExecutionClose: 2, QueryExecutionNavigate: 4, QueryExecutionFetchPaged: 1, QueryExecutionCount: 5 } },
     };
     const module = { exports: {} };
     const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
@@ -163,7 +163,7 @@ test('a result racing with Stop is discarded and its cursor is released', async 
 });
 
 
-test('unknown totals allow Next, disable Last, and become known at the end', async () => {
+test('Next and final-page totals do not require counting', async () => {
     const { store, backend } = setup();
     const tab = store.tabs[0];
     tab.executedSql = 'SELECT id FROM items';
@@ -174,8 +174,6 @@ test('unknown totals allow Next, disable Last, and become known at the end', asy
         requests.push(input);
         return { columns: [], rows: [[101]], startRow: 101, pageSize: 100, hasMore: false, canNavigate: true, totalRows: 101, cursor: '', isQuery: true };
     };
-    await store.navigate(tab.id, 'last');
-    assert.equal(requests.length, 0, 'Last never scans all rows to discover the end');
     await store.navigate(tab.id, 'next');
     assert.equal(requests[0].page, 2);
     assert.equal(requests[0].type, 4);
@@ -187,4 +185,84 @@ test('unknown totals allow Next, disable Last, and become known at the end', asy
     assert.equal(tab.result.StartRow, 101);
     await store.navigate(tab.id, 'next');
     assert.equal(requests.length, 1, 'Next stops at the final page');
+});
+
+
+function countableTab(store) {
+    const tab = store.tabs[0];
+    tab.executedSql = 'SELECT id FROM items';
+    tab.result = { CanNavigate: true, CanSort: true, StartRow: 1, PageSize: 100, HasMore: true, Rows: [[1]], Columns: [] };
+    tab.pages = [tab.result];
+    return tab;
+}
+
+test('on-demand count retains visible data and Last jumps directly after counting', async () => {
+    const { store, calls, backend } = setup();
+    const tab = countableTab(store);
+    const original = tab.result;
+    const pages = [];
+    backend.ExecuteQuery = async input => {
+        pages.push(input);
+        return { columns: [], rows: Array.from({length: 50}, (_, i) => [201 + i]), startRow: 201, pageSize: 100, hasMore: false, canNavigate: true, totalRows: 250, cursor: '', isQuery: true };
+    };
+    const last = store.navigate(tab.id, 'last');
+    assert.equal(tab.countingRows, true);
+    assert.equal(tab.loading, false);
+    assert.equal(tab.result, original);
+    assert.equal(calls[0].input.type, 5);
+    assert.equal(calls[0].input.query, tab.executedSql);
+    assert.equal(calls[0].id, `${tab.id}:count`);
+    assert.equal(pages.length, 0);
+    calls[0].resolve({ totalRows: 250 });
+    await last;
+    assert.equal(tab.countingRows, false);
+    assert.equal(tab.totalRows, 250);
+    assert.deepEqual(pages.map(input => input.page), [3]);
+    assert.equal(tab.result.StartRow, 201);
+});
+
+test('cancelled count cannot update totals or trigger a delayed Last jump', async () => {
+    const { store, calls, cancellations, backend } = setup();
+    const tab = countableTab(store);
+    const original = tab.result;
+    let pageRequests = 0;
+    backend.ExecuteQuery = async () => { pageRequests++; return null; };
+    const last = store.navigate(tab.id, 'last');
+    await store.cancelRowCount(tab.id);
+    assert.equal(cancellations[0].id, `${tab.id}:count`);
+    assert.equal(tab.stoppingCount, true);
+    calls[0].resolve({ totalRows: 999 });
+    await last;
+    assert.equal(tab.totalRows, undefined);
+    assert.equal(pageRequests, 0);
+    assert.equal(tab.result, original);
+    assert.equal(tab.countingRows, false);
+});
+
+test('count failure leaves rows usable and allows retry, including zero totals', async () => {
+    const { store, calls } = setup();
+    const tab = countableTab(store);
+    const count = store.countRows(tab.id);
+    calls[0].reject(new Error('query timed out'));
+    assert.equal(await count, false);
+    assert.match(tab.countError, /timed out/);
+    assert.equal(tab.result.Rows.length, 1);
+    const retry = store.countRows(tab.id);
+    calls[1].resolve({ totalRows: 0 });
+    assert.equal(await retry, true);
+    assert.equal(tab.totalRows, 0);
+    assert.equal(tab.countError, undefined);
+});
+
+test('refresh cancels a pending count and ignores its stale total', async () => {
+    const { store, calls, cancellations } = setup();
+    const tab = countableTab(store);
+    const count = store.countRows(tab.id);
+    const refresh = store.execute(tab.id, 'SELECT id FROM other_items');
+    assert.equal(cancellations[0].id, `${tab.id}:count`);
+    calls[0].resolve({ totalRows: 999 });
+    await count;
+    calls[1].resolve({ columns: [], rows: [[1]], startRow: 1, pageSize: 100, hasMore: false, canNavigate: true, totalRows: 1 });
+    await refresh;
+    assert.equal(tab.totalRows, 1);
 });
