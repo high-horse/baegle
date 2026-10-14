@@ -39,6 +39,9 @@ func SaveResultSettings(ctx context.Context, settings types.ResultSettings) erro
 }
 
 func validateResultSettings(settings types.ResultSettings) error {
+	if settings.QueryTimeoutSeconds < 0 || settings.QueryTimeoutSeconds > 86400 {
+		return fmt.Errorf("query timeout must be between 0 and 86400 seconds; use 0 for unlimited")
+	}
 	if settings.ImportLimitMiB < 0 || settings.ImportLimitMiB > (1<<63-1)/(1<<20)-1 {
 		return fmt.Errorf("import file limit must be a nonnegative whole number of MiB; use 0 for unlimited")
 	}

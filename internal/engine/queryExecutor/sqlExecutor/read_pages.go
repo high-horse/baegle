@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 
 	"db-lens/internal/engine/entities"
@@ -101,12 +102,12 @@ func PageableSQL(query string) (string, bool) {
 	return strings.TrimSpace(query[:end]), true
 }
 
-// OpenRead counts the result, then opens a row stream at the requested page.
-// OFFSET is used only for random access; subsequent Next requests reuse the stream.
+// OpenRead fetches a bounded page and one lookahead row, without counting the
+// full result or retaining a database connection between navigation requests.
 func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect string, input entities.QueryInput) (*entities.QueryResult, error) {
 	base, ok := PageableSQL(input.Query)
 	if !ok {
-		return nil, fmt.Errorf("this statement does not support counted page navigation or sorting")
+		return nil, fmt.Errorf("this statement does not support page navigation or sorting")
 	}
 	size := input.PageSize
 	if size == 0 {
@@ -123,39 +124,56 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 		return nil, fmt.Errorf("invalid sort direction")
 	}
 	wrapped := "(\n" + base + "\n) AS _dbv_result"
-	var total int64
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+wrapped).Scan(&total); err != nil {
-		return nil, fmt.Errorf("count result rows: %w", err)
-	}
 	page := int64(input.Page)
-	lastPage := int64(1)
-	if total > 0 {
-		lastPage = (total-1)/int64(size) + 1
-	}
 	if page < 1 {
 		page = 1
 	}
-	if page > lastPage {
-		page = lastPage
+	if page-1 > (1<<63-1)/int64(size) {
+		return nil, fmt.Errorf("page offset is too large")
 	}
 	offset := (page - 1) * int64(size)
-	query := base
+	query := "SELECT * FROM " + wrapped
 	if input.SortColumn > 0 {
 		// Ordinals support duplicate output labels and cannot inject identifiers.
-		query = fmt.Sprintf("SELECT * FROM %s ORDER BY %d %s", wrapped, input.SortColumn, direction)
+		query += fmt.Sprintf(" ORDER BY %d %s", input.SortColumn, direction)
 	}
-	if offset > 0 {
-		if input.SortColumn == 0 {
-			query = "SELECT * FROM " + wrapped
-		}
-		switch dialect {
-		case "mysql":
-			query += fmt.Sprintf("\nLIMIT 18446744073709551615 OFFSET %d", offset)
-		case "sqlite":
-			query += fmt.Sprintf("\nLIMIT -1 OFFSET %d", offset)
-		default:
-			query += fmt.Sprintf("\nOFFSET %d", offset)
-		}
+	query += fmt.Sprintf("\nLIMIT %d OFFSET %d", size+1, offset)
+	start := time.Now()
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
 	}
-	return p.OpenPage(ctx, db, connection, query, size, offset, total)
+	defer rows.Close()
+	types, err := rows.ColumnTypes()
+	if err != nil {
+		return nil, err
+	}
+	result := &entities.QueryResult{Rows: make([][]interface{}, 0, size), IsQuery: true, PageSize: size, StartRow: offset + 1, CanNavigate: true}
+	for _, ct := range types {
+		nullable, known := ct.Nullable()
+		result.Columns = append(result.Columns, entities.ColumnInfo{Name: ct.Name(), DatabaseType: ct.DatabaseTypeName(), Nullable: nullable && known})
+	}
+	for rows.Next() {
+		if len(result.Rows) == size {
+			result.HasMore = true
+			break
+		}
+		row, err := scanCursorRow(rows, len(types))
+		if err != nil {
+			return nil, err
+		}
+		result.Rows = append(result.Rows, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if offset > 0 && len(result.Rows) == 0 {
+		return nil, fmt.Errorf("this page no longer has rows; refresh the result")
+	}
+	if !result.HasMore {
+		total := offset + int64(len(result.Rows))
+		result.TotalRows = &total
+	}
+	result.Duration = time.Since(start)
+	return result, nil
 }

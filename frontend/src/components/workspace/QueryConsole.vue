@@ -65,7 +65,7 @@
             <template v-if="activeTab.scriptResult">
                 <span :class="activeTab.scriptResult.error ? 'text-red-300' : 'text-teal-300'">
                     {{ activeTab.scriptResult.cancelled ? 'Script stopped' : activeTab.scriptResult.error ? 'Script failed' : 'Script finished' }}:
-                    {{ activeTab.scriptResult.completed }} / {{ activeTab.scriptResult.total }} statements completed in {{ activeTab.scriptResult.duration }} ms.
+                    {{ activeTab.scriptResult.completed }} / {{ activeTab.scriptResult.total }} statements completed in {{ formatDuration(activeTab.scriptResult.duration) }}.
                 </span>
                 <div v-if="activeTab.scriptResult.error" class="text-red-300">{{ activeTab.scriptResult.error }}
                     <q-btn v-if="activeTab.scriptResult.errorLine" flat dense no-caps label="Go to line" @click="sqlEditorRef?.focusLine(activeTab!.scriptResult!.errorLine)" />
@@ -122,6 +122,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { formatDuration } from "@/utils/formatDuration";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
 const queryTabsStore = useQueryTabsStore();

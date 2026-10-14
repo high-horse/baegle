@@ -37,10 +37,10 @@ func TestResultSettingsSurviveDatabaseReopen(t *testing.T) {
 	}
 	legacy, err := GetResultSettings(ctx)
 	if err != nil || legacy.RowsPerPage != 250 || legacy.FontSize != 14 || legacy.StripedRows || !legacy.ShowNulls ||
-		legacy.SidebarFontSize != defaults.SidebarFontSize || legacy.ConsoleFontSize != defaults.ConsoleFontSize || legacy.ImportLimitMiB != 0 {
+		legacy.SidebarFontSize != defaults.SidebarFontSize || legacy.ConsoleFontSize != defaults.ConsoleFontSize || legacy.ImportLimitMiB != 0 || legacy.QueryTimeoutSeconds != 60 {
 		t.Fatalf("legacy preferences lost values or new defaults: %+v %v", legacy, err)
 	}
-	saved := types.ResultSettings{RowsPerPage: 250, FontSize: 14, SidebarFontSize: 16, ConsoleFontSize: 20, ImportLimitMiB: 64, StripedRows: false, ShowNulls: true}
+	saved := types.ResultSettings{QueryTimeoutSeconds: 30, RowsPerPage: 250, FontSize: 14, SidebarFontSize: 16, ConsoleFontSize: 20, ImportLimitMiB: 64, StripedRows: false, ShowNulls: true}
 	if err := SaveResultSettings(ctx, saved); err != nil {
 		t.Fatal(err)
 	}
@@ -59,6 +59,8 @@ func TestResultSettingsSurviveDatabaseReopen(t *testing.T) {
 		t.Fatalf("connections changed preferences: %+v %v", actual, err)
 	}
 	for _, invalidate := range []func(*types.ResultSettings){
+		func(s *types.ResultSettings) { s.QueryTimeoutSeconds = -1 },
+		func(s *types.ResultSettings) { s.QueryTimeoutSeconds = 86401 },
 		func(s *types.ResultSettings) { s.RowsPerPage = 0 },
 		func(s *types.ResultSettings) { s.RowsPerPage = 501 },
 		func(s *types.ResultSettings) { s.FontSize = 9 },

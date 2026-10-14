@@ -4,6 +4,7 @@ import { DatabaseService } from "@bindings/db-lens/internal/app";
 import type { ResultSettings } from "@bindings/db-lens/internal/types";
 
 export const defaultResultSettings: ResultSettings = {
+    queryTimeoutSeconds: 60,
     rowsPerPage: 100,
     fontSize: 11,
     sidebarFontSize: 12,

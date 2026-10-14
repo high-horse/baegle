@@ -29,6 +29,11 @@ func (s *DbService) ExecuteConsoleScript(ctx context.Context, consoleID, request
 		return nil, err
 	}
 	defer finish()
+	ctx, cancel, err := queryTimeoutContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
 	conn, ok := s.manager.Active()
 	if !ok || conn.ID() != connectionID {
 		return nil, fmt.Errorf("the console's connection is no longer active")
@@ -74,6 +79,9 @@ func (s *DbService) ExecuteConsoleScript(ctx context.Context, consoleID, request
 			}
 		}
 		if err != nil {
+			if ctx.Err() != nil {
+				err = context.Cause(ctx)
+			}
 			result.Error = fmt.Sprintf("Statement %d (line %d): %v", result.Completed+1, statement.Line, err)
 			result.ErrorLine = statement.Line
 			result.Cancelled = ctx.Err() != nil

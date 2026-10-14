@@ -16,6 +16,10 @@
                         :min="1" :max="500" :disable="loading || saving"
                         :rules="[value => Number.isInteger(value) && value >= 1 && value <= 500 || 'Enter a whole number from 1 to 500']"
                         hint="Applies on the next query run or refresh." />
+                    <q-input v-model.number="draft.queryTimeoutSeconds" type="number" label="Query timeout (seconds)" outlined dense
+                        class="q-mt-md" :min="0" :max="86400" :disable="loading || saving"
+                        :rules="[value => Number.isInteger(value) && value >= 0 && value <= 86400 || 'Enter a whole number from 0 to 86400']"
+                        hint="Maximum time per query, page load, or script. 0 disables the timeout. Applies to new executions." />
                     <q-select v-model="draft.fontSize" :options="[10, 11, 12, 13, 14, 16, 18]"
                         label="Grid font size (px)" outlined dense class="q-mt-md" :disable="loading || saving" />
                     <q-select v-model="draft.sidebarFontSize" :options="[10, 11, 12, 13, 14, 16, 18, 20, 22, 24]"

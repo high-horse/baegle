@@ -387,9 +387,10 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     if (!tab || tab.loading || !tab.pages?.length || useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id)) return;
     if (tab.result?.CanNavigate) {
       const page = Math.floor((tab.result.StartRow - 1) / tab.result.PageSize) + 1;
-      const lastPage = Math.max(1, Math.ceil((tab.totalRows ?? 0) / tab.result.PageSize));
-      const target = direction === "first" ? 1 : direction === "last" ? lastPage : page + (direction === "next" ? 1 : -1);
-      if (target < 1 || target > lastPage || target === page) return;
+      const lastPage = tab.totalRows == null ? undefined : Math.max(1, Math.ceil(tab.totalRows / tab.result.PageSize));
+      if (direction === "last" && lastPage == null || direction === "next" && !tab.result.HasMore) return;
+      const target = direction === "first" ? 1 : direction === "last" ? lastPage! : page + (direction === "next" ? 1 : -1);
+      if (target < 1 || (lastPage != null && target > lastPage) || target === page) return;
       await fetchReadPage(tab, target);
       return;
     }
@@ -458,6 +459,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       const result = mapResult(response);
       tab.cursor = result.Cursor;
       tab.streamNextPage = Math.floor((result.StartRow - 1) / size) + 2;
+      if (sort) tab.totalRows = undefined;
       if (response.totalRows != null) tab.totalRows = response.totalRows;
       if (sort) {
         tab.sortColumn = sort.column;

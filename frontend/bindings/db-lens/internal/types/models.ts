@@ -23,6 +23,7 @@ export interface Connection {
 }
 
 export interface ResultSettings {
+    "queryTimeoutSeconds": number;
     "rowsPerPage": number;
     "fontSize": number;
     "sidebarFontSize": number;

@@ -24,7 +24,7 @@ function setup(rowsPerPage = 100) {
         '@/stores/connectionStore': { useConnectionStore: () => ({ activeConnection: { driver: 'sqlite' } }) },
         '@/stores/resultSettingsStore': { useResultSettingsStore: () => ({ settings: { rowsPerPage } }) },
         '@bindings/db-lens/internal/app': { DbService: backend },
-        '@bindings/db-lens/internal/engine/entities': { QueryExecutionType: { QueryExecutionExecute: 0, QueryExecutionClose: 2 } },
+        '@bindings/db-lens/internal/engine/entities': { QueryExecutionType: { QueryExecutionExecute: 0, QueryExecutionClose: 2, QueryExecutionNavigate: 4, QueryExecutionFetchPaged: 1 } },
     };
     const module = { exports: {} };
     const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
@@ -160,4 +160,31 @@ test('a result racing with Stop is discarded and its cursor is released', async 
     assert.deepEqual(released, ['late-result']);
     assert.equal(store.tabs[0].result, null);
     assert.equal(store.tabs[0].error, 'Query cancelled');
+});
+
+
+test('unknown totals allow Next, disable Last, and become known at the end', async () => {
+    const { store, backend } = setup();
+    const tab = store.tabs[0];
+    tab.executedSql = 'SELECT id FROM items';
+    tab.result = { CanNavigate: true, StartRow: 1, PageSize: 100, HasMore: true, Rows: [[1]], Columns: [] };
+    tab.pages = [tab.result];
+    const requests = [];
+    backend.ExecuteQuery = async input => {
+        requests.push(input);
+        return { columns: [], rows: [[101]], startRow: 101, pageSize: 100, hasMore: false, canNavigate: true, totalRows: 101, cursor: '', isQuery: true };
+    };
+    await store.navigate(tab.id, 'last');
+    assert.equal(requests.length, 0, 'Last never scans all rows to discover the end');
+    await store.navigate(tab.id, 'next');
+    assert.equal(requests[0].page, 2);
+    assert.equal(requests[0].type, 4);
+    assert.equal(tab.totalRows, 101);
+    await store.navigate(tab.id, 'previous');
+    assert.equal(tab.result.StartRow, 1);
+    assert.equal(requests.length, 1, 'Previous uses the cached first page');
+    await store.navigate(tab.id, 'last');
+    assert.equal(tab.result.StartRow, 101);
+    await store.navigate(tab.id, 'next');
+    assert.equal(requests.length, 1, 'Next stops at the final page');
 });

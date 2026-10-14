@@ -178,7 +178,21 @@ func (s *DbService) InspectTableColumns(ctx context.Context, table entities.Tabl
 	})
 }
 
-func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryInput) (*entities.QueryResult, error) {
+func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryInput) (responseResult *entities.QueryResult, responseError error) {
+	if queryInput.Type != entities.QueryExecutionClose {
+		operation, cancel, err := queryTimeoutContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ctx = operation
+		defer cancel()
+		defer func() {
+			if ctx.Err() != nil {
+				responseResult = nil
+				responseError = context.Cause(ctx)
+			}
+		}()
+	}
 	conn, ok := s.manager.Active()
 	if !ok {
 		return nil, fmt.Errorf("active connection not found")
@@ -193,7 +207,7 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 		return nil, nil
 	}
 	if queryInput.Type == entities.QueryExecutionFetchPaged {
-		result, err := s.pager.Fetch(queryInput.Cursor, conn.ID(), queryInput.Page)
+		result, err := s.pager.FetchContext(ctx, queryInput.Cursor, conn.ID(), queryInput.Page)
 		if err != nil {
 			return nil, err
 		}

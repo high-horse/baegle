@@ -129,6 +129,19 @@ func (p *Pager) Fetch(id, connection string, page int) (*entities.QueryResult, e
 	return result, err
 }
 
+func (p *Pager) FetchContext(ctx context.Context, id, connection string, page int) (*entities.QueryResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	stop := context.AfterFunc(ctx, func() { p.Close(id, connection) })
+	defer stop()
+	result, err := p.Fetch(id, connection, page)
+	if ctx.Err() != nil {
+		return nil, context.Cause(ctx)
+	}
+	return result, err
+}
+
 func (c *rowCursor) fetch(id string, start time.Time) (*entities.QueryResult, error) {
 	result := &entities.QueryResult{Columns: c.columns, Rows: make([][]interface{}, 0, c.size), IsQuery: len(c.columns) > 0, PageSize: c.size, StartRow: c.read + 1, TotalRows: c.totalRows, CanNavigate: c.totalRows != nil}
 	if result.IsQuery {

@@ -28,7 +28,7 @@
                     v-if="result && !loading"
                     class="text-[#a0a0a0]"
                 >
-                    {{ result.Duration }}ms execution latency
+                    {{ formatDuration(result.Duration) }} execution latency
                 </span>
 
                  <!-- <q-btn flat dense no-caps
@@ -149,6 +149,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { formatDuration } from "@/utils/formatDuration";
 import type { QueryResult } from "@/types/queryTab";
 import ResultTab from "./ResultTab.vue";
 import IndexSchema from "./Schema/Index.vue";

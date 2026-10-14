@@ -3,11 +3,12 @@ package sqlExecutor
 import (
 	"context"
 	"testing"
+	"time"
 
 	"db-lens/internal/engine/entities"
 )
 
-func TestReadPagesCountJumpAndGlobalSort(t *testing.T) {
+func TestReadPagesBoundedJumpAndGlobalSort(t *testing.T) {
 	p, db := testPager(t)
 	ctx := context.Background()
 	if _, err := db.Exec("CREATE TABLE items (id INTEGER PRIMARY KEY, score INTEGER); WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<250) INSERT INTO items SELECT x, 251-x FROM n"); err != nil {
@@ -18,11 +19,12 @@ func TestReadPagesCountJumpAndGlobalSort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !first.CanNavigate || first.TotalRows == nil || *first.TotalRows != 250 || first.Rows[0][0] != int64(1) {
+	if !first.CanNavigate || first.TotalRows != nil || first.Cursor != "" || !first.HasMore || first.Rows[0][0] != int64(1) {
 		t.Fatalf("bad first page: %+v", first)
 	}
-	second, err := p.Fetch(first.Cursor, "test", 2)
-	if err != nil || second.StartRow != 101 || *second.TotalRows != 250 {
+	input.Page = 2
+	second, err := p.OpenRead(ctx, db, "test", "sqlite", input)
+	if err != nil || second.StartRow != 101 || second.TotalRows != nil || second.Cursor != "" {
 		t.Fatal("stream next/count failed", err)
 	}
 	p.Close(first.Cursor, "test")
@@ -36,7 +38,8 @@ func TestReadPagesCountJumpAndGlobalSort(t *testing.T) {
 	if err != nil || back.StartRow != 101 {
 		t.Fatal("backwards offset jump failed", err)
 	}
-	last, err = p.Fetch(back.Cursor, "test", 3)
+	input.Page = 3
+	last, err = p.OpenRead(ctx, db, "test", "sqlite", input)
 	if err != nil || last.StartRow != 201 {
 		t.Fatal("stream sequence after jump failed", err)
 	}
@@ -63,7 +66,7 @@ func TestReadPagesCountJumpAndGlobalSort(t *testing.T) {
 func TestReadPageBoundaryAndValidation(t *testing.T) {
 	p, db := testPager(t)
 	for _, query := range []string{"SELECT 1 AS value WHERE false", "SELECT 1 AS value"} {
-		result, err := p.OpenRead(context.Background(), db, "test", "sqlite", entities.QueryInput{Query: query, Page: 999, PageSize: 100})
+		result, err := p.OpenRead(context.Background(), db, "test", "sqlite", entities.QueryInput{Query: query, Page: 1, PageSize: 100})
 		if err != nil || result.StartRow != 1 || result.HasMore || result.TotalRows == nil {
 			t.Fatal("empty/single page failed", err)
 		}
@@ -98,6 +101,47 @@ func TestPageableSQL(t *testing.T) {
 	} {
 		if _, ok := PageableSQL(query); ok {
 			t.Errorf("accepted non-pageable statement: %s", query)
+		}
+	}
+}
+
+func TestReadFirstPageDoesNotCountOrHoldConnection(t *testing.T) {
+	p, db := testPager(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	// An unbounded recursive result cannot be counted. The first page must still
+	// return promptly, and the one-connection pool must be immediately reusable.
+	result, err := p.OpenRead(ctx, db, "test", "sqlite", entities.QueryInput{
+		Query: "WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n) SELECT x FROM n", PageSize: 100,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Rows) != 100 || !result.HasMore || result.TotalRows != nil || result.Cursor != "" {
+		t.Fatalf("unexpected page: %+v", result)
+	}
+	var value int
+	if err := db.QueryRowContext(ctx, "SELECT 42").Scan(&value); err != nil || value != 42 {
+		t.Fatal("page retained the database connection", err)
+	}
+}
+
+func TestReadExactBoundaryAndAggregate(t *testing.T) {
+	p, db := testPager(t)
+	ctx := context.Background()
+	for _, query := range []string{
+		"WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<100) SELECT x FROM n",
+		"SELECT count(*) FROM (SELECT 1 UNION ALL SELECT 2)",
+	} {
+		result, err := p.OpenRead(ctx, db, "test", "sqlite", entities.QueryInput{Query: query, PageSize: 100})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.HasMore || result.Cursor != "" || result.TotalRows == nil || *result.TotalRows != int64(len(result.Rows)) {
+			t.Fatalf("bad exact result: %+v", result)
+		}
+		if len(result.Rows) == 1 && result.Rows[0][0] != int64(2) {
+			t.Fatal("aggregate result changed")
 		}
 	}
 }
