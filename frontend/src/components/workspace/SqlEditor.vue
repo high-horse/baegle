@@ -10,7 +10,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { Prec, Compartment } from "@codemirror/state";
 import { linter, type Diagnostic } from "@codemirror/lint";
 import { syntaxTree } from "@codemirror/language";
-import { EditorView, keymap } from "@codemirror/view";
+import { Decoration, EditorView, drawSelection, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { search, searchKeymap } from "@codemirror/search";
@@ -228,6 +228,15 @@ onMounted(() => {
             //
             search({ top: true }),
             history(),
+            // Keep a blinking caret at the active end of keyboard selections.
+            drawSelection({ drawRangeCursor: true, cursorBlinkRate: 1000 }),
+            // Paint selected text itself as well as the selection layer, so syntax
+            // colors and native WebView selection styling cannot mute the highlight.
+            EditorView.decorations.compute(["selection"], state => Decoration.set(
+                state.selection.ranges.filter(range => !range.empty).map(range =>
+                    Decoration.mark({ class: "cm-consoleSelectedText" }).range(range.from, range.to),
+                ), true,
+            )),
             keymap.of([{ key: "Tab", run: acceptCompletion }, ...historyKeymap, ...searchKeymap, ...defaultKeymap, indentWithTab]),
             EditorView.lineWrapping,
             // Custom styling
@@ -283,9 +292,17 @@ onMounted(() => {
                     backgroundColor: "rgba(245, 158, 11, 0.04)",
                 },
             
-                ".cm-selectionBackground": {
-                    backgroundColor:
-                        "rgba(245, 158, 11, 0.20) !important",
+                "&.cm-focused .cm-selectionLayer .cm-selectionBackground": {
+                    backgroundColor: "#316ac5 !important",
+                },
+                "&:not(.cm-focused) .cm-selectionLayer .cm-selectionBackground": {
+                    backgroundColor: "#3d5570",
+                },
+                "&.cm-focused .cm-consoleSelectedText": {
+                    backgroundColor: "#316ac5 !important",
+                },
+                "&.cm-focused .cm-consoleSelectedText, &.cm-focused .cm-consoleSelectedText *": {
+                    color: "#ffffff !important",
                 },
             
                 ".cm-tooltip-autocomplete": {
@@ -302,7 +319,8 @@ onMounted(() => {
                     color: "#94a3b8",
                 },
                 ".cm-cursor": {
-                    borderLeftColor: "#f59e0b",
+                    borderLeftColor: "#ffffff !important",
+                    borderLeftWidth: "2px",
                 },
             }),
 
