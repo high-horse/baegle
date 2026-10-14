@@ -12,9 +12,14 @@ export function normalizeTableType(type: string): string {
 
 export function filterDatabaseObjects<T extends { name: string; type: string; database: string; schema?: string }>(items: T[], query: string): T[] {
     const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    return items.map(item => ({ ...item, type: normalizeTableType(item.type) })).filter(item => {
-        if (!["TABLE", "VIEW", "COLLECTION"].includes(item.type)) return false;
+    if (!terms.length) return [];
+    const matches: T[] = [];
+    for (const item of items) {
+        const type = normalizeTableType(item.type);
+        if (!["TABLE", "VIEW", "COLLECTION"].includes(type)) continue;
         const name = [item.database, item.schema, item.name].filter(Boolean).join(".").toLowerCase();
-        return terms.every(term => name.includes(term));
-    });
+        if (terms.every(term => name.includes(term))) matches.push({ ...item, type });
+        if (matches.length === 100) break;
+    }
+    return matches;
 }

@@ -40,8 +40,10 @@
                     </div>
                     <span class="text-caption text-grey-5">{{ item.type.toLowerCase() }}</span>
                 </div>
-                <div v-if="loadingStates.setActiveConnectionMetadata" class="q-pa-lg text-center text-grey-5" role="status"><q-spinner class="q-mr-sm" />Loading database objects…</div>
+                <div v-if="!query.trim()" class="q-pa-lg text-center text-grey-5" role="status">Start typing to search tables, views, and collections.</div>
+                <div v-else-if="searchPending || loadingStates.setActiveConnectionMetadata" class="q-pa-lg text-center text-grey-5" role="status"><q-spinner class="q-mr-sm" />Searching database objects…</div>
                 <div v-else-if="!matches.length" class="q-pa-lg text-center text-grey-5" role="status">No matching tables, views, or collections.</div>
+                <div v-else-if="matches.length === 100" class="q-pa-sm text-center text-grey-5" role="status">Showing the first 100 matches. Keep typing to narrow results.</div>
             </div>
             <q-separator dark />
             <div class="q-px-md q-py-sm text-caption text-grey-5">↑ ↓ to select · Enter to open · Esc to close</div>
@@ -63,10 +65,32 @@ const connectionStore = useConnectionStore();
 const { activeConnection, activeConnectionMetadata, loadingStates } = storeToRefs(connectionStore);
 const visible = ref(false);
 const query = ref("");
+const settledQuery = ref("");
+const searchPending = ref(false);
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
 const selectedIndex = ref(0);
 const searchInput = ref<QInput | null>(null);
 const resultsElement = ref<HTMLElement | null>(null);
-const matches = computed(() => filterDatabaseObjects(activeConnectionMetadata.value ?? [], query.value));
+const matches = computed(() => visible.value && settledQuery.value
+    ? filterDatabaseObjects(activeConnectionMetadata.value ?? [], settledQuery.value)
+    : []);
+
+watch([query, visible], () => {
+    clearTimeout(searchTimer);
+    settledQuery.value = "";
+    searchPending.value = false;
+    if (!visible.value || !query.value.trim()) return;
+    searchPending.value = true;
+    searchTimer = setTimeout(() => {
+        settledQuery.value = query.value.trim();
+        searchPending.value = false;
+        if (!activeConnectionMetadata.value && !loadingStates.value.setActiveConnectionMetadata) {
+            void connectionStore.setActiveConnectionMetadata();
+        }
+    }, 500);
+}, { flush: "sync" });
+
+watch(activeConnection, () => { visible.value = false; });
 
 watch(matches, () => {
     selectedIndex.value = 0;
@@ -110,16 +134,16 @@ function handleShortcut(event: KeyboardEvent) {
         query.value = "";
         selectedIndex.value = 0;
         visible.value = true;
-        if (!activeConnectionMetadata.value && !loadingStates.value.setActiveConnectionMetadata) {
-            void connectionStore.setActiveConnectionMetadata();
-        }
     } else {
         searchInput.value?.focus();
     }
 }
 
 onMounted(() => window.addEventListener("keydown", handleShortcut, true));
-onBeforeUnmount(() => window.removeEventListener("keydown", handleShortcut, true));
+onBeforeUnmount(() => {
+    clearTimeout(searchTimer);
+    window.removeEventListener("keydown", handleShortcut, true);
+});
 </script>
 
 <style scoped>
