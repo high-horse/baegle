@@ -309,6 +309,18 @@ function handleSwitchTabShortcut(event: KeyboardEvent) {
     });
 }
 
+function handleRefreshTableShortcut(event: KeyboardEvent) {
+    if (!event.ctrlKey || event.shiftKey || event.altKey || event.metaKey || event.isComposing || event.key.toLowerCase() !== "r") return;
+    const tab = queryTabsStore.activeTab;
+    if (tab?.type !== "result") return;
+    // Consume reload even when refresh is blocked, preserving the workspace.
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat || tab.loading || tab.closing || tableEdits.hasPending(tab.id) || tableEdits.isSaving(tab.id)
+        || document.querySelector('.q-dialog[aria-modal="true"]')) return;
+    void executeQuery(tab.id, tab.executedSql ?? tab.sql);
+}
+
 function handleCloseTabShortcut(event: KeyboardEvent) {
     if (event.ctrlKey && event.key.toLowerCase() === "w") {
         event.preventDefault();
@@ -334,6 +346,7 @@ onBeforeMount(() => {
     window.addEventListener("blur", resetEscapeShortcut);
     window.addEventListener("keydown", handleSaveConsoleShortcut, true);
     window.addEventListener("keydown", handleSwitchTabShortcut, true);
+    window.addEventListener("keydown", handleRefreshTableShortcut, true);
     window.addEventListener("keydown", handleCreateTabShortcut);
     window.addEventListener("keydown", handleCloseTabShortcut);
     window.addEventListener("keydown", handleToggleResultTabShortcut);
@@ -345,6 +358,7 @@ onBeforeUnmount(() => {
     resetEscapeShortcut();
     window.removeEventListener("keydown", handleSaveConsoleShortcut, true);
     window.removeEventListener("keydown", handleSwitchTabShortcut, true);
+    window.removeEventListener("keydown", handleRefreshTableShortcut, true);
     window.removeEventListener("keydown", handleCreateTabShortcut);
     window.removeEventListener("keydown", handleCloseTabShortcut);
     window.removeEventListener("keydown", handleToggleResultTabShortcut);

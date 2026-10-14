@@ -304,7 +304,7 @@
             <!-- Left side -->
             <div class="flex items-center gap-2">
                 <q-btn flat dense no-caps type="button" class="pagination-button" :disable="loading || navigationBlocked"
-                    title="Run this query again" aria-label="Run this query again" @click="emit('refresh')">
+                    :title="tableTabId ? 'Refresh table (Ctrl+R)' : 'Run this query again'" aria-label="Run this query again" @click="emit('refresh')">
                     <q-icon name="refresh" size="16px" />
                 </q-btn>
                 <DataTransfer v-if="result.IsQuery" action="export" :result="result" :table-tab-id="tableTabId"
