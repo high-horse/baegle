@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { filterDatabaseObjects } from "../src/utils/tableQuickOpen.ts";
+import { createDatabaseObjectSearch, filterDatabaseObjects } from "../src/utils/tableQuickOpen.ts";
 
 const objects = [
     { name: "customers", type: "table", database: "app", schema: "main" },
@@ -36,4 +36,23 @@ test("searches names and schema-qualified names case-insensitively", () => {
     assert.deepEqual(filterDatabaseObjects(objects, " APP   sales ord ").map(item => item.name), ["orders"]);
     assert.deepEqual(filterDatabaseObjects(objects, "missing"), []);
     assert.deepEqual(filterDatabaseObjects([], ""), []);
+});
+
+test("indexed searches retain matching semantics and reuse normalized entries", async () => {
+    const search = createDatabaseObjectSearch(objects);
+    for (const query of ["", "s", "CUSTOMER", " APP sales ord ", "missing"]) {
+        assert.deepEqual(await search(query), filterDatabaseObjects(objects, query));
+    }
+    const first = await search("customers");
+    assert.equal((await search("main.customers"))[0], first[0]);
+});
+
+test("large catalog searches yield and cancel obsolete work", async () => {
+    const items = Array.from({ length: 100000 }, (_, i) => ({ ...objects[0], name: `table_${i}` }));
+    const search = createDatabaseObjectSearch(items);
+    let cancelled = false;
+    setTimeout(() => { cancelled = true; }, 0);
+    assert.equal(await search("missing", () => cancelled), null);
+    assert.deepEqual((await search("table_99999")).map(item => item.name), ["table_99999"]);
+    assert.equal((await search("table")).length, 100);
 });
