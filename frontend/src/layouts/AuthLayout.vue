@@ -5,7 +5,7 @@
                 <q-btn flat round dense icon="menu" aria-label="Toggle saved connections" :aria-expanded="drawerOpen" color="grey-4" class="q-mr-sm" @click="drawerOpen = !drawerOpen" />
                 <q-icon name="storage" size="24px" color="amber" />
                 <q-toolbar-title>
-                    <div class="text-subtitle1 text-weight-medium">baegle DB Viewer</div>
+                    <div class="text-subtitle1 text-weight-medium">baegle</div>
                     <div class="text-caption text-grey-5">Database workspace</div>
                 </q-toolbar-title>
                 <q-btn unelevated no-caps color="amber" text-color="black" icon="add" label="New connection" @click="$router.push({ name: 'Welcome', query: {} })" />
