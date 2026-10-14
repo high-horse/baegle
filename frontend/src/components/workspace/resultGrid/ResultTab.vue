@@ -50,7 +50,7 @@
             :pagination="{
                 rowsPerPage: 0,
             }"
-            virtual-scroll
+            :virtual-scroll="mappedRows.length > 100"
             :virtual-scroll-item-size="28"
             :virtual-scroll-sticky-size-start="28"
             class="data-explorer-grid bg-transparent"
@@ -243,7 +243,7 @@
                 <q-tr
                     :props="props"
                     class="bg-[#2d2d2d] hover:!bg-[#404040]"
-                    :class="{ 'even:bg-[#303030]': resultSettings.settings.stripedRows, 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
+                    :class="{ 'striped-row': resultSettings.settings.stripedRows && props.rowIndex % 2 === 1, 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
                     @click="selectedRowKey = props.row._editKey || ''"
                 >
                     <q-td
@@ -1161,11 +1161,8 @@ const mappedColumns =
    ========================================================= */
 
 .striped-rows .data-explorer-grid
-    :deep(
-        tbody tr:nth-child(even)
-            td:first-child
-    ) {
-    background: #303030;
+    :deep(tbody tr.striped-row:not(:hover):not(.pending-insert):not(.pending-update):not(.pending-delete) td) {
+    background: #353535;
 }
 
 /* =========================================================
