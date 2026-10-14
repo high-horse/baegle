@@ -50,7 +50,9 @@
             :pagination="{
                 rowsPerPage: 0,
             }"
+            virtual-scroll
             :virtual-scroll-item-size="28"
+            :virtual-scroll-sticky-size-start="28"
             class="data-explorer-grid bg-transparent"
             :class="{ 'has-filter-toolbar': result.IsQuery, 'has-edit-toolbar': !!tableTabId }"
             table-class="table-fixed"
@@ -499,64 +501,33 @@ const measureHeaderWidths = async () => {
         return;
     }
 
-    const headers = table.querySelectorAll("thead th");
+    const headers = Array.from(table.querySelectorAll<HTMLElement>("thead th"))
+        .slice(1)
+        .map((header, index) => ({
+            header, index, content: header.querySelector<HTMLElement>("div"),
+            width: header.style.width, minWidth: header.style.minWidth, maxWidth: header.style.maxWidth,
+        }))
+        .filter(item => item.content && props.result.Columns[item.index] && columnWidths[`column-${item.index}`] === undefined);
+    if (!headers.length) return;
 
-    headers.forEach((header, index) => {
-        // Skip # column.
-        if (index === 0) {
-            return;
-        }
-
-        const column = props.result.Columns[index - 1];
-
-        if (!column) {
-            return;
-        }
-
-        if (columnWidths[`column-${index - 1}`] !== undefined) {
-            return;
-        }
-
-        const th = header as HTMLElement;
-
-        const content = th.querySelector("div") as HTMLElement | null;
-
-        if (!content) {
-            return;
-        }
-
-        const oldWidth = th.style.width;
-        const oldMinWidth = th.style.minWidth;
-        const oldMaxWidth = th.style.maxWidth;
-
-        const tableElement = table as HTMLElement;
-
-        const oldTableLayout = tableElement.style.tableLayout;
-
-        th.style.width = "max-content";
-        th.style.minWidth = "max-content";
-        th.style.maxWidth = "none";
-
-        tableElement.style.tableLayout = "auto";
-
-        const contentWidth = Math.max(
-            th.scrollWidth,
-            content.scrollWidth,
-        );
-
-        // Restore.
-        th.style.width = oldWidth;
-        th.style.minWidth = oldMinWidth;
-        th.style.maxWidth = oldMaxWidth;
-
-        tableElement.style.tableLayout = oldTableLayout;
-
-        const width = Math.max(
-            MIN_COLUMN_WIDTH,
-            contentWidth + HEADER_EXTRA_WIDTH,
-        );
-
-        columnWidths[`column-${index - 1}`] = width;
+    // Batch writes, reads, then restoration: one table layout instead of one
+    // forced layout per column. Preserve any widths the user has resized.
+    const tableElement = table as HTMLElement;
+    const oldLayout = tableElement.style.tableLayout;
+    tableElement.style.tableLayout = "auto";
+    for (const { header } of headers) {
+        header.style.width = "max-content";
+        header.style.minWidth = "max-content";
+        header.style.maxWidth = "none";
+    }
+    const widths = headers.map(({ header, content }) =>
+        Math.max(MIN_COLUMN_WIDTH, Math.max(header.scrollWidth, content!.scrollWidth) + HEADER_EXTRA_WIDTH));
+    tableElement.style.tableLayout = oldLayout;
+    headers.forEach(({ header, index, width, minWidth, maxWidth }, position) => {
+        header.style.width = width;
+        header.style.minWidth = minWidth;
+        header.style.maxWidth = maxWidth;
+        columnWidths[`column-${index}`] = widths[position];
     });
 };
 
@@ -1374,5 +1345,13 @@ const mappedColumns =
         transform: rotate(360deg);
     }
 }
+/* Virtual padding rows reserve scroll height; they are not sticky data cells. */
+.data-explorer-grid :deep(.q-virtual-scroll__padding td) {
+    position: static;
+    padding: 0 !important;
+    border: 0;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+}
 </style>
-0
