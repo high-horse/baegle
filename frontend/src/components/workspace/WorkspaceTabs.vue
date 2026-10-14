@@ -1,5 +1,6 @@
 <template>
     <div
+        ref="tabStrip"
         class="h-9 shrink-0 bg-[#353535] border-b border-[#484848] flex items-center min-w-0"
     >
         <!-- Horizontally scrollable tabs -->
@@ -123,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 const edits = useTableEditsStore();
 import type { QueryTab } from "@/types/queryTab";
@@ -142,6 +143,22 @@ const emit = defineEmits<{
 
 const draggedTabId = ref<string | null>(null);
 const dropTarget = ref<{ id: string; side: "before" | "after" } | null>(null);
+const tabStrip = ref<HTMLElement | null>(null);
+let scrollFrame = 0;
+
+watch(() => props.activeTabId, () => {
+    cancelAnimationFrame(scrollFrame);
+    scrollFrame = requestAnimationFrame(() => {
+        const selected = tabStrip.value?.querySelector(".active-tab")?.closest<HTMLElement>(".workspace-tab");
+        const scroller = tabStrip.value?.querySelector<HTMLElement>(".q-scrollarea__container");
+        if (!selected || !scroller) return;
+        const bounds = selected.getBoundingClientRect();
+        const viewport = scroller.getBoundingClientRect();
+        if (bounds.left < viewport.left) scroller.scrollLeft += bounds.left - viewport.left;
+        else if (bounds.right > viewport.right) scroller.scrollLeft += bounds.right - viewport.right;
+    });
+}, { flush: "post" });
+onBeforeUnmount(() => cancelAnimationFrame(scrollFrame));
 
 function startDrag(event: DragEvent, id: string) {
     if (!event.dataTransfer) return;

@@ -70,7 +70,7 @@ func main() {
 	// 'Mac' options tailor the window when running on macOS.
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "baegle",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:  1000,
@@ -83,6 +83,7 @@ func main() {
 		BackgroundColour: application.NewRGB(6, 7, 15),
 		URL:              "/",
 	})
+	installTabShortcuts(window)
 
 	// Each process owns its active database connection and result cursors.
 	// A second webview in this process would otherwise share that state.

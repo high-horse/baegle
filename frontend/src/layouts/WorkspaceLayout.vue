@@ -35,133 +35,22 @@
 
                         <!-- ACTIVE TAB CONTENT -->
 
-                        <div class="flex-grow min-h-0 min-w-0 overflow-hidden">
-                            <template
-                                v-if="
-                                    queryTabsStore.activeTab?.type === 'query'
-                                "
-                            >
-                                <q-splitter
-                                    v-model="editorHeight"
-                                    horizontal
-                                    :limits="[20, 80]"
-                                    class="h-full min-w-0 min-h-0"
-                                    :class="{ 'results-collapsed': !showResults }"
-                                    :disable="!showResults"
-                                >
-                                    <!-- QUERY EDITOR -->
-                                    <template #before>
-                                        <div
-                                            class="h-full min-w-0 min-h-0 overflow-hidden"
-                                        >
-                                            <QueryConsole
-                                                :active-tab="
-                                                    queryTabsStore.activeTab
-                                                "
-                                                :on-execute="executeQuery"
-                                                @open-table="table => handleTableSelect({ id: `${table.schema || 'public'}.${table.name}`, label: table.name, type: table.type.toUpperCase() === 'VIEW' ? 'view' : 'table', schema: table.schema || 'public', database: table.database })"
-                                                @create-tab="
-                                                    queryTabsStore.createTab()
-                                                "
-                                                @update-sql="
-                                                    queryTabsStore.updateSql
-                                                "
-                                            />
-                                        </div>
-                                    </template>
-
-                                    <!-- QUERY RESULT -->
-                                    <template #after>
-                                        <div
-                                            class="h-full min-w-0 min-h-0 overflow-hidden"
-                                        >
-                                            <ResultGrid
-                                        :query-started-at="queryTabsStore.activeTab.queryStartedAt"
-                                        :key="queryTabsStore.activeTab.id"
-                                        :can-first="!!queryTabsStore.activeTab.result && queryTabsStore.activeTab.result.StartRow > 1 && (queryTabsStore.activeTab.result.CanNavigate || !!queryTabsStore.activeTab.pages?.some(page => page.StartRow === 1))"
-                                        @first="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'first')"
-                                        :can-last="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
-                                        :total-rows="queryTabsStore.activeTab.totalRows"
-                                        :sort-column="queryTabsStore.activeTab.sortColumn"
-                                        :sort-direction="queryTabsStore.activeTab.sortDirection"
-                                        @sort="(column, direction) => queryTabsStore.sortResult(queryTabsStore.activeTab?.id ?? '', column, direction)"
-                                        :fetching-last="queryTabsStore.activeTab.fetchingLast"
-                                        @stop="queryTabsStore.stopFetching(queryTabsStore.activeTab.id)"
-                                        @last="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'last')"
-                                        :can-previous="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow > 1 : (queryTabsStore.activeTab.pageIndex ?? 0) > 0"
-                                        :can-next="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
-                                        :page-error="queryTabsStore.activeTab.pageError"
-                                        @refresh="executeQuery(queryTabsStore.activeTab.id, queryTabsStore.activeTab.executedSql ?? '')"
-                                        @previous="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'previous')"
-                                        @next="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'next')"
-                                                :result="
-                                                    queryTabsStore.activeTab.result ?? null"
-                                                :loading="
-                                                    queryTabsStore.activeTab
-                                                        .loading
-                                                "
-                                                :error="
-                                                    queryTabsStore.activeTab
-                                                        .error
-                                                "
-                                                @close="hideResults"
-                                            />
-                                        </div>
-                                    </template>
-                                </q-splitter>
-
-                            </template>
-
-                            <!-- ================= RESULT TAB ================= -->
-
-                            <template
-                                v-else-if="
-                                    queryTabsStore.activeTab?.type === 'result'
-                                "
-                            >
-                                <div
-                                    class="h-full w-full min-w-0 min-h-0 overflow-hidden"
-                                >
-                                    <ResultGrid
-                                        :query-started-at="queryTabsStore.activeTab.queryStartedAt"
-                                        :table-tab-id="queryTabsStore.activeTab.id"
-                                        :key="queryTabsStore.activeTab.id"
-                                        :can-first="!!queryTabsStore.activeTab.result && queryTabsStore.activeTab.result.StartRow > 1 && (queryTabsStore.activeTab.result.CanNavigate || !!queryTabsStore.activeTab.pages?.some(page => page.StartRow === 1))"
-                                        @first="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'first')"
-                                        :can-last="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
-                                        :total-rows="queryTabsStore.activeTab.totalRows"
-                                        :sort-column="queryTabsStore.activeTab.sortColumn"
-                                        :sort-direction="queryTabsStore.activeTab.sortDirection"
-                                        @sort="(column, direction) => queryTabsStore.sortResult(queryTabsStore.activeTab?.id ?? '', column, direction)"
-                                        :fetching-last="queryTabsStore.activeTab.fetchingLast"
-                                        @stop="queryTabsStore.stopFetching(queryTabsStore.activeTab.id)"
-                                        @last="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'last')"
-                                        :can-previous="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow > 1 : (queryTabsStore.activeTab.pageIndex ?? 0) > 0"
-                                        :can-next="queryTabsStore.activeTab.result?.CanNavigate ? queryTabsStore.activeTab.result.StartRow + queryTabsStore.activeTab.result.Rows.length - 1 < (queryTabsStore.activeTab.totalRows ?? 0) : (queryTabsStore.activeTab.pageIndex ?? 0) < (queryTabsStore.activeTab.pages?.length ?? 0) - 1 || !!queryTabsStore.activeTab.cursor"
-                                        :page-error="queryTabsStore.activeTab.pageError"
-                                        @refresh="executeQuery(queryTabsStore.activeTab.id, queryTabsStore.activeTab.executedSql ?? '')"
-                                        @previous="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'previous')"
-                                        @next="queryTabsStore.navigate(queryTabsStore.activeTab.id, 'next')"
-                                        :result="
-                                            queryTabsStore.activeTab.result ??
-                                            null
-                                        "
-                                        :loading="
-                                            queryTabsStore.activeTab.loading
-                                        "
-                                        :error="queryTabsStore.activeTab.error"
-                                        @close="
-                                            queryTabsStore.closeTab(
-                                                queryTabsStore.activeTab.id,
-                                            )
-                                        "
-                                    />
-                                </div>
-                            </template>
+                        <div ref="tabContentHost" tabindex="-1" class="flex-grow min-h-0 min-w-0 overflow-hidden outline-none">
+                            <KeepAlive :max="8">
+                                <WorkspaceTabContent
+                                    v-if="queryTabsStore.activeTab"
+                                    :key="queryTabsStore.activeTab.id"
+                                    :tab="queryTabsStore.activeTab"
+                                    :show-results="showResults"
+                                    @execute="executeQuery"
+                                    @hide-results="hideResults"
+                                    @open-table="handleTableSelect"
+                                />
+                            </KeepAlive>
 
                             <!-- ================= NO TAB ================= -->
 
-                            <template v-else>
+                            <template v-if="!queryTabsStore.activeTab">
                                 <div
                                     class="h-full flex flex-col items-center justify-center gap-3"
                                 >
@@ -196,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeMount, onBeforeUnmount } from "vue";
+import { nextTick, ref, watch, onMounted, onBeforeMount, onBeforeUnmount } from "vue";
 
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
@@ -210,9 +99,7 @@ import { DbService } from "@bindings/db-lens/internal/app";
 import WorkspaceHeader from "@/components/workspace/WorkspaceHeader.vue";
 import SchemaSidebar from "@/components/workspace/SchemaSidebar.vue";
 import TableQuickOpen from "@/components/workspace/TableQuickOpen.vue";
-import QueryConsole from "@/components/workspace/QueryConsole.vue";
-// import ResultGrid from "@/components/workspace/ResultGrid.vue";
-import ResultGrid from "@/components/workspace/resultGrid/ResultGrid.vue";
+import WorkspaceTabContent from "@/components/workspace/WorkspaceTabContent.vue";
 
 import WorkspaceTabs from "@/components/workspace/WorkspaceTabs.vue";
 
@@ -223,6 +110,7 @@ import { useConnectionStore } from "@/stores/connectionStore";
 const $router = useRouter();
 
 const queryTabsStore = useQueryTabsStore();
+const tabContentHost = ref<HTMLElement | null>(null);
 const connectionStore = useConnectionStore();
 const tableEdits = useTableEditsStore();
 
@@ -242,7 +130,6 @@ watch(() => activeConnection.value?.driver, (driver) => {
 }, { immediate: true });
 
 const sidebarWidth = ref(20);
-const editorHeight = ref(45);
 
 const showResults = ref(true);
 
@@ -398,6 +285,30 @@ function handleSaveConsoleShortcut(event: KeyboardEvent) {
     }
 }
 
+function handleSwitchTabShortcut(event: KeyboardEvent) {
+    if (!(event.code === "Tab" || event.key === "Tab" || event.key === "ISO_Left_Tab") || !event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
+    // Only an open modal blocks workspace navigation; menus may be transient.
+    if (document.querySelector('.q-dialog[aria-modal="true"]')) return;
+    const tabs = queryTabsStore.tabs;
+    if (!tabs.length) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const current = tabs.findIndex(tab => tab.id === queryTabsStore.activeTabId);
+    const next = current < 0
+        ? (event.shiftKey ? tabs.length - 1 : 0)
+        : (current + (event.shiftKey ? -1 : 1) + tabs.length) % tabs.length;
+    // Move focus out of the outgoing cached view before Vue detaches it.
+    // The host survives switches, keeping keyboard events inside the webview.
+    tabContentHost.value?.focus({ preventScroll: true });
+    queryTabsStore.selectTab(tabs[next].id);
+    void nextTick(() => {
+        const host = tabContentHost.value;
+        if (!host || document.activeElement !== host) return;
+        const editor = host.querySelector<HTMLElement>(".cm-content[contenteditable='true']");
+        editor?.focus({ preventScroll: true });
+    });
+}
+
 function handleCloseTabShortcut(event: KeyboardEvent) {
     if (event.ctrlKey && event.key.toLowerCase() === "w") {
         event.preventDefault();
@@ -422,6 +333,7 @@ onBeforeMount(() => {
     window.addEventListener("keydown", handleDisconnectShortcut, true);
     window.addEventListener("blur", resetEscapeShortcut);
     window.addEventListener("keydown", handleSaveConsoleShortcut, true);
+    window.addEventListener("keydown", handleSwitchTabShortcut, true);
     window.addEventListener("keydown", handleCreateTabShortcut);
     window.addEventListener("keydown", handleCloseTabShortcut);
     window.addEventListener("keydown", handleToggleResultTabShortcut);
@@ -432,6 +344,7 @@ onBeforeUnmount(() => {
     window.removeEventListener("blur", resetEscapeShortcut);
     resetEscapeShortcut();
     window.removeEventListener("keydown", handleSaveConsoleShortcut, true);
+    window.removeEventListener("keydown", handleSwitchTabShortcut, true);
     window.removeEventListener("keydown", handleCreateTabShortcut);
     window.removeEventListener("keydown", handleCloseTabShortcut);
     window.removeEventListener("keydown", handleToggleResultTabShortcut);
