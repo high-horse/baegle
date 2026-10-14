@@ -13,7 +13,7 @@
             <span
                 class="font-bold text-white tracking-wide text-sm"
             >
-                DB Viewer
+                baegle
             </span>
 
             <q-badge
