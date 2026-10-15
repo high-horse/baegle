@@ -17,7 +17,7 @@ import { search, searchKeymap } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { sql, PostgreSQL, MySQL, SQLite, keywordCompletionSource, schemaCompletionSource } from "@codemirror/lang-sql";
 import { sqlTheme } from "@/utils/sqlTheme";
-import { buildSQLCompletionSchema, getSQLTableReferences, matchingSQLTable, sqlTableAtPosition } from "@/utils/sqlCompletion";
+import { buildSQLCompletionSchema, completeSQLColumns, getSQLTableReferences, matchingSQLTable, sqlTableAtPosition } from "@/utils/sqlCompletion";
 import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
@@ -76,9 +76,15 @@ async function completeSQLSchema(context: CompletionContext) {
     await Promise.all([...requested].map(table => connectionStore.loadTableColumns(table).catch(() => [])));
     if (context.aborted || tables !== props.tables) return null;
     const find = (table: { name: string; schema?: string }) => tables.find(item => item.name === table.name && item.schema === table.schema);
+    const getColumns = (table: { name: string; schema?: string }) => {
+        const cached = find(table);
+        return cached ? connectionStore.getCachedTableColumns(cached) : [];
+    };
+    const columns = completeSQLColumns(context, tables, props.dbDriver, getColumns);
+    if (columns) return columns;
     return schemaCompletionSource({ dialect: getDialect(props.dbDriver),
         schema: buildSQLCompletionSchema(tables, props.dbDriver,
-            table => { const cached = find(table); return cached ? connectionStore.getCachedTableColumns(cached) : []; },
+            getColumns,
             table => { const selected = find(table); if (selected) void connectionStore.loadTableColumns(selected).catch(() => {}); }),
     })(context);
 }

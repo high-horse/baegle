@@ -1,6 +1,6 @@
 import type { SyntaxNode } from "@lezer/common";
-import { syntaxTree } from "@codemirror/language";
-import { insertCompletionText, type Completion } from "@codemirror/autocomplete";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
+import { insertCompletionText, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import type { EditorState } from "@codemirror/state";
 import type { SQLNamespace } from "@codemirror/lang-sql";
 
@@ -18,12 +18,28 @@ function identifier(text: string): string {
     return text;
 }
 
-// Read only the current statement so aliases from another query never leak in.
+// Read the query block containing the cursor. CTE bodies and subqueries are
+// Parens nodes rather than Statement nodes in CodeMirror's SQL syntax tree.
 export function getSQLTableReferences(state: EditorState, pos: number): SQLTableReference[] {
-    const statement = syntaxTree(state).topNode.getChildren("Statement").find(node => pos >= node.from && pos <= node.to);
+    const tree = ensureSyntaxTree(state, state.doc.length, 100) ?? syntaxTree(state);
+    const statement = tree.topNode.getChildren("Statement").find(node => pos >= node.from && pos <= node.to);
     if (!statement) return [];
+    let scope = statement;
+    for (let node: SyntaxNode | null = tree.resolveInner(pos, -1); node && node.from >= statement.from; node = node.parent) {
+        if (node.name === "Parens") {
+            let isQuery = false;
+            for (let child = node.firstChild; child; child = child.nextSibling) {
+                if (child.name === "Keyword" && /^(select|with|update|delete|insert)$/i.test(state.sliceDoc(child.from, child.to))) {
+                    isQuery = true;
+                    break;
+                }
+            }
+            if (isQuery) { scope = node; break; }
+        }
+        if (node.name === "Statement") break;
+    }
     const nodes: SyntaxNode[] = [];
-    for (let node = statement.firstChild; node; node = node.nextSibling) {
+    for (let node = scope.firstChild; node; node = node.nextSibling) {
         if (!/Comment/.test(node.name)) nodes.push(node);
     }
     const refs: SQLTableReference[] = [];
@@ -69,6 +85,42 @@ export function matchingSQLTable<T extends TableMetadata>(tables: readonly T[], 
 export function sqlTableAtPosition<T extends TableMetadata>(state: EditorState, pos: number, tables: readonly T[]): T | undefined {
     const reference = getSQLTableReferences(state, pos).find(ref => pos >= ref.from && pos < ref.to);
     return reference ? matchingSQLTable(tables, reference.path) : undefined;
+}
+
+// Resolve columns from the statement itself, including aliases in pasted SQL.
+// Do not rely on the completion library's separate alias scanner (which stops
+// at comments between the table name, AS, and the alias).
+export function completeSQLColumns(context: CompletionContext, tables: readonly TableMetadata[], driver: string,
+    getColumns: (table: TableMetadata) => readonly ColumnMetadata[]): CompletionResult | null {
+    const references = getSQLTableReferences(context.state, context.pos);
+    let node: SyntaxNode | null = syntaxTree(context.state).resolveInner(context.pos, -1);
+    if (/Comment|String/.test(node.name)) return null;
+    while (node && node.name !== "CompositeIdentifier") node = node.parent;
+    if (!node) return null;
+    let dot: SyntaxNode | null = null;
+    for (let child = node.firstChild; child && child.to <= context.pos; child = child.nextSibling) {
+        if (child.name === ".") { dot = child; }
+    }
+    if (!dot) return null;
+    // Only identifiers before the last dot qualify the column being completed.
+    const qualifier: string[] = [];
+    for (let child = node.firstChild; child && child.to <= dot.from; child = child.nextSibling) {
+        if (["Identifier", "QuotedIdentifier"].includes(child.name)) qualifier.push(identifier(context.state.sliceDoc(child.from, child.to)));
+    }
+    const alias = qualifier.length === 1 ? references.find(ref => ref.alias === qualifier[0] ||
+        ref.alias?.toLowerCase() === qualifier[0]?.toLowerCase()) : undefined;
+    const table = matchingSQLTable(tables, alias?.path ?? qualifier);
+    if (!table) return null;
+    let from = dot.to;
+    const tail = context.state.sliceDoc(from, context.pos);
+    from += tail.length - tail.trimStart().length;
+    const quote = context.state.sliceDoc(from, from + 1);
+    const quoted = quote === '"' || quote === "`";
+    const to = quoted && context.state.sliceDoc(context.pos, context.pos + 1) === quote ? context.pos + 1 : context.pos;
+    return { from, to, options: getColumns(table).map(column => ({
+        label: column.name, type: "property", detail: column.databaseType,
+        apply: quoteIdentifier(column.name, driver),
+    })) };
 }
 
 export function tableAlias(name: string, used: readonly string[] = []): string {
