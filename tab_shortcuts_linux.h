@@ -6,10 +6,18 @@
 #define GDK_ALT_MASK GDK_MOD1_MASK
 #endif
 
+extern void dispatchNewConnectionWindowShortcut(void);
+
 // GTK can use Ctrl+Tab to move focus out of the webview before the DOM sees it.
 // Consume it at the window, and deliver exactly one event to the existing DOM
 // handler. Plain Tab and shortcuts with unrelated modifiers remain untouched.
 static gboolean dispatch_tab_shortcut(WebKitWebView *view, guint key, GdkModifierType state) {
+    if ((key == GDK_KEY_n || key == GDK_KEY_N) &&
+        (state & GDK_CONTROL_MASK) && (state & GDK_SHIFT_MASK) &&
+        !(state & (GDK_ALT_MASK | GDK_SUPER_MASK | GDK_META_MASK))) {
+        dispatchNewConnectionWindowShortcut();
+        return TRUE;
+    }
     if ((key != GDK_KEY_Tab && key != GDK_KEY_ISO_Left_Tab) ||
         !(state & GDK_CONTROL_MASK) ||
         (state & (GDK_ALT_MASK | GDK_SUPER_MASK | GDK_META_MASK))) return FALSE;

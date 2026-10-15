@@ -50,6 +50,32 @@ func TestMySQLBoundedPagesAndCancellation(t *testing.T) {
 	if err != nil || len(count.Rows) != 1 {
 		t.Fatal("explicit count failed", err)
 	}
+	// Joined SELECT * results may legally contain repeated column labels.
+	duplicateQuery := "SELECT * FROM dbv_page_test a JOIN dbv_page_test b ON a.id = b.id ORDER BY a.id;"
+	duplicate, err := p.OpenRead(ctx, db, "mysql-test", "mysql", entities.QueryInput{Query: duplicateQuery, PageSize: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(duplicate.Columns) != 2 || duplicate.Columns[0].Name != "id" || duplicate.Columns[1].Name != "id" || duplicate.Cursor == "" || len(duplicate.Rows) != 100 {
+		t.Fatalf("duplicate columns not preserved: %+v", duplicate)
+	}
+	next, err := p.FetchContext(ctx, duplicate.Cursor, "mysql-test", 2)
+	if err != nil || next.StartRow != 101 || len(next.Rows) != 100 {
+		t.Fatalf("duplicate next page: %+v, %v", next, err)
+	}
+	p.Close(duplicate.Cursor, "mysql-test")
+	total, err := CountRead(ctx, db, duplicateQuery)
+	if err != nil || total != 500 {
+		t.Fatalf("duplicate count: %d, %v", total, err)
+	}
+	for _, input := range []entities.QueryInput{
+		{Query: duplicateQuery, SortColumn: 1, SortDirection: "ASC"},
+		{Query: duplicateQuery, Page: 2},
+	} {
+		if _, err := p.OpenRead(ctx, db, "mysql-test", "mysql", input); err == nil {
+			t.Fatal("accepted unsupported duplicate-column navigation")
+		}
+	}
 	slow, stop := context.WithTimeout(ctx, 50*time.Millisecond)
 	defer stop()
 	_, err = p.OpenRead(slow, db, "mysql-test", "mysql", entities.QueryInput{Query: "SELECT SUM(SLEEP(0.01)) FROM dbv_page_test"})

@@ -226,6 +226,7 @@ onMounted(() => {
             }),
             // Basic editing
             //
+            EditorState.allowMultipleSelections.of(true),
             search({ top: true }),
             history(),
             // Keep a blinking caret at the active end of keyboard selections.

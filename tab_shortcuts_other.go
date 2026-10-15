@@ -4,4 +4,4 @@ package main
 
 import "github.com/wailsapp/wails/v3/pkg/application"
 
-func installTabShortcuts(_ *application.WebviewWindow) {}
+func installWindowShortcuts(_ *application.WebviewWindow, _ func()) bool { return false }

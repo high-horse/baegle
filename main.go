@@ -83,17 +83,19 @@ func main() {
 		BackgroundColour: application.NewRGB(6, 7, 15),
 		URL:              "/",
 	})
-	installTabShortcuts(window)
 
 	// Each process owns its active database connection and result cursors.
 	// A second webview in this process would otherwise share that state.
-	app.KeyBinding.Add("Ctrl+Shift+N", func(window application.Window) {
+	openWindow := func() {
 		if err := openConnectionWindow(); err != nil {
 			log.Printf("failed to open connection window: %v", err)
 			app.Dialog.Error().SetTitle("New connection window").
 				SetMessage("Could not open a new window: " + err.Error()).Show()
 		}
-	})
+	}
+	if !installWindowShortcuts(window, openWindow) {
+		app.KeyBinding.Add("Ctrl+Shift+N", func(_ application.Window) { openWindow() })
+	}
 
 	// Run the application. This blocks until the application has been exited.
 	err := app.Run()

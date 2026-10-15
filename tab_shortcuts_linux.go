@@ -14,7 +14,19 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-func installTabShortcuts(window *application.WebviewWindow) {
+// The native capture handler consumes Ctrl+Shift+N before Wails and WebKit
+// can both dispatch it. Keep the callback on Go's side for normal error dialogs.
+var newConnectionWindowShortcut func()
+
+//export dispatchNewConnectionWindowShortcut
+func dispatchNewConnectionWindowShortcut() {
+	if newConnectionWindowShortcut != nil {
+		newConnectionWindowShortcut()
+	}
+}
+
+func installWindowShortcuts(window *application.WebviewWindow, openWindow func()) bool {
+	newConnectionWindowShortcut = openWindow
 	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(_ *application.WindowEvent) {
 		application.InvokeAsync(func() {
 			if native := window.NativeWindow(); native != nil {
@@ -22,4 +34,5 @@ func installTabShortcuts(window *application.WebviewWindow) {
 			}
 		})
 	})
+	return true
 }

@@ -3,7 +3,10 @@ package sqlExecutor
 import (
 	"context"
 	"database/sql"
+	"errors"
+
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 	"strings"
 	"time"
 	"unicode"
@@ -111,6 +114,18 @@ func CountRead(ctx context.Context, db *sql.DB, query string) (int64, error) {
 	}
 	var total int64
 	err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM (\n"+base+"\n) AS _dbv_count").Scan(&total)
+	if isDuplicateColumnError(err) {
+		// A top-level SELECT allows repeated labels; a derived table does not.
+		rows, readErr := db.QueryContext(ctx, base)
+		if readErr != nil {
+			return 0, readErr
+		}
+		defer rows.Close()
+		for rows.Next() {
+			total++
+		}
+		return total, rows.Err()
+	}
 	return total, err
 }
 
@@ -152,6 +167,12 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 	query += fmt.Sprintf("\nLIMIT %d OFFSET %d", size+1, offset)
 	start := time.Now()
 	rows, err := db.QueryContext(ctx, query)
+	if isDuplicateColumnError(err) {
+		if input.SortColumn > 0 || page > 1 {
+			return nil, fmt.Errorf("this result has duplicate column names; use Next to fetch more rows, or give columns unique aliases to enable sorting and page jumps")
+		}
+		return p.Open(ctx, db, connection, base, size)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -188,4 +209,10 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 	}
 	result.Duration = time.Since(start)
 	return result, nil
+}
+
+// MySQL rejects repeated output labels only when the SELECT is a derived table.
+func isDuplicateColumnError(err error) bool {
+	var mysqlErr *mysql.MySQLError
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1060
 }
