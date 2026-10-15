@@ -1,12 +1,12 @@
 <template>
     <div
         ref="editorContainer"
-        class="h-full w-full min-h-0 min-w-0 max-w-full overflow-hidden"
+        class="h-full w-full min-h-0 min-w-0 max-w-full overflow-hidden [&_.cm-panels-top]:border-0!"
     />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, onMounted, onBeforeUnmount, watch, getCurrentInstance } from "vue";
 import { Prec, Compartment } from "@codemirror/state";
 import { linter, type Diagnostic } from "@codemirror/lint";
 import { syntaxTree } from "@codemirror/language";
@@ -17,6 +17,7 @@ import { search, searchKeymap } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { sql, PostgreSQL, MySQL, SQLite, keywordCompletionSource, schemaCompletionSource } from "@codemirror/lang-sql";
 import { sqlTheme } from "@/utils/sqlTheme";
+import { createSQLSearchPanel } from "@/utils/sqlSearchPanel";
 import { buildSQLCompletionSchema, completeSQLColumns, getSQLTableReferences, matchingSQLTable, sqlTableAtPosition } from "@/utils/sqlCompletion";
 import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -36,6 +37,7 @@ const emit = defineEmits<{
     openTable: [table: InspectTableInfo];
 }>();
 
+const appContext = getCurrentInstance()?.appContext ?? null;
 const connectionStore = useConnectionStore();
 const resultSettings = useResultSettingsStore();
 
@@ -233,7 +235,7 @@ onMounted(() => {
             // Basic editing
             //
             EditorState.allowMultipleSelections.of(true),
-            search({ top: true }),
+            search({ top: true, createPanel: view => createSQLSearchPanel(view, appContext) }),
             history(),
             // Keep a blinking caret at the active end of keyboard selections.
             drawSelection({ drawRangeCursor: true, cursorBlinkRate: 1000 }),
