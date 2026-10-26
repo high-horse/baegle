@@ -9,7 +9,9 @@
 import { ref, onMounted, onBeforeUnmount, watch, getCurrentInstance } from "vue";
 import { Prec, Compartment } from "@codemirror/state";
 import { linter, type Diagnostic } from "@codemirror/lint";
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
+import { format } from "sql-formatter";
+import { Notify } from "quasar";
 import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
@@ -169,6 +171,37 @@ function getCurrentQuery(view: EditorView): string | null {
     return null;
 }
 
+function formatCurrentQuery(view: EditorView): boolean {
+    if (props.dbDriver === "mongodb" || view.state.readOnly) return false;
+    const selection = view.state.selection.main;
+    const tree = ensureSyntaxTree(view.state, selection.head, 100);
+    const statement = tree?.topNode.getChildren("Statement")
+        .find(node => selection.head >= node.from && selection.head <= node.to);
+    const range = selection.empty ? statement : selection;
+    if (!range) return true;
+    const original = view.state.doc.sliceString(range.from, range.to);
+    if (!original.trim()) return true;
+    try {
+        const formatted = format(original, {
+            language: props.dbDriver === "pgx" ? "postgresql" : props.dbDriver,
+            tabWidth: 4,
+            keywordCase: "upper",
+        });
+        if (formatted === original) return true;
+        view.dispatch({
+            changes: { from: range.from, to: range.to, insert: formatted },
+            selection: selection.empty
+                ? { anchor: range.from + Math.min(selection.head - range.from, formatted.length) }
+                : EditorSelection.range(range.from, range.from + formatted.length),
+            scrollIntoView: true,
+            userEvent: "input.format",
+        });
+    } catch (error) {
+        Notify.create({ color: "negative", message: `Unable to format SQL: ${error instanceof Error ? error.message : String(error)}` });
+    }
+    return true;
+}
+
 function executeCurrentQuery() {
     if (!editorView) {
         return;
@@ -239,7 +272,7 @@ onMounted(() => {
             search({ top: true, createPanel: view => createSQLSearchPanel(view, appContext) }),
             history(),
             sqlSelection,
-            keymap.of([{ key: "Tab", run: acceptCompletion }, ...historyKeymap, ...searchKeymap, ...defaultKeymap, indentWithTab]),
+            keymap.of([{ key: "Ctrl-Alt-f", run: formatCurrentQuery }, { key: "Tab", run: acceptCompletion }, ...historyKeymap, ...searchKeymap, ...defaultKeymap, indentWithTab]),
             EditorView.lineWrapping,
             // Custom styling
             EditorView.theme({
