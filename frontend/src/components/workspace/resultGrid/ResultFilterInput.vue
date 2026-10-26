@@ -88,7 +88,9 @@ onMounted(() => {
                     if (update.docChanged) emit("update:modelValue", update.state.doc.toString());
                 }),
                 EditorView.theme({
-                    "&": { backgroundColor: "transparent", height: "23px", fontSize: "11px" },
+                    // CodeMirror also applies theme classes to body-mounted tooltip
+                    // hosts. Only the editor should occupy space in the layout.
+                    "&.cm-editor": { backgroundColor: "transparent", height: "23px", fontSize: "11px" },
                     "&.cm-focused": { outline: "none" },
                     ".cm-scroller": { overflow: "hidden", fontFamily: "monospace", lineHeight: "23px" },
                     ".cm-content": { padding: "0", minHeight: "23px" },

@@ -1,6 +1,6 @@
 <template>
     <div
-        class="h-screen w-screen flex flex-col flex-nowrap bg-[#282828] text-[#94a3b8] overflow-hidden select-text"
+        class="workspace-layout fixed inset-0 flex flex-col flex-nowrap bg-[#282828] text-[#94a3b8] overflow-hidden select-text"
     >
         <!-- select-none -->
         <WorkspaceHeader @disconnect="handleDisconnect(false)" />
@@ -375,6 +375,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.workspace-layout :deep(.cm-scroller),
+.workspace-layout :deep(.q-scrollarea__container),
+.workspace-layout :deep(.q-table__middle) {
+    overscroll-behavior: contain;
+}
+
 .results-collapsed > :deep(.q-splitter__before) {
     height: 100% !important;
 }
