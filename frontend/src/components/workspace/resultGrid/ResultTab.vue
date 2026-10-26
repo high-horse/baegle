@@ -4,12 +4,12 @@
             <q-icon name="filter_alt" size="15px" :class="appliedFilter ? 'text-amber-400' : 'text-gray-500'" />
             <div class="result-filter-input" :class="{ 'has-error': filterError }">
                 <span class="text-gray-500 select-none">WHERE</span>
-                <q-input borderless dense dark hide-bottom-space class="filter-expression" input-class="font-mono text-[11px]" v-model="filterDraft" aria-label="Result filter expression" :aria-invalid="!!filterError" :title="filterError || appliedFilter" placeholder="Enter filter expression…" spellcheck="false" @keydown.esc.prevent="clearFilter" />
+                <ResultFilterInput v-model="filterDraft" :columns="result.Columns" :error="filterError" :applied="appliedFilter" @apply="applyExpressions" @clear="clearFilter" />
                 <q-icon v-if="filterError" name="error_outline" size="14px" class="text-red-400"><q-tooltip>{{ filterError }}</q-tooltip></q-icon>
             </div>
             <div class="result-filter-input result-order-input" :class="{ 'has-error': orderError }">
                 <span class="text-gray-500 select-none whitespace-nowrap">ORDER BY</span>
-                <q-input borderless dense dark hide-bottom-space class="filter-expression" input-class="font-mono text-[11px]" v-model="orderDraft" aria-label="Result order by expression" :aria-invalid="!!orderError" :title="orderError || appliedOrder" placeholder="column ASC, other DESC…" spellcheck="false" @keydown.esc.prevent="clearOrder" />
+                <ResultFilterInput v-model="orderDraft" mode="order" :columns="result.Columns" :error="orderError" :applied="appliedOrder" @apply="applyExpressions" @clear="clearOrder" />
                 <q-icon v-if="orderError" name="error_outline" size="14px" class="text-red-400"><q-tooltip>{{ orderError }}</q-tooltip></q-icon>
                 <q-btn v-if="orderDraft || appliedOrder" flat dense type="button" class="filter-action" :disable="loading || editState?.saving" title="Reset ORDER BY (Esc)" aria-label="Reset order by" @click="clearOrder"><q-icon name="close" size="14px" /></q-btn>
             </div>
@@ -389,6 +389,7 @@ import {
 import type { QTableColumn } from "quasar";
 
 import TableDataEditor from "./TableDataEditor.vue";
+import ResultFilterInput from "./ResultFilterInput.vue";
 import DataTransfer from "../DataTransfer.vue";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 const resultSettings = useResultSettingsStore();
