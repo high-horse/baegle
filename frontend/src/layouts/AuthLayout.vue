@@ -14,6 +14,9 @@
         <q-drawer v-model="drawerOpen" show-if-above :breakpoint="1023" :width="drawerWidth" bordered class="portal-drawer" :class="{ 'portal-drawer-resizing': resizingDrawer }">
             <q-scroll-area class="fit" :content-style="{ width: '100%' }">
                 <q-list padding class="connection-list q-pa-md">
+                    <q-input ref="connectionSearchInput" v-model="connectionSearch" outlined dense clearable color="amber" label="Search saved connections" aria-keyshortcuts="Control+Shift+F" class="q-mb-md">
+                        <template #prepend><q-icon name="search" /></template>
+                    </q-input>
                     <q-item dense class="q-mb-sm">
                         <q-item-section class="text-caption text-grey-5">Saved connections</q-item-section>
                         <q-item-section side>
@@ -24,6 +27,12 @@
                         <q-item-section>
                             <q-item-label class="text-grey-4">No saved connections</q-item-label>
                             <q-item-label caption>Save a connection to find it here.</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item v-else-if="!filteredConnections.length">
+                        <q-item-section>
+                            <q-item-label class="text-grey-4" role="status">No matching connections</q-item-label>
+                            <q-item-label caption>Try a different search.</q-item-label>
                         </q-item-section>
                     </q-item>
                     <q-expansion-item v-for="group in groupedConnections" :key="group.name" default-opened icon="folder_open" :label="group.name || 'Ungrouped'" :caption="`${group.connections.length} connection${group.connections.length === 1 ? '' : 's'}`" header-class="text-grey-4" class="connection-group">
@@ -126,8 +135,8 @@
 
 <script setup lang="ts">
 import ConnectionGroupSelect from "@/components/connections/ConnectionGroupSelect.vue";
-import { computed, ref, watch } from "vue";
-import { useQuasar } from "quasar";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { useQuasar, type QInput } from "quasar";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -136,6 +145,16 @@ import type { Connection } from "@bindings/db-lens/internal/types";
 
 const $router = useRouter();
 const drawerOpen = ref(false);
+const connectionSearchInput = ref<QInput | null>(null);
+async function focusConnectionSearch(event: KeyboardEvent) {
+    if (event.isComposing || !event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey || event.key.toLowerCase() !== "f") return;
+    event.preventDefault();
+    drawerOpen.value = true;
+    await nextTick();
+    connectionSearchInput.value?.focus();
+}
+onMounted(() => window.addEventListener("keydown", focusConnectionSearch));
+onUnmounted(() => window.removeEventListener("keydown", focusConnectionSearch));
 const $q = useQuasar();
 const drawerMinWidth = 220;
 const drawerMaxWidth = computed(() => Math.max(drawerMinWidth, Math.min(560,
@@ -197,9 +216,17 @@ const activeConnectionStore = useActiveConnection();
 const store = useConnectionStore();
 const connectionToDelete = ref<Connection | null>(null);
 const deletingConnection = ref(false);
+const connectionSearch = ref<string | null>("");
+const filteredConnections = computed(() => {
+    const query = (connectionSearch.value || "").trim().toLowerCase();
+    if (!query) return store.connections;
+    return store.connections.filter(connection =>
+        [connection.name, connection.group, connection.host, connection.dbname, connection.driver]
+            .some(value => value?.toLowerCase().includes(query)));
+});
 const groupedConnections = computed(() => {
     const groups = new Map<string, Connection[]>();
-    for (const connection of store.connections) {
+    for (const connection of filteredConnections.value) {
         const name = connection.group || "";
         if (!groups.has(name)) groups.set(name, []);
         groups.get(name)!.push(connection);

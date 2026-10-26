@@ -3,14 +3,18 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { getCurrentInstance, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, lineNumbers } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers } from "@codemirror/view";
+import { search, searchKeymap } from "@codemirror/search";
 import { sql, PostgreSQL, MySQL, SQLite } from "@codemirror/lang-sql";
 import { sqlTheme } from "@/utils/sqlTheme";
+import { sqlSelection } from "@/utils/sqlSelection";
+import { createSQLSearchPanel } from "@/utils/sqlSearchPanel";
 
 const props = defineProps<{ text: string; driver?: string }>();
 const container = ref<HTMLElement | null>(null);
+const appContext = getCurrentInstance()?.appContext ?? null;
 const language = new Compartment();
 let view: EditorView | null = null;
 
@@ -26,6 +30,9 @@ onMounted(() => {
             doc: props.text,
             extensions: [
                 sqlTheme,
+                sqlSelection,
+                search({ top: true, createPanel: view => createSQLSearchPanel(view, appContext) }),
+                keymap.of(searchKeymap),
                 language.of(sqlLanguage()),
                 lineNumbers(),
                 EditorState.readOnly.of(true),
