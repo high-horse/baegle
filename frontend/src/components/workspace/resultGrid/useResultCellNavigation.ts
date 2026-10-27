@@ -9,10 +9,25 @@ export function useResultCellNavigation(
 ) {
     const gridId = `result-grid-${crypto.randomUUID()}`;
     const activeCell = ref<{ rowKey: string; column: number } | null>(null);
+    const selectionAnchor = ref<{ rowKey: string; column: number } | null>(null);
     const activeRow = computed(() => rows.value.findIndex(row => String(row.id) === activeCell.value?.rowKey));
     const cellId = (row: number, column: number) => `${gridId}-${row}-${column}`;
     const activeCellId = computed(() => activeCell.value && activeRow.value >= 0
         ? cellId(activeRow.value, activeCell.value.column) : undefined);
+    const selectionRange = computed(() => {
+        if (!activeCell.value || activeRow.value < 0) return null;
+        const anchor = selectionAnchor.value ?? activeCell.value;
+        const anchorRow = rows.value.findIndex(row => String(row.id) === anchor.rowKey);
+        if (anchorRow < 0) return null;
+        return { fromRow: Math.min(anchorRow, activeRow.value), toRow: Math.max(anchorRow, activeRow.value),
+            fromColumn: Math.min(anchor.column, activeCell.value.column), toColumn: Math.max(anchor.column, activeCell.value.column) };
+    });
+    function isCellSelected(row: number, columnName: string) {
+        if (!columnName.startsWith('column-') || !selectionRange.value) return false;
+        const column = Number(columnName.slice(7));
+        const range = selectionRange.value;
+        return row >= range.fromRow && row <= range.toRow && column >= range.fromColumn && column <= range.toColumn;
+    }
     let awaitingVirtualRow = false;
 
     async function revealActiveCell(allowVirtualScroll = true) {
@@ -34,29 +49,45 @@ export function useResultCellNavigation(
         const rect = cell.getBoundingClientRect();
         const headerHeight = root.querySelector("thead")?.getBoundingClientRect().height ?? 0;
         const rowHeaderWidth = root.querySelector("thead th")?.getBoundingClientRect().width ?? 0;
+        const pinnedWidth = Array.from(root.querySelectorAll<HTMLElement>('thead th[data-pinned]')).reduce((width, header) => width + header.getBoundingClientRect().width, 0);
         const top = viewport.top + headerHeight;
-        const left = viewport.left + rowHeaderWidth;
+        const left = viewport.left + rowHeaderWidth + pinnedWidth;
         const bottom = viewport.top + scroller.clientHeight;
         const right = viewport.left + scroller.clientWidth;
         if (rect.top < top) scroller.scrollTop -= top - rect.top;
         else if (rect.bottom > bottom) scroller.scrollTop += rect.bottom - bottom;
-        if (rect.left < left) scroller.scrollLeft -= left - rect.left;
-        else if (rect.right > right) scroller.scrollLeft += rect.right - right;
+        if (!cell.hasAttribute('data-pinned')) {
+            if (rect.left < left) scroller.scrollLeft -= left - rect.left;
+            else if (rect.right > right) scroller.scrollLeft += rect.right - right;
+        }
     }
 
-    function selectCell(rowKey: string, columnName: string, focus = true) {
+    function selectCell(rowKey: string, columnName: string, focus = true, extend = false) {
         if (!columnName.startsWith("column-")) return;
         const column = Number(columnName.slice(7));
+        if (extend) selectionAnchor.value ??= activeCell.value ?? { rowKey, column };
+        else selectionAnchor.value = { rowKey, column };
         activeCell.value = { rowKey, column };
         selectedRowKey.value = rowKey;
         // Keep focus on a stable element when virtual rows are recycled.
         if (focus) (table.value?.$el as HTMLElement | undefined)?.focus({ preventScroll: true });
+        if (extend) window.getSelection()?.removeAllRanges();
     }
 
     function handleGridKeydown(event: KeyboardEvent) {
         // Leave header buttons, text fields, and modified shortcuts alone.
-        if (event.target !== event.currentTarget || event.isComposing
-            || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+        if (event.target !== event.currentTarget || event.isComposing || event.altKey) return;
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a' && !event.shiftKey) {
+            if (!rows.value.length || !columns.value.length) return;
+            event.preventDefault();
+            event.stopPropagation();
+            selectionAnchor.value = { rowKey: String(rows.value[0].id), column: 0 };
+            activeCell.value = { rowKey: String(rows.value[rows.value.length - 1].id), column: columns.value.length - 1 };
+            selectedRowKey.value = activeCell.value.rowKey;
+            window.getSelection()?.removeAllRanges();
+            return;
+        }
+        if (event.ctrlKey || event.metaKey) return;
         const moves: Record<string, [number, number]> = {
             ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0],
         };
@@ -67,8 +98,7 @@ export function useResultCellNavigation(
         const row = activeRow.value < 0 ? 0 : Math.max(0, Math.min(rows.value.length - 1, activeRow.value + move[0]));
         const column = activeCell.value === null ? 0
             : Math.max(0, Math.min(columns.value.length - 1, activeCell.value.column + move[1]));
-        activeCell.value = { rowKey: String(rows.value[row].id), column };
-        selectedRowKey.value = activeCell.value.rowKey;
+        selectCell(String(rows.value[row].id), `column-${column}`, false, event.shiftKey);
         window.getSelection()?.removeAllRanges();
         void revealActiveCell();
     }
@@ -81,10 +111,15 @@ export function useResultCellNavigation(
         if (!activeCell.value) return;
         if (!keys.includes(activeCell.value.rowKey) || JSON.stringify(names) !== JSON.stringify(previous?.[1])) {
             activeCell.value = null;
+            selectionAnchor.value = null;
             selectedRowKey.value = "";
             awaitingVirtualRow = false;
+        } else if (JSON.stringify(keys) !== JSON.stringify(previous?.[0])) {
+            // Keep the active record, but don't silently select a different
+            // rectangle when filtering or sorting changes the displayed order.
+            selectionAnchor.value = activeCell.value;
         }
     }, { flush: "sync" });
 
-    return { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll, revealActiveCell };
+    return { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll, revealActiveCell, selectionRange, isCellSelected };
 }

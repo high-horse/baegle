@@ -30,6 +30,21 @@
                     </div>
                 </q-menu>
             </q-btn>
+            <q-btn flat dense icon="view_column" size="sm" aria-label="Manage columns" title="Columns">
+                <q-menu dark class="bg-[#353535] text-gray-300" style="width: 360px; max-height: 70vh">
+                    <div class="q-pa-sm">
+                        <q-input v-model="columnLayout.search.value" dark dense outlined clearable placeholder="Find column" />
+                        <div class="flex"><q-btn flat dense no-caps label="Reset layout" @click="columnLayout.reset()" /><q-btn flat dense no-caps label="Fit widths" @click="fitColumnWidths" /></div>
+                        <div class="text-xs text-gray-400">Hide, pin left, or reorder columns. Saved for this table.</div>
+                    </div>
+                    <div v-for="(index, position) in columnLayout.order.value" :key="index" v-show="result.Columns[index]?.Name.toLowerCase().includes((columnLayout.search.value || '').toLowerCase())" class="flex items-center px-2">
+                        <q-checkbox dark dense :model-value="!columnLayout.hidden.value.includes(index)" :disable="columnLayout.visible.value.length === 1 && !columnLayout.hidden.value.includes(index)" :label="result.Columns[index]?.Name" class="flex-1 min-w-0" @update:model-value="columnLayout.toggleHidden(index)" />
+                        <q-btn flat dense size="sm" icon="push_pin" :color="columnLayout.pinned.value.includes(index) ? 'amber' : 'grey'" :aria-label="`Pin ${result.Columns[index]?.Name}`" @click="columnLayout.togglePinned(index)" />
+                        <q-btn flat dense size="sm" icon="arrow_upward" :disable="position === 0" aria-label="Move column earlier" @click="columnLayout.move(index, -1)" />
+                        <q-btn flat dense size="sm" icon="arrow_downward" :disable="position === columnLayout.order.value.length - 1" aria-label="Move column later" @click="columnLayout.move(index, 1)" />
+                    </div>
+                </q-menu>
+            </q-btn>
             <span class="filter-count">{{ filteredRows.length }}/{{ workingRows.length }} <span class="filter-scope">on this page</span></span>
         </q-form>
 
@@ -44,11 +59,14 @@
             ref="dataTable"
             role="grid"
             tabindex="0"
-            aria-label="Query results. Use arrow keys to move between cells. Press Tab for row details."
+            aria-label="Query results. Use arrows to move, Shift with arrows or click to select a range, Ctrl+C to copy, Ctrl+V to paste, and Tab for row details."
+            aria-multiselectable="true"
             :aria-activedescendant="activeCellId"
             :aria-rowcount="mappedRows.length + 1"
-            :aria-colcount="result.Columns.length + 1"
+            :aria-colcount="displayedColumns.length + 1"
             @keydown="handleResultKeydown"
+            @copy="copyCells"
+            @paste="pasteCells"
             @virtual-scroll="onVirtualScroll"
             flat
             square
@@ -86,6 +104,7 @@
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
+                        :data-pinned="isPinned(col.name) || undefined"
                         :tabindex="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate) ? 0 : undefined"
                         :aria-sort="activeSortColumn === col.name ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
                         @click="toggleSort(col.name)"
@@ -265,12 +284,15 @@
                             'sticky-col-body pl-2 pr-1 text-left text-[#909090]':
                                 col.name === 'sn',
                             'active-result-cell': activeCell?.rowKey === String(props.row.id) && col.name === `column-${activeCell.column}`,
+                            'selected-result-cell': isCellSelected(props.rowIndex, col.name),
                         }"
                         :id="col.name !== 'sn' ? cellId(props.rowIndex, Number(col.name.slice(7))) : undefined"
                         :role="col.name === 'sn' ? 'rowheader' : 'gridcell'"
-                        :aria-selected="col.name !== 'sn' ? activeCell?.rowKey === String(props.row.id) && col.name === `column-${activeCell.column}` : undefined"
+                        :aria-selected="col.name !== 'sn' ? isCellSelected(props.rowIndex, col.name) : undefined"
                         :style="getColumnStyle(col.name)"
-                        @click="selectCell(String(props.row.id), col.name); col.name !== 'sn' && ($event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
+                        :data-pinned="isPinned(col.name) || undefined"
+                        @contextmenu="selectCell(String(props.row.id), col.name)"
+                        @click="selectCell(String(props.row.id), col.name, true, $event.shiftKey); col.name !== 'sn' && ($event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
                     >
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
@@ -283,6 +305,14 @@
 
                         <!-- Cell -->
                         <template v-else>
+                            <q-menu context-menu dark class="bg-[#353535] text-gray-300">
+                                <q-list dense>
+                                    <q-item-label header>Quick filter · current page</q-item-label>
+                                    <q-item v-for="action in quickFilterActions" :key="action.operator" clickable v-close-popup :disable="loading || editState?.saving" @click="filterByCell(col.name, props.row[col.field], action.operator)"><q-item-section>{{ action.label }}</q-item-section></q-item>
+                                    <q-item clickable v-close-popup @click="clearFilter"><q-item-section>Clear filter</q-item-section></q-item>
+                                    <RelatedRecords v-if="tableTabId" :tab-id="tableTabId" :column="col.label" :row="originalNamedRow(props.row)" :disabled="!!editState?.drafts.length" />
+                                </q-list>
+                            </q-menu>
                             <div
                                 class="block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
                                 :title="getCellTitle(props.row[col.field])"
@@ -298,7 +328,7 @@
 
         <ResultRecordView v-if="recordViewOpen && recordRow" class="result-record-view"
             :class="{ 'has-filter-toolbar': result.IsQuery, 'has-edit-toolbar': !!tableTabId }"
-            :row="recordRow" :columns="result.Columns" :position="recordRowIndex" :total="mappedRows.length"
+            :row="recordRow" :columns="displayedColumns" :position="recordRowIndex" :total="mappedRows.length"
             :selected-column="activeCell?.column ?? 0" @close="closeRecordView" @move="moveRecordRow"
             @select-column="column => selectCell(String(recordRow!.id), `column-${column}`, false)" />
 
@@ -412,7 +442,7 @@ import {
     watch,
 } from "vue";
 
-import type { QTable, QTableColumn } from "quasar";
+import { Notify, type QTable, type QTableColumn } from "quasar";
 
 import TableDataEditor from "./TableDataEditor.vue";
 import ResultFilterInput from "./ResultFilterInput.vue";
@@ -425,6 +455,11 @@ import { useTableEditsStore } from "@/stores/tableEditsStore";
 import type { QueryResult } from "@/types/queryTab";
 import { compileResultFilter } from "@/utils/resultFilter";
 import { sortResultRows, orderResultRows, parseResultOrder } from "@/utils/resultSort";
+import { encodeGridText, parseGridText, validateGridCells, prepareGridPaste, GRID_CLIPBOARD_TYPE, type ClipboardCell } from "@/utils/resultClipboard";
+import { quickFilter } from '@/utils/quickFilter';
+import { useColumnLayout } from './useColumnLayout';
+import { useQueryTabsStore } from '@/stores/queryTabsStore';
+import RelatedRecords from './RelatedRecords.vue';
 
 const documentDialog = ref(false);
 const selectedDocument = ref("");
@@ -493,8 +528,23 @@ const emit = defineEmits<{
    ========================================================= */
 
 const columnWidths = reactive<Record<string, number>>({});
+const queryTabs = useQueryTabsStore();
+const columnLayout = useColumnLayout(computed(() => props.result.Columns), computed(() => {
+    const tab = queryTabs.tabs.find(tab => tab.id === props.tableTabId);
+    return `baegle.columns.v1:${JSON.stringify([tab?.connectionId, tab?.tableRef, props.result.Columns.map(c => c.Name)])}`;
+}));
+const displayedColumns = columnLayout.displayedColumns;
+function isPinned(name: string) { return name !== 'sn' && columnLayout.pinned.value.includes(columnLayout.visible.value[Number(name.slice(7))]); }
+function fitColumnWidths() {
+    displayedColumns.value.forEach((column, i) => {
+        const original = columnLayout.visible.value[i];
+        const length = Math.max(column.Name.length + (column.Type?.length ?? 0) / 2, ...props.result.Rows.slice(0, 500).map(row => String(row[original] ?? 'NULL').split('\n').reduce((n, line) => Math.max(n, line.length), 0)));
+        columnWidths[`column-${i}`] = Math.min(500, Math.max(MIN_COLUMN_WIDTH, length * 7 + 30));
+    });
+}
+watch(() => JSON.stringify(columnLayout.visible.value), () => { Object.keys(columnWidths).forEach(key => delete columnWidths[key]); void measureHeaderWidths(); });
 const gridElement = ref<HTMLElement | null>(null);
-const tableWidth = computed(() => snColumnWidth.value + props.result.Columns.reduce(
+const tableWidth = computed(() => snColumnWidth.value + displayedColumns.value.reduce(
     (width, _column, index) => width + getColumnWidth(`column-${index}`), 0,
 ));
 
@@ -510,6 +560,7 @@ const getColumnStyle = (columnName: string) => {
     const width = getColumnWidth(columnName);
 
     return {
+        ...(isPinned(columnName) ? { position: 'sticky' as const, left: `${snColumnWidth.value + displayedColumns.value.slice(0, Number(columnName.slice(7))).reduce((sum, _, i) => sum + getColumnWidth(`column-${i}`), 0)}px`, zIndex: 25, background: '#2d2d2d' } : {}),
         width: `${width}px`,
         minWidth: `${width}px`,
         maxWidth: `${width}px`,
@@ -731,12 +782,12 @@ onBeforeUnmount(() => {
 const pageSort = ref<{ column: number; direction?: "asc" | "desc" } | null>(null);
 const effectiveSort = computed(() => orderTerms.value.length ? orderTerms.value[0] : (appliedFilter.value || navigationBlocked.value) && pageSort.value
     ? pageSort.value : { column: props.sortColumn ?? 0, direction: props.sortDirection });
-const activeSortColumn = computed(() => effectiveSort.value.column ? `column-${effectiveSort.value.column - 1}` : null);
+const activeSortColumn = computed(() => effectiveSort.value.column ? `column-${columnLayout.visible.value.indexOf(effectiveSort.value.column - 1)}` : null);
 const sortDirection = computed(() => effectiveSort.value.direction ?? null);
 
 const sortColumn = (columnName: string, direction: "asc" | "desc") => {
     if (props.loading || !(props.result.CanSort ?? props.result.CanNavigate) || columnName === "sn") return;
-    const column = Number(columnName.slice(7)) + 1;
+    const column = columnLayout.visible.value[Number(columnName.slice(7))] + 1;
     clearOrder();
     if (appliedFilter.value || navigationBlocked.value) {
         pageSort.value = { column, direction };
@@ -758,6 +809,22 @@ const toggleSort = (columnName: string) => {
 };
 
 const filterDraft = ref("");
+const quickFilterActions = [
+    { operator: '=' as const, label: 'Equals this value' }, { operator: '<>' as const, label: 'Exclude this value' },
+    { operator: 'LIKE' as const, label: 'Contains this value (% and _ are wildcards)' },
+    { operator: 'IS NULL' as const, label: 'Is NULL' }, { operator: 'IS NOT NULL' as const, label: 'Is not NULL' },
+];
+function filterByCell(name: string, value: unknown, operator: Parameters<typeof quickFilter>[2]) {
+    const column = displayedColumns.value[Number(name.slice(7))];
+    if (!column) return;
+    const expression = quickFilter(column.Name, value, operator);
+    filterDraft.value = appliedFilter.value ? `(${appliedFilter.value}) AND (${expression})` : expression;
+    applyExpressions();
+}
+function originalNamedRow(row: Record<string, unknown>) {
+    const source = filteredRows.value.find(item => item.key === row.id)?.row;
+    return Object.fromEntries(props.result.Columns.map((column, i) => [column.Name, source?.[i]]));
+}
 const appliedFilter = ref("");
 const filterError = ref("");
 const orderDraft = ref("");
@@ -852,14 +919,76 @@ const filteredRows = computed(() => {
 // Stable row identities preserve selection while values are staged or sorted.
 const mappedRows = computed(() => filteredRows.value.map(({ row, key, status, number }) => {
     const mapped: Record<string, unknown> = { id: key, _editKey: key, _status: status, _rowNumber: number };
-    row.forEach((value, column) => { mapped[`column-${column}`] = value; });
+    columnLayout.visible.value.forEach((source, column) => { mapped[`column-${column}`] = row[source]; });
     return mapped;
 }));
 
 const dataTable = ref<QTable | null>(null);
-const { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll, revealActiveCell } = useResultCellNavigation(
-    dataTable, mappedRows, computed(() => props.result.Columns.map(column => column.Name)), selectedRowKey,
+const { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll, revealActiveCell, selectionRange, isCellSelected } = useResultCellNavigation(
+    dataTable, mappedRows, computed(() => displayedColumns.value.map(column => column.Name)), selectedRowKey,
 );
+
+function copyCells(event: ClipboardEvent) {
+    if (event.target !== event.currentTarget || !event.clipboardData || !selectionRange.value) return;
+    const nativeSelection = window.getSelection();
+    if (nativeSelection && !nativeSelection.isCollapsed && (event.currentTarget as HTMLElement).contains(nativeSelection.anchorNode)) return;
+    const range = selectionRange.value;
+    const cells = mappedRows.value.slice(range.fromRow, range.toRow + 1).map(row =>
+        displayedColumns.value.slice(range.fromColumn, range.toColumn + 1).map((_column, offset) => row[`column-${range.fromColumn + offset}`] ?? null));
+    event.clipboardData.setData('text/plain', encodeGridText(cells));
+    event.clipboardData.setData(GRID_CLIPBOARD_TYPE, JSON.stringify(cells));
+    event.preventDefault();
+}
+
+function pasteCells(event: ClipboardEvent) {
+    if (event.target !== event.currentTarget || !event.clipboardData || !selectionRange.value) return;
+    event.preventDefault();
+    const info = editState.value?.info;
+    if (!props.tableTabId || !info || (!info.canModify && !info.canInsert)) {
+        Notify.create({ type: 'warning', message: 'Open an editable table to paste cells.' });
+        return;
+    }
+    if (props.loading || editState.value?.saving) return;
+    try {
+        if (info.driver === 'mongodb') throw new Error('Use the document editor to paste MongoDB documents.');
+        const typed = event.clipboardData.getData(GRID_CLIPBOARD_TYPE);
+        if (!typed && !event.clipboardData.types.includes('text/plain')) throw new Error('The clipboard must contain text cells.');
+        const parsed: unknown = typed ? JSON.parse(typed) : parseGridText(event.clipboardData.getData('text/plain'));
+        validateGridCells(parsed);
+        let cells: ClipboardCell[][] = parsed;
+        const range = selectionRange.value;
+        const selectedHeight = range.toRow - range.fromRow + 1;
+        const selectedWidth = range.toColumn - range.fromColumn + 1;
+        if (cells.length === 1 && cells[0].length === 1) {
+            cells = Array.from({ length: selectedHeight }, () => Array(selectedWidth).fill(cells[0][0]));
+        } else if (selectedHeight * selectedWidth > 1 && (selectedHeight !== cells.length || selectedWidth !== cells[0].length)) {
+            throw new Error('Select one starting cell, or a range matching the clipboard dimensions.');
+        }
+        if (range.fromRow + cells.length > mappedRows.value.length || range.fromColumn + cells[0].length > displayedColumns.value.length) {
+            throw new Error('The pasted range exceeds the loaded rows or columns. Add rows or load the target page first.');
+        }
+        const columns = displayedColumns.value.slice(range.fromColumn, range.fromColumn + cells[0].length).map(column => {
+            const metadata = info.columns?.find(item => item.name === column.Name);
+            if (!metadata) throw new Error(`Column metadata is unavailable for ${column.Name}.`);
+            return metadata;
+        });
+        const tabId = props.tableTabId;
+        const targets = mappedRows.value.slice(range.fromRow, range.fromRow + cells.length).map(row => {
+            const key = String(row.id);
+            const draft = editState.value?.drafts.find(item => item.key === key);
+            if (draft?.operation === 'insert' ? !info.canInsert : !info.canModify) throw new Error('This row is read-only.');
+            const index = props.result.Rows.findIndex((_row, i) => tableEdits.rowKey(tabId, props.result, i) === key);
+            if (!draft && index < 0) throw new Error('The target row is no longer available.');
+            const original = draft?.original ?? Object.fromEntries(props.result.Columns.map((column, i) => [column.Name, props.result.Rows[index]?.[i]]));
+            return { key, original, draft, keys: draft?.keys ?? tableEdits.keysFor(tabId, props.result, index) };
+        });
+        const drafts = prepareGridPaste(columns, info.keys ?? [], targets, cells);
+        tableEdits.stageMany(tabId, drafts);
+        Notify.create({ type: 'positive', message: 'Pasted changes are staged. Use Save to apply or Cancel to discard.' });
+    } catch (error) {
+        Notify.create({ type: 'negative', message: error instanceof Error ? error.message : String(error) });
+    }
+}
 
 const recordViewOpen = ref(false);
 const recordRowIndex = computed(() => mappedRows.value.findIndex(row => String(row.id) === activeCell.value?.rowKey));
@@ -932,7 +1061,7 @@ const mappedColumns =
                 `,
             },
 
-            ...props.result.Columns.map(
+            ...displayedColumns.value.map(
                 (column, index) => {
                     const key = `column-${index}`;
                     const width =
@@ -1445,4 +1574,9 @@ const mappedColumns =
     color: #fff;
     box-shadow: inset 0 0 0 2px #ffca28 !important;
 }
+.data-explorer-grid :deep(td.selected-result-cell) {
+    background: #3d5066 !important;
+    color: #fff;
+}
+.data-explorer-grid :deep(thead th[data-pinned]) { z-index: 55 !important; background: #353535 !important; }
 </style>

@@ -57,6 +57,14 @@ export const useTableEditsStore = defineStore('tableEdits', () => {
         const state = states.value[id];
         if (state && !state.saving) state.drafts = state.drafts.filter(row => row.key !== key);
     }
+    function stageMany(id: string, drafts: DraftRow[]) {
+        const state = states.value[id];
+        if (!state || state.saving) return;
+        const changed = new Map(drafts.map(draft => [draft.key, draft]));
+        state.drafts = [...state.drafts.filter(draft => !changed.has(draft.key)),
+            ...drafts.filter(draft => draft.operation !== 'update' || Object.keys(draft.values).length > 0)];
+        state.error = '';
+    }
     function discard(id: string) {
         const state = states.value[id];
         if (state && !state.saving) { state.drafts = []; state.error = ''; }
@@ -81,5 +89,5 @@ export const useTableEditsStore = defineStore('tableEdits', () => {
     }
     function clear(id: string) { delete states.value[id]; }
     function clearAll() { states.value = {}; }
-    return { states, anyPending, hasPending, isSaving, load, keysFor, rowKey, stage, remove, discard, save, clear, clearAll };
+    return { states, anyPending, hasPending, isSaving, load, keysFor, rowKey, stage, stageMany, remove, discard, save, clear, clearAll };
 });

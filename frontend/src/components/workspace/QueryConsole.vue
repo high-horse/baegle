@@ -29,6 +29,7 @@
                 v-if="activeTab"
                 class="flex flex-nowrap shrink-0 items-center gap-2 text-[10px] text-[#909090]"
             >
+                <QueryHistory />
                 <span v-if="dbDriver === 'mongodb'">MongoDB JSON command</span>
                 <q-btn flat dense no-caps size="sm" class="query-action" icon="save" label="Save" color="amber" :loading="activeTab.savingConsole" :disable="activeTab.closing" title="Save console (Ctrl+S)" aria-label="Save console" @click="queryTabsStore.saveConsole(activeTab.id)" />
                 <span>{{ activeTab.stopping ? 'Stopping…' : activeTab.runningScript ? 'Script running…' : activeTab.runningQuery ? 'Query running…' : 'Ctrl + Enter' }}</span>
@@ -135,6 +136,7 @@ import type { QueryTab } from "@/types/queryTab";
 import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
 import SqlEditor from "./SqlEditor.vue";
 import QueryElapsedTime from "./QueryElapsedTime.vue";
+import QueryHistory from "./QueryHistory.vue";
 
 const sqlEditorRef =
     ref<InstanceType<typeof SqlEditor> | null>(null);

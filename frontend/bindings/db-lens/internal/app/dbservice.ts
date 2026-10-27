@@ -13,6 +13,9 @@ import * as db$0 from "../db/models.js";
 import * as entities$0 from "../engine/entities/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as metadata$0 from "../engine/metadata/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as types$0 from "../types/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -96,6 +99,10 @@ export function InspectDatabase(): $CancellablePromise<entities$0.InspectTableIn
  */
 export function InspectTableColumns(table: entities$0.TableRef): $CancellablePromise<entities$0.InspectColumnInfo[] | null> {
     return $Call.ByID(866663916, table);
+}
+
+export function InspectTableRelations(table: entities$0.TableRef): $CancellablePromise<metadata$0.TableRelation[] | null> {
+    return $Call.ByID(440042214, table);
 }
 
 export function PingConfig(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {

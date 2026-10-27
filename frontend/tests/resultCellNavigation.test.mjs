@@ -70,11 +70,34 @@ test('filtering out the active row or replacing columns clears stale cell select
 test('fields, modified shortcuts and composition retain their own keyboard behavior', t => {
     const grid = setup(t);
     grid.selectCell('b', 'column-1');
-    for (const modifiers of [{ ctrlKey: true }, { shiftKey: true }, { altKey: true }, { metaKey: true }, { isComposing: true }, { target: {} }]) {
+    for (const modifiers of [{ ctrlKey: true }, { altKey: true }, { metaKey: true }, { isComposing: true }, { target: {} }]) {
         assert.equal(grid.press('ArrowDown', modifiers), false);
     }
     assert.equal(grid.press('Enter'), false);
     assert.deepEqual(grid.activeCell.value, { rowKey: 'b', column: 1 });
+});
+
+test('Shift+arrows and Shift+click extend a rectangular selection from its original anchor', t => {
+    const grid = setup(t);
+    grid.selectCell('b', 'column-1');
+    grid.press('ArrowRight', { shiftKey: true });
+    grid.press('ArrowUp', { shiftKey: true });
+    assert.deepEqual(grid.selectionRange.value, { fromRow: 0, toRow: 1, fromColumn: 1, toColumn: 2 });
+    assert.equal(grid.isCellSelected(0, 'column-2'), true);
+    assert.equal(grid.isCellSelected(0, 'column-0'), false);
+    grid.selectCell('c', 'column-0', true, true);
+    assert.deepEqual(grid.selectionRange.value, { fromRow: 1, toRow: 2, fromColumn: 0, toColumn: 1 });
+    grid.press('ArrowRight');
+    assert.deepEqual(grid.selectionRange.value, { fromRow: 2, toRow: 2, fromColumn: 1, toColumn: 1 });
+});
+
+test('Ctrl+A selects only the loaded grid and a re-sort collapses ranges to the active record', t => {
+    const grid = setup(t);
+    assert.equal(grid.press('a', { ctrlKey: true }), true);
+    assert.deepEqual(grid.selectionRange.value, { fromRow: 0, toRow: 2, fromColumn: 0, toColumn: 2 });
+    grid.rows.value = [{ id: 'c' }, { id: 'a' }, { id: 'b' }];
+    assert.equal(grid.activeCell.value.rowKey, 'c');
+    assert.deepEqual(grid.selectionRange.value, { fromRow: 0, toRow: 0, fromColumn: 2, toColumn: 2 });
 });
 
 test('moving to an unrendered row asks the virtual table to reveal its full-list index', async t => {
