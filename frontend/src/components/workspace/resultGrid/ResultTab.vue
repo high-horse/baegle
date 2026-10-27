@@ -40,14 +40,15 @@
              ========================================================= -->
 
         <q-table
+            v-show="!recordViewOpen"
             ref="dataTable"
             role="grid"
             tabindex="0"
-            aria-label="Query results. Use arrow keys to move between cells."
+            aria-label="Query results. Use arrow keys to move between cells. Press Tab for row details."
             :aria-activedescendant="activeCellId"
             :aria-rowcount="mappedRows.length + 1"
             :aria-colcount="result.Columns.length + 1"
-            @keydown="handleGridKeydown"
+            @keydown="handleResultKeydown"
             @virtual-scroll="onVirtualScroll"
             flat
             square
@@ -295,6 +296,12 @@
             </template>
         </q-table>
 
+        <ResultRecordView v-if="recordViewOpen && recordRow" class="result-record-view"
+            :class="{ 'has-filter-toolbar': result.IsQuery, 'has-edit-toolbar': !!tableTabId }"
+            :row="recordRow" :columns="result.Columns" :position="recordRowIndex" :total="mappedRows.length"
+            :selected-column="activeCell?.column ?? 0" @close="closeRecordView" @move="moveRecordRow"
+            @select-column="column => selectCell(String(recordRow!.id), `column-${column}`, false)" />
+
         <q-dialog v-model="documentDialog">
             <q-card class="bg-[#353535] text-gray-300" style="width: 800px; max-width: 90vw">
                 <q-card-section class="flex items-center justify-between">
@@ -316,6 +323,12 @@
         >
             <!-- Left side -->
             <div class="flex items-center gap-2">
+                <q-btn v-if="result.IsQuery" flat dense no-caps type="button" class="pagination-button"
+                    :disable="!mappedRows.length || !result.Columns.length" :title="recordViewOpen ? 'Back to grid (Tab)' : 'Row details (Tab)'"
+                    :aria-label="recordViewOpen ? 'Show result grid' : 'Show row details'" :aria-pressed="recordViewOpen"
+                    @click="recordViewOpen ? closeRecordView() : openRecordView()">
+                    <q-icon :name="recordViewOpen ? 'table_rows' : 'view_agenda'" size="16px" />
+                </q-btn>
                 <q-btn flat dense no-caps type="button" class="pagination-button" :disable="loading || navigationBlocked"
                     :title="tableTabId ? 'Refresh table (Ctrl+R)' : 'Run this query again'" aria-label="Run this query again" @click="emit('refresh')">
                     <q-icon name="refresh" size="16px" />
@@ -403,6 +416,7 @@ import type { QTable, QTableColumn } from "quasar";
 
 import TableDataEditor from "./TableDataEditor.vue";
 import ResultFilterInput from "./ResultFilterInput.vue";
+import ResultRecordView from "./ResultRecordView.vue";
 import { useResultCellNavigation } from "./useResultCellNavigation";
 import DataTransfer from "../DataTransfer.vue";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
@@ -843,9 +857,42 @@ const mappedRows = computed(() => filteredRows.value.map(({ row, key, status, nu
 }));
 
 const dataTable = ref<QTable | null>(null);
-const { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll } = useResultCellNavigation(
+const { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll, revealActiveCell } = useResultCellNavigation(
     dataTable, mappedRows, computed(() => props.result.Columns.map(column => column.Name)), selectedRowKey,
 );
+
+const recordViewOpen = ref(false);
+const recordRowIndex = computed(() => mappedRows.value.findIndex(row => String(row.id) === activeCell.value?.rowKey));
+const recordRow = computed(() => mappedRows.value[recordRowIndex.value]);
+function openRecordView() {
+    if (!mappedRows.value.length || !props.result.Columns.length) return;
+    if (!recordRow.value) selectCell(String(mappedRows.value[0].id), 'column-0', false);
+    recordViewOpen.value = true;
+}
+async function closeRecordView() {
+    recordViewOpen.value = false;
+    await nextTick();
+    (dataTable.value?.$el as HTMLElement | undefined)?.focus({ preventScroll: true });
+    void revealActiveCell();
+}
+function moveRecordRow(offset: number) {
+    const row = mappedRows.value[recordRowIndex.value + offset];
+    if (row) selectCell(String(row.id), `column-${activeCell.value?.column ?? 0}`, false);
+}
+function handleResultKeydown(event: KeyboardEvent) {
+    if (event.key === 'Tab' && event.target === event.currentTarget && activeCell.value
+        && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) {
+        event.preventDefault();
+        event.stopPropagation();
+        openRecordView();
+        return;
+    }
+    handleGridKeydown(event);
+}
+watch(recordRow, row => {
+    // A filter or page change can remove the selected record.
+    if (!row && recordViewOpen.value) recordViewOpen.value = false;
+});
 
 /* =========================================================
    PAGINATION
@@ -1390,6 +1437,9 @@ const mappedColumns =
 }
 
 .data-explorer-grid:focus { outline: none; }
+.result-record-view { position: absolute; inset: 0 0 36px; }
+.result-record-view.has-filter-toolbar { top: 36px; }
+.result-record-view.has-edit-toolbar { top: 70px; }
 .data-explorer-grid :deep(td.active-result-cell) {
     background: #3d5066 !important;
     color: #fff;

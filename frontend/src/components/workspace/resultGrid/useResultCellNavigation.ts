@@ -44,13 +44,13 @@ export function useResultCellNavigation(
         else if (rect.right > right) scroller.scrollLeft += rect.right - right;
     }
 
-    function selectCell(rowKey: string, columnName: string) {
+    function selectCell(rowKey: string, columnName: string, focus = true) {
         if (!columnName.startsWith("column-")) return;
         const column = Number(columnName.slice(7));
         activeCell.value = { rowKey, column };
         selectedRowKey.value = rowKey;
         // Keep focus on a stable element when virtual rows are recycled.
-        (table.value?.$el as HTMLElement | undefined)?.focus({ preventScroll: true });
+        if (focus) (table.value?.$el as HTMLElement | undefined)?.focus({ preventScroll: true });
     }
 
     function handleGridKeydown(event: KeyboardEvent) {
@@ -86,5 +86,5 @@ export function useResultCellNavigation(
         }
     }, { flush: "sync" });
 
-    return { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll };
+    return { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll, revealActiveCell };
 }
