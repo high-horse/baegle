@@ -62,6 +62,7 @@ func runMigration(db *sql.DB) error {
 	}
 	found := false
 	groupFound := false
+	sslFound := false
 	for rows.Next() {
 		var id, notNull, primaryKey int
 		var name, kind string
@@ -72,6 +73,9 @@ func runMigration(db *sql.DB) error {
 		}
 		if name == "group_name" {
 			groupFound = true
+		}
+		if name == "ssl" {
+			sslFound = true
 		}
 		if name == "read_only" {
 			found = true
@@ -93,6 +97,11 @@ func runMigration(db *sql.DB) error {
 	}
 	if err != nil {
 		return err
+	}
+	if !sslFound {
+		if _, err = db.Exec("ALTER TABLE connections ADD COLUMN ssl BOOLEAN NOT NULL DEFAULT false"); err != nil {
+			return err
+		}
 	}
 	rows, err = db.Query("PRAGMA table_info(saved_consoles)")
 	if err != nil {

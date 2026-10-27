@@ -25,6 +25,7 @@ type Connection struct {
 	Password    string         `json:"password"`
 	DBName      string         `json:"dbname"`
 	ReadOnly    bool           `json:"read_only"`
+	SSL         bool           `json:"ssl"`
 	Pinned      bool           `json:"pinned"`
 	Color       sql.NullString `json:"color"`
 	SSHConfigId sql.NullInt64  `json:"ssh_config_id"`

@@ -8,12 +8,18 @@
             </div>
             <q-btn v-if="editingId" flat round dense icon="close" aria-label="Cancel editing" color="grey-5" @click="cancelEdit" />
         </q-card-section>
-        <q-tabs v-model="form.type" dense active-color="amber" indicator-color="amber" align="justify" no-caps class="q-px-md">
-            <q-tab name="pgx" label="PostgreSQL" />
-            <q-tab name="mysql" label="MySQL" />
-            <q-tab name="sqlite" label="SQLite" />
-            <q-tab name="mongodb" label="MongoDB" />
+        <q-tabs v-model="databaseGroup" dense active-color="amber" indicator-color="amber" align="justify" no-caps class="q-px-md" aria-label="Database category">
+            <q-tab name="sql" label="SQL" />
+            <q-tab name="nosql" label="NoSQL" />
         </q-tabs>
+        <div class="database-options q-pa-md" role="group" :aria-label="databaseGroup === 'sql' ? 'SQL databases' : 'NoSQL databases'">
+            <q-btn v-for="database in availableDatabases" :key="database.value" flat no-caps
+                :label="database.label" :aria-pressed="form.type === database.value"
+                :color="form.type === database.value ? 'amber' : 'grey-5'"
+                :class="{ 'database-option-selected': form.type === database.value }"
+                class="database-option" :disable="saving || loadingSavedConnection"
+                @click="form.type = database.value" />
+        </div>
         <q-separator dark />
         <q-form ref="formRef" @submit="editingId ? saveConnection() : connect()">
             <q-card-section class="q-pa-lg">
@@ -41,8 +47,11 @@
                             <q-input v-model="form.password" label="Password" type="password" :disable="isMongoURI" outlined dense color="amber" hide-bottom-space />
                         </div>
                         <div class="col-12">
-                            <q-input v-model="form.database" label="Database" :rules="[required]" outlined dense color="amber" hide-bottom-space />
+                            <q-input v-model="form.database" :label="form.type === 'oracle' ? 'Service name' : 'Database'" :rules="[required]" outlined dense color="amber" hide-bottom-space />
                         </div>
+                        <div v-if="form.type === 'oracle'" class="col-12 text-caption text-grey-5">Enter the Oracle service name, for example FREEPDB1. Connects using a database username and password.</div>
+                        <div v-if="form.type === 'sqlserver'" class="col-12 text-caption text-grey-5">Use SQL Server authentication and the instance’s TCP port (usually 1433).</div>
+                        <div v-if="form.type === 'db2'" class="col-12 text-caption text-grey-5">Db2 LUW requires a Db2-enabled app build and the IBM CLI client libraries.</div>
                     </template>
                     <div v-else class="col-12">
                         <q-input v-model="form.database" label="Database file" hint="/path/to/database.db" :rules="[required]" outlined dense color="amber">
@@ -53,6 +62,7 @@
                 <div class="row items-center q-gutter-x-lg q-mt-lg">
                     <q-checkbox v-if="!editingId" v-model="form.save_connection" label="Save connection" dense color="amber" />
                     <q-checkbox v-model="form.readonly" label="Read only" dense color="amber" />
+                    <q-checkbox v-if="['oracle', 'sqlserver', 'db2'].includes(form.type)" v-model="form.ssl" label="Require TLS encryption" dense color="amber" />
                 </div>
                 <q-list v-if="form.type !== 'sqlite'" bordered class="connection-options q-mt-lg">
                     <q-item>
@@ -146,6 +156,7 @@ const sshFormRef = ref<QForm | null>(null);
 
 const form = ref({
     type: "pgx",
+    ssl: false,
     host: "",
     port: 5432,
     user: "",
@@ -158,6 +169,24 @@ const form = ref({
     readonly: false,
     use_ssh: false,
 });
+const sqlDatabases = [
+    { value: 'pgx', label: 'PostgreSQL' },
+    { value: 'mysql', label: 'MySQL' },
+    { value: 'sqlite', label: 'SQLite' },
+    { value: 'oracle', label: 'Oracle' },
+    { value: 'sqlserver', label: 'SQL Server' },
+    { value: 'db2', label: 'IBM Db2' },
+];
+const lastSQLDriver = ref('pgx');
+const databaseGroup = computed({
+    get: () => form.value.type === 'mongodb' ? 'nosql' : 'sql',
+    set: (group: string) => {
+        if (saving.value || loadingSavedConnection.value || group === databaseGroup.value) return;
+        form.value.type = group === 'nosql' ? 'mongodb' : lastSQLDriver.value;
+    },
+});
+const availableDatabases = computed(() => databaseGroup.value === 'sql'
+    ? sqlDatabases : [{ value: 'mongodb', label: 'MongoDB' }]);
 const sshForm = ref({
     name: "",
     host: "",
@@ -242,7 +271,7 @@ function parseToConfig() {
         Password: isMongoURI.value ? "" : form.value.password,
         Database: form.value.database,
 
-        SSL: false,
+        SSL: form.value.ssl,
 
         SSHConfigID: null,
 
@@ -311,6 +340,7 @@ function resetSshForm() {
 watch(
     () => form.value.type,
     (newVal) => {
+        if (sqlDatabases.some(database => database.value === newVal)) lastSQLDriver.value = newVal;
         if (loadingSavedConnection.value) return;
         if (newVal === "pgx") {
             form.value.port = 5432;
@@ -318,6 +348,12 @@ watch(
             form.value.port = 3306;
         } else if (newVal === "mongodb") {
             form.value.port = 27017;
+        } else if (newVal === "oracle") {
+            form.value.port = 1521;
+        } else if (newVal === "sqlserver") {
+            form.value.port = 1433;
+        } else if (newVal === "db2") {
+            form.value.port = 50000;
         } else if (newVal === "sqlite") {
             form.value.port = 0;
             form.value.use_ssh = false;
@@ -347,6 +383,7 @@ async function loadSavedConnection() {
             const ssh = connection.ssh_config;
             form.value = {
                 type: connection.driver, host: connection.host, port: Number(connection.port.Int64),
+                ssl: connection.ssl ?? false,
                 user: connection.user, password: connection.password, database: connection.dbname,
                 group: connection.group || "", connection_name: connection.name, color: connection.color.Valid ? connection.color.String : "",
                 save_connection: true, readonly: connection.read_only, use_ssh: !!connection.ssh_config_id.Valid,
@@ -357,7 +394,7 @@ async function loadSavedConnection() {
                 passphrase: ssh.passphrase.Valid ? ssh.passphrase.String : "", password: ssh.password.Valid ? ssh.password.String : "",
             };
         } else {
-            form.value = { type: "pgx", host: "", port: 5432, user: "", password: "", database: "", connection_name: "", color: "", group: "", save_connection: true, readonly: false, use_ssh: false };
+            form.value = { type: "pgx", ssl: false, host: "", port: 5432, user: "", password: "", database: "", connection_name: "", color: "", group: "", save_connection: true, readonly: false, use_ssh: false };
             resetSshForm();
         }
         sshDialog.value = false;
@@ -393,3 +430,24 @@ onMounted(async () => {
     else await store.getConnections();
 });
 </script>
+
+<style scoped>
+.database-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+.database-option {
+    min-width: 0;
+    min-height: 36px;
+    border: 1px solid #484848;
+    border-radius: 6px;
+}
+.database-option-selected {
+    border-color: #b88626;
+    background: rgba(255, 193, 7, 0.08);
+}
+@media (max-width: 480px) {
+    .database-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>

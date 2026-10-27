@@ -137,7 +137,7 @@ export const useConnectionStore = defineStore("connection", () => {
       Password: connection.password,
       Database: connection.dbname,
       Type: connection.driver,
-      SSL: false,
+      SSL: connection.ssl ?? false,
       SSHConfigID: connection.ssh_config_id?.Valid
         ? Number(connection.ssh_config_id.Int64)
         : null,

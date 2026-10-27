@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS connections (
     dbname TEXT,
     pinned BOOLEAN DEFAULT false,
     read_only BOOLEAN NOT NULL DEFAULT false,
+    ssl BOOLEAN NOT NULL DEFAULT false,
     color TEXT,
     group_name TEXT NOT NULL DEFAULT '',
 

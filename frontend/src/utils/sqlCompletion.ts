@@ -9,10 +9,12 @@ type ColumnMetadata = { name: string; databaseType: string };
 export type SQLTableReference = { path: string[]; alias?: string; from: number; to: number; keyword: string };
 
 function quoteIdentifier(name: string, driver: string): string {
+    if (driver === 'sqlserver') return '[' + name.replaceAll(']', ']]') + ']';
     const quote = driver === "mysql" ? "`" : '"';
     return quote + name.split(quote).join(quote + quote) + quote;
 }
 function identifier(text: string): string {
+    if (text[0] === '[') return text.slice(1, -1).replaceAll(']]', ']');
     const quote = text[0];
     if (quote === '"' || quote === "`") return text.slice(1, -1).split(quote + quote).join(quote);
     return text;

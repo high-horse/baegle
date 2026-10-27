@@ -16,6 +16,7 @@ export interface Connection {
     "password": string;
     "dbname": string;
     "read_only": boolean;
+    "ssl": boolean;
     "pinned": boolean;
     "color": sql$0.NullString;
     "ssh_config_id": sql$0.NullInt64;

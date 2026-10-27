@@ -17,7 +17,9 @@ import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { search, searchKeymap } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
-import { sql, PostgreSQL, MySQL, SQLite, keywordCompletionSource, schemaCompletionSource } from "@codemirror/lang-sql";
+import { sql, keywordCompletionSource, schemaCompletionSource } from "@codemirror/lang-sql";
+import { editorDialect as getDialect, formatterDialect, type DatabaseDriver } from '@/utils/databaseDialect';
+import { enterpriseStatementAt } from '@/utils/enterpriseStatement';
 import { sqlSelection } from "@/utils/sqlSelection";
 import { sqlTheme } from "@/utils/sqlTheme";
 import { createSQLSearchPanel } from "@/utils/sqlSearchPanel";
@@ -29,7 +31,7 @@ import { acceptCompletion, autocompletion, type CompletionContext } from "@codem
 
 const props = defineProps<{
     modelValue: string;
-    dbDriver: "pgx" | "mysql" | "sqlite" | "mongodb";
+    dbDriver: DatabaseDriver;
     tables?: InspectTableInfo[];
 }>();
 
@@ -60,18 +62,6 @@ watch(() => resultSettings.settings.consoleFontSize, () => {
     editorView?.dispatch({ effects: editorFont.reconfigure(fontExtension()) });
 });
 
-function getDialect(driver: string) {
-    switch (driver) {
-        case "pgx":
-            return PostgreSQL;
-        case "mysql":
-            return MySQL;
-        case "sqlite":
-            return SQLite;
-        default:
-            return PostgreSQL;
-    }
-}
 
 async function completeSQLSchema(context: CompletionContext) {
     if (props.dbDriver === "mongodb") return null;
@@ -135,6 +125,12 @@ function getCurrentQuery(view: EditorView): string | null {
     }
 
     if (props.dbDriver === "mongodb") return view.state.doc.toString().trim() || null;
+    if (['oracle', 'sqlserver', 'db2'].includes(props.dbDriver)) {
+        const range = enterpriseStatementAt(view.state.doc.toString(), head, props.dbDriver);
+        if (!range) return null;
+        view.dispatch({ selection: EditorSelection.range(range.from, range.to) });
+        return view.state.doc.sliceString(range.from, range.to).trim() || null;
+    }
 
     // 2. Use the syntax tree to find the Statement at cursor
     const tree = syntaxTree(view.state);
@@ -177,13 +173,14 @@ function formatCurrentQuery(view: EditorView): boolean {
     const tree = ensureSyntaxTree(view.state, selection.head, 100);
     const statement = tree?.topNode.getChildren("Statement")
         .find(node => selection.head >= node.from && selection.head <= node.to);
-    const range = selection.empty ? statement : selection;
+    const range = selection.empty ? (['oracle', 'sqlserver', 'db2'].includes(props.dbDriver)
+        ? enterpriseStatementAt(view.state.doc.toString(), selection.head, props.dbDriver) : statement) : selection;
     if (!range) return true;
     const original = view.state.doc.sliceString(range.from, range.to);
     if (!original.trim()) return true;
     try {
         const formatted = format(original, {
-            language: props.dbDriver === "pgx" ? "postgresql" : props.dbDriver,
+            language: formatterDialect(props.dbDriver),
             tabWidth: 4,
             keywordCase: "upper",
         });

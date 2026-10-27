@@ -40,6 +40,7 @@ func TestUpdateConnectionPreservesIdentityAndHistory(t *testing.T) {
 	}
 	config.Name, config.Host, config.Port, config.Password, config.Database = "edited", "db.example", 5434, "new", "newdb"
 	config.ReadOnly = true
+	config.SSL = true
 	config.SSHConfig.Host = "new-ssh.example"
 	if err := UpdateConnection(config); err != nil {
 		t.Fatal(err)
@@ -50,6 +51,9 @@ func TestUpdateConnectionPreservesIdentityAndHistory(t *testing.T) {
 	}
 	if len(list) != 1 || list[0].Id != int(id) || list[0].Name != "edited" || list[0].Host != "db.example" || list[0].Port.Int64 != 5434 || list[0].Password != "new" || list[0].DBName != "newdb" || !list[0].Pinned || !list[0].ReadOnly || list[0].SSHConfig.Host != "new-ssh.example" || list[0].SSHConfig.Password.String != "ssh-password" {
 		t.Fatalf("update failed: %+v", list)
+	}
+	if !list[0].SSL {
+		t.Fatal("TLS setting was not persisted")
 	}
 	var count int
 	if err := Conn.QueryRow(`SELECT count(*) FROM query_history WHERE connection_id = ?`, config.ID).Scan(&count); err != nil || count != 1 {
@@ -111,6 +115,7 @@ func TestConnectionMigrationExistingDatabase(t *testing.T) {
 	defer database.Close()
 	old := strings.ReplaceAll(migrationSQL, "    read_only BOOLEAN NOT NULL DEFAULT false,\n", "")
 	old = strings.ReplaceAll(old, "    group_name TEXT NOT NULL DEFAULT '',\n", "")
+	old = strings.ReplaceAll(old, "    ssl BOOLEAN NOT NULL DEFAULT false,\n", "")
 	if _, err := database.Exec(old); err != nil {
 		t.Fatal(err)
 	}
@@ -123,9 +128,9 @@ func TestConnectionMigrationExistingDatabase(t *testing.T) {
 		}
 	}
 	var name string
-	var readOnly bool
+	var readOnly, ssl bool
 	var group string
-	if err := database.QueryRow(`SELECT name, read_only, group_name FROM connections`).Scan(&name, &readOnly, &group); err != nil || name != "existing" || readOnly || group != "" {
+	if err := database.QueryRow(`SELECT name, read_only, group_name, ssl FROM connections`).Scan(&name, &readOnly, &group, &ssl); err != nil || name != "existing" || readOnly || group != "" || ssl {
 		t.Fatalf("migration lost saved settings: %s %v %v", name, readOnly, err)
 	}
 }

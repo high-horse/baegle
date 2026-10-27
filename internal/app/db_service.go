@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"db-lens/internal/db"
 	manager "db-lens/internal/engine/connectionManager"
+	"db-lens/internal/engine/drivers/enterprise"
 	"db-lens/internal/engine/drivers/mongodb"
 	"db-lens/internal/engine/drivers/mysql"
 	"db-lens/internal/engine/drivers/postgres"
@@ -41,6 +42,9 @@ func NewDbService(historyRepo *db.HistoryRepository) *DbService {
 	f.Register(mysql.NewDriver())
 	f.Register(postgres.NewDriver())
 	f.Register(sqlite.NewDriver())
+	for _, dialect := range []string{"oracle", "sqlserver", "db2"} {
+		f.Register(enterprise.New(dialect))
+	}
 	return &DbService{
 		factory:     f,
 		pager:       sqlExecutor.NewPager(),
@@ -122,6 +126,7 @@ func (s *DbService) GetActiveConnectionObject() (types.Connection, bool) {
 		DBName:   conn.DatabaseName(),
 		Driver:   conn.Type(),
 		ReadOnly: config.ReadOnly,
+		SSL:      config.SSL,
 	}, true
 }
 
@@ -235,18 +240,29 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 	}
 	start := time.Now()
 	if queryInput.Type == entities.QueryExecutionCount {
-		total, err := sqlExecutor.CountRead(ctx, sqlConn.DB(), parsed.RawSQL)
+		total, err := sqlExecutor.CountReadDialect(ctx, sqlConn.DB(), parsed.RawSQL, conn.Type())
 		if err != nil {
 			return nil, fmt.Errorf("count result rows: %w", err)
 		}
 		return &entities.QueryResult{TotalRows: &total, Duration: time.Duration(time.Since(start).Milliseconds())}, nil
 	}
 	var result *entities.QueryResult
-	if _, pageable := sqlExecutor.PageableSQL(parsed.RawSQL); pageable {
+	// Oracle and Db2 execute non-row statements through ExecContext. Never retry
+	// a failed execution as a query: mutations must execute only once.
+	head := enterprise.Head(parsed.RawSQL)
+	command := (conn.Type() == "oracle" || conn.Type() == "db2") && head != "SELECT" && head != "WITH" && head != "VALUES" && head != "TABLE" && head != "CALL"
+	if _, pageable := sqlExecutor.PageableDialectSQL(parsed.RawSQL, conn.Type()); pageable {
 		queryInput.Query = parsed.RawSQL
 		result, err = s.pager.OpenRead(ctx, sqlConn.DB(), conn.ID(), conn.Type(), queryInput)
 	} else if queryInput.Type == entities.QueryExecutionNavigate || queryInput.SortColumn != 0 {
 		return nil, fmt.Errorf("this statement does not support counted page navigation or sorting")
+	} else if command {
+		var execution sql.Result
+		execution, err = sqlConn.DB().ExecContext(ctx, parsed.RawSQL)
+		if err == nil {
+			affected, _ := execution.RowsAffected()
+			result = &entities.QueryResult{RowsAffected: affected, IsQuery: false, PageSize: queryInput.PageSize, StartRow: 1}
+		}
 	} else {
 		result, err = s.pager.Open(ctx, sqlConn.DB(), conn.ID(), parsed.RawSQL, queryInput.PageSize)
 	}

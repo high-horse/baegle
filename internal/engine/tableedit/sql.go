@@ -13,6 +13,9 @@ import (
 )
 
 func Quote(name, dialect string) string {
+	if dialect == "sqlserver" {
+		return "[" + strings.ReplaceAll(name, "]", "]]") + "]"
+	}
 	quote := `"`
 	if dialect == "mysql" {
 		quote = "`"
@@ -75,6 +78,12 @@ func BuildSQL(info entities.TableEditInfo, change entities.RowChange) (string, [
 		if info.Driver == "pgx" {
 			return fmt.Sprintf("$%d", len(args)), nil
 		}
+		if info.Driver == "oracle" {
+			return fmt.Sprintf(":%d", len(args)), nil
+		}
+		if info.Driver == "sqlserver" {
+			return fmt.Sprintf("@p%d", len(args)), nil
+		}
 		return "?", nil
 	}
 	table := TableName(info.Table, info.Driver)
@@ -85,6 +94,17 @@ func BuildSQL(info entities.TableEditInfo, change entities.RowChange) (string, [
 			return "", nil, fmt.Errorf("this table does not allow inserts")
 		}
 		if len(columns) == 0 {
+			if info.Driver == "oracle" || info.Driver == "db2" {
+				if len(info.Columns) == 0 {
+					return "", nil, fmt.Errorf("table has no columns")
+				}
+				for _, column := range info.Columns {
+					if !column.Generated {
+						return "INSERT INTO " + table + " (" + Quote(column.Name, info.Driver) + ") VALUES (DEFAULT)", args, nil
+					}
+				}
+				return "", nil, fmt.Errorf("table has no defaultable columns")
+			}
 			if info.Driver == "mysql" {
 				return "INSERT INTO " + table + " () VALUES ()", args, nil
 			}

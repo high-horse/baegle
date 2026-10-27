@@ -190,6 +190,8 @@ async function executeTableResult(
 function quoteIdentifier(identifier: string, driver: string = "pgx"): string {
 
   switch (driver) {
+      case "sqlserver":
+        return `[${identifier.replace(/]/g, ']]')}]`;
       case "pgx":
         return `"${identifier.replace(/"/g, '""')}"`;
       case "mysql":

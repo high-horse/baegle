@@ -130,7 +130,7 @@ const queryTabsStore = useQueryTabsStore();
 const connectionStore = useConnectionStore();
 const dbDriver = computed(() => {
  const driver = connectionStore.activeConnection?.driver;
- return driver === "mysql" || driver === "sqlite" || driver === "mongodb" ? driver : "pgx";
+ return driver === "mysql" || driver === "sqlite" || driver === "mongodb" || driver === "oracle" || driver === "sqlserver" || driver === "db2" ? driver : "pgx";
 });
 import type { QueryTab } from "@/types/queryTab";
 import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";

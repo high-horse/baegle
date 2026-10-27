@@ -84,6 +84,13 @@ func (p *Pager) open(ctx context.Context, db *sql.DB, connection, query string, 
 		c.rows = rows
 		var types []*sql.ColumnType
 		types, err = rows.ColumnTypes()
+		// SQL Server batches can emit update-count results before their SELECT.
+		for err == nil && len(types) == 0 && rows.NextResultSet() {
+			types, err = rows.ColumnTypes()
+		}
+		if err == nil {
+			err = rows.Err()
+		}
 		for _, ct := range types {
 			nullable, known := ct.Nullable()
 			c.columns = append(c.columns, entities.ColumnInfo{Name: ct.Name(), DatabaseType: ct.DatabaseTypeName(), Nullable: nullable && known})

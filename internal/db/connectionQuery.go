@@ -12,7 +12,7 @@ import (
 func GetConnectionList() ([]types.Connection, error) {
 	query := `
 		SELECT
-			c.id, c.name, c.driver, c.host, c.port, c.user, c.password, c.dbname, c.pinned, c.color, c.read_only, c.group_name,
+			c.id, c.name, c.driver, c.host, c.port, c.user, c.password, c.dbname, c.pinned, c.color, c.read_only, c.group_name, c.ssl,
 			s.id, s.name, s.host, s.port, s.username, s.auth_method, s.private_key, s.passphrase, s.password
 		FROM connections c
 		LEFT JOIN ssh_configs s ON s.id = c.ssh_config_id
@@ -32,7 +32,7 @@ func GetConnectionList() ([]types.Connection, error) {
 		var sshUsername sql.NullString
 
 		if err := rows.Scan(
-			&c.Id, &c.Name, &c.Driver, &c.Host, &c.Port, &c.User, &c.Password, &c.DBName, &c.Pinned, &c.Color, &c.ReadOnly, &c.Group,
+			&c.Id, &c.Name, &c.Driver, &c.Host, &c.Port, &c.User, &c.Password, &c.DBName, &c.Pinned, &c.Color, &c.ReadOnly, &c.Group, &c.SSL,
 			&sshID, &sshName, &sshHost, &sshPort, &sshUsername, &sshAuthMethod,
 			&c.SSHConfig.PrivateKey, &c.SSHConfig.Passphrase, &c.SSHConfig.Password,
 		); err != nil {
@@ -88,8 +88,8 @@ func StoreConnection(conn entities.ConnectionConfig) (int64, error) {
 	}
 
 	res, err := tx.Exec(
-		`INSERT INTO connections (name, driver, host, port, user, password, dbname, pinned, color, ssh_config_id, read_only, group_name)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO connections (name, driver, host, port, user, password, dbname, pinned, color, ssh_config_id, read_only, group_name, ssl)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		conn.Name,
 		conn.Type,
 		conn.Host,
@@ -102,6 +102,7 @@ func StoreConnection(conn entities.ConnectionConfig) (int64, error) {
 		sshConfigID,
 		conn.ReadOnly,
 		strings.TrimSpace(conn.Group),
+		conn.SSL,
 	)
 	if err != nil {
 		tx.Rollback()
@@ -184,7 +185,7 @@ func UpdateConnection(config entities.ConnectionConfig) error {
 			return err
 		}
 	}
-	_, err = tx.Exec(`UPDATE connections SET name = ?, driver = ?, host = ?, port = ?, user = ?, password = ?, dbname = ?, color = ?, ssh_config_id = ?, read_only = ?, group_name = ? WHERE id = ?`, config.Name, config.Type, config.Host, config.Port, config.User, config.Password, config.Database, nullable(config.Color), sshID, config.ReadOnly, strings.TrimSpace(config.Group), id)
+	_, err = tx.Exec(`UPDATE connections SET name = ?, driver = ?, host = ?, port = ?, user = ?, password = ?, dbname = ?, color = ?, ssh_config_id = ?, read_only = ?, group_name = ?, ssl = ? WHERE id = ?`, config.Name, config.Type, config.Host, config.Port, config.User, config.Password, config.Database, nullable(config.Color), sshID, config.ReadOnly, strings.TrimSpace(config.Group), config.SSL, id)
 	if err != nil {
 		return err
 	}

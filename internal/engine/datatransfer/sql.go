@@ -10,6 +10,9 @@ import (
 )
 
 func quote(name, dialect string) string {
+	if dialect == "sqlserver" {
+		return "[" + strings.ReplaceAll(name, "]", "]]") + "]"
+	}
 	q := `"`
 	if dialect == "mysql" {
 		q = "`"
@@ -21,12 +24,24 @@ func literal(v any, dialect string) (string, error) {
 		return "NULL", nil
 	}
 	if b, ok := v.([]byte); ok {
+		if dialect == "sqlserver" {
+			return "0x" + hex.EncodeToString(b), nil
+		}
+		if dialect == "oracle" {
+			return "HEXTORAW('" + hex.EncodeToString(b) + "')", nil
+		}
 		if dialect == "pgx" {
 			return "E'\\\\x" + hex.EncodeToString(b) + "'", nil
 		}
 		return "X'" + hex.EncodeToString(b) + "'", nil
 	}
 	if b, ok := v.(bool); ok {
+		if dialect == "sqlserver" || dialect == "oracle" {
+			if b {
+				return "1", nil
+			}
+			return "0", nil
+		}
 		if b {
 			return "TRUE", nil
 		}
@@ -44,6 +59,9 @@ func literal(v any, dialect string) (string, error) {
 		}
 	}
 	prefix := ""
+	if dialect == "sqlserver" {
+		prefix = "N"
+	}
 	if dialect == "pgx" {
 		prefix = "E"
 	}
@@ -90,10 +108,10 @@ func (l *lexer) next() (token, error) {
 	c := l.s[l.pos]
 	escaped := l.dialect == "mysql"
 	kind := "word"
-	if (c == 'E' || c == 'e' || c == 'X' || c == 'x') && l.pos+1 < len(l.s) && l.s[l.pos+1] == '\'' {
+	if (c == 'E' || c == 'e' || c == 'X' || c == 'x' || c == 'N' || c == 'n') && l.pos+1 < len(l.s) && l.s[l.pos+1] == '\'' {
 		if c == 'X' || c == 'x' {
 			kind = "hex"
-		} else {
+		} else if c == 'E' || c == 'e' {
 			escaped = true
 		}
 		l.pos++

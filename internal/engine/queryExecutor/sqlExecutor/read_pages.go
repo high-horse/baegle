@@ -7,6 +7,7 @@ import (
 
 	"fmt"
 	"github.com/go-sql-driver/mysql"
+	mssql "github.com/microsoft/go-mssqldb"
 	"strings"
 	"time"
 	"unicode"
@@ -108,12 +109,37 @@ func PageableSQL(query string) (string, bool) {
 // CountRead runs only when the user requests an exact total. Original filters,
 // grouping and explicit limits remain part of the counted result.
 func CountRead(ctx context.Context, db *sql.DB, query string) (int64, error) {
+	return CountReadDialect(ctx, db, query, "")
+}
+
+// SQL Server cannot embed a CTE or an unrestricted ORDER BY in a derived table.
+// Keep these queries on the execute-once streaming path instead of rewriting them.
+func PageableDialectSQL(query, dialect string) (string, bool) {
 	base, ok := PageableSQL(query)
+	if ok && dialect == "sqlserver" {
+		upper := strings.ToUpper(base)
+		if strings.Contains(upper, "WITH") || strings.Contains(upper, "ORDER") || strings.Contains(upper, "OPTION") {
+			return "", false
+		}
+	}
+	return base, ok
+}
+
+func CountReadDialect(ctx context.Context, db *sql.DB, query, dialect string) (int64, error) {
+	base, ok := PageableDialectSQL(query, dialect)
 	if !ok {
 		return 0, fmt.Errorf("this statement does not support row counting")
 	}
 	var total int64
-	err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM (\n"+base+"\n) AS _dbv_count").Scan(&total)
+	alias := " AS dbv_count"
+	if dialect == "oracle" {
+		alias = " dbv_count"
+	}
+	count := "COUNT(*)"
+	if dialect == "sqlserver" {
+		count = "COUNT_BIG(*)"
+	}
+	err := db.QueryRowContext(ctx, "SELECT "+count+" FROM (\n"+base+"\n)"+alias).Scan(&total)
 	if isDuplicateColumnError(err) {
 		// A top-level SELECT allows repeated labels; a derived table does not.
 		rows, readErr := db.QueryContext(ctx, base)
@@ -132,7 +158,7 @@ func CountRead(ctx context.Context, db *sql.DB, query string) (int64, error) {
 // OpenRead fetches a bounded page and one lookahead row, without counting the
 // full result or retaining a database connection between navigation requests.
 func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect string, input entities.QueryInput) (*entities.QueryResult, error) {
-	base, ok := PageableSQL(input.Query)
+	base, ok := PageableDialectSQL(input.Query, dialect)
 	if !ok {
 		return nil, fmt.Errorf("this statement does not support page navigation or sorting")
 	}
@@ -151,6 +177,12 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 		return nil, fmt.Errorf("invalid sort direction")
 	}
 	wrapped := "(\n" + base + "\n) AS _dbv_result"
+	if dialect == "db2" {
+		wrapped = "(\n" + base + "\n) AS dbv_result"
+	}
+	if dialect == "oracle" {
+		wrapped = "(\n" + base + "\n) dbv_result"
+	}
 	page := int64(input.Page)
 	if page < 1 {
 		page = 1
@@ -164,7 +196,17 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 		// Ordinals support duplicate output labels and cannot inject identifiers.
 		query += fmt.Sprintf(" ORDER BY %d %s", input.SortColumn, direction)
 	}
-	query += fmt.Sprintf("\nLIMIT %d OFFSET %d", size+1, offset)
+	switch dialect {
+	case "sqlserver":
+		if input.SortColumn == 0 {
+			query += " ORDER BY (SELECT NULL)"
+		}
+		query += fmt.Sprintf("\nOFFSET %d ROWS FETCH NEXT %d ROWS ONLY", offset, size+1)
+	case "oracle", "db2":
+		query += fmt.Sprintf("\nOFFSET %d ROWS FETCH NEXT %d ROWS ONLY", offset, size+1)
+	default:
+		query += fmt.Sprintf("\nLIMIT %d OFFSET %d", size+1, offset)
+	}
 	start := time.Now()
 	rows, err := db.QueryContext(ctx, query)
 	if isDuplicateColumnError(err) {
@@ -214,5 +256,6 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 // MySQL rejects repeated output labels only when the SELECT is a derived table.
 func isDuplicateColumnError(err error) bool {
 	var mysqlErr *mysql.MySQLError
-	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1060
+	var sqlServerErr mssql.Error
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1060 || errors.As(err, &sqlServerErr) && sqlServerErr.Number == 8156 || err != nil && strings.Contains(err.Error(), "ORA-00918")
 }

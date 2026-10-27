@@ -11,3 +11,7 @@ build/android/overlay.json
 build/android/gen/
 
 *.db
+
+# Local native database clients (not application source).
+.local/drivers/
+.local/browser-check/

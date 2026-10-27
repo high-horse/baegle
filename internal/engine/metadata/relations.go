@@ -47,6 +47,28 @@ ORDER BY c.oid,k.n`, table.Schema, table.Name)
 FROM information_schema.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_NAME IS NOT NULL
 AND ((TABLE_SCHEMA=? AND TABLE_NAME=?) OR (REFERENCED_TABLE_SCHEMA=? AND REFERENCED_TABLE_NAME=?))
 ORDER BY TABLE_SCHEMA,TABLE_NAME,CONSTRAINT_NAME,ORDINAL_POSITION`, table.Database, table.Name, table.Database, table.Name)
+	case "oracle":
+		keys, err = catalogForeignKeys(ctx, db, table, `SELECT f.constraint_name,f.owner,f.table_name,p.owner,p.table_name,fc.column_name,pc.column_name
+FROM all_constraints f JOIN all_constraints p ON p.owner=f.r_owner AND p.constraint_name=f.r_constraint_name
+JOIN all_cons_columns fc ON fc.owner=f.owner AND fc.constraint_name=f.constraint_name
+JOIN all_cons_columns pc ON pc.owner=p.owner AND pc.constraint_name=p.constraint_name AND pc.position=fc.position
+WHERE f.constraint_type='R' AND ((f.owner=:1 AND f.table_name=:2) OR (p.owner=:3 AND p.table_name=:4))
+ORDER BY f.owner,f.table_name,f.constraint_name,fc.position`, table.Schema, table.Name, table.Schema, table.Name)
+	case "sqlserver":
+		keys, err = catalogForeignKeys(ctx, db, table, `SELECT fk.name,ss.name,st.name,ts.name,tt.name,sc.name,tc.name
+FROM sys.foreign_keys fk JOIN sys.foreign_key_columns k ON k.constraint_object_id=fk.object_id
+JOIN sys.tables st ON st.object_id=fk.parent_object_id JOIN sys.schemas ss ON ss.schema_id=st.schema_id
+JOIN sys.tables tt ON tt.object_id=fk.referenced_object_id JOIN sys.schemas ts ON ts.schema_id=tt.schema_id
+JOIN sys.columns sc ON sc.object_id=st.object_id AND sc.column_id=k.parent_column_id
+JOIN sys.columns tc ON tc.object_id=tt.object_id AND tc.column_id=k.referenced_column_id
+WHERE (ss.name=@p1 AND st.name=@p2) OR (ts.name=@p1 AND tt.name=@p2)
+ORDER BY ss.name,st.name,fk.name,k.constraint_column_id`, table.Schema, table.Name)
+	case "db2":
+		keys, err = catalogForeignKeys(ctx, db, table, `SELECT r.CONSTNAME,RTRIM(r.TABSCHEMA),r.TABNAME,RTRIM(r.REFTABSCHEMA),r.REFTABNAME,f.COLNAME,p.COLNAME
+FROM SYSCAT.REFERENCES r JOIN SYSCAT.KEYCOLUSE f ON f.TABSCHEMA=r.TABSCHEMA AND f.TABNAME=r.TABNAME AND f.CONSTNAME=r.CONSTNAME
+JOIN SYSCAT.KEYCOLUSE p ON p.TABSCHEMA=r.REFTABSCHEMA AND p.TABNAME=r.REFTABNAME AND p.CONSTNAME=r.REFKEYNAME AND p.COLSEQ=f.COLSEQ
+WHERE (r.TABSCHEMA=? AND r.TABNAME=?) OR (r.REFTABSCHEMA=? AND r.REFTABNAME=?)
+ORDER BY r.TABSCHEMA,r.TABNAME,r.CONSTNAME,f.COLSEQ`, table.Schema, table.Name, table.Schema, table.Name)
 	default:
 		return nil, fmt.Errorf("foreign keys are unavailable for %s", dialect)
 	}

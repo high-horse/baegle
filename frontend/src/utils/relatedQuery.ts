@@ -1,14 +1,14 @@
 type Relation = { target: { name: string; schema: string; database: string }; columns: string[]; targetColumns: string[] };
 export function relatedQuery(relation: Relation, row: Record<string, unknown>, driver: string): string {
   const mysql = driver === 'mysql';
-  const quote = (name: string) => mysql ? '`' + name.replaceAll('`', '``') + '`' : '"' + name.replaceAll('"', '""') + '"';
+  const quote = (name: string) => driver === 'sqlserver' ? '[' + name.replaceAll(']', ']]') + ']' : mysql ? '`' + name.replaceAll('`', '``') + '`' : '"' + name.replaceAll('"', '""') + '"';
   const literal = (value: unknown) => {
     if (value == null) throw new Error('This foreign key is NULL; there is no related record.');
     if (typeof value === 'number') {
       if (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value))) throw new Error('The key cannot be represented precisely.');
       return String(value);
     }
-    if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+    if (typeof value === 'boolean') return driver === 'oracle' || driver === 'sqlserver' ? (value ? '1' : '0') : (value ? 'TRUE' : 'FALSE');
     if (typeof value !== 'string' || value.includes('\0')) throw new Error('This key type is not supported for navigation.');
     if (mysql) {
       // Hex avoids dependence on the server's NO_BACKSLASH_ESCAPES mode.
@@ -16,7 +16,7 @@ export function relatedQuery(relation: Relation, row: Record<string, unknown>, d
       return `CONVERT(X'${hex}' USING utf8mb4)`;
     }
     const escaped = value.replaceAll("'", "''");
-    return driver === 'sqlite' ? `'${escaped}'` : `E'${escaped.replaceAll('\\', '\\\\')}'`;
+    return driver === 'pgx' ? `E'${escaped.replaceAll('\\', '\\\\')}'` : `${driver === 'sqlserver' ? 'N' : ''}'${escaped}'`;
   };
   if (!relation.columns.length || relation.columns.length !== relation.targetColumns.length || relation.targetColumns.some(c => !c)) throw new Error('Incomplete foreign-key metadata.');
   const namespace = mysql ? relation.target.database : relation.target.schema;

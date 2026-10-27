@@ -8,7 +8,8 @@ import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { selectAll } from "@codemirror/commands";
 import { search, searchKeymap } from "@codemirror/search";
-import { sql, PostgreSQL, MySQL, SQLite } from "@codemirror/lang-sql";
+import { sql } from "@codemirror/lang-sql";
+import { editorDialect } from '@/utils/databaseDialect';
 import { sqlTheme } from "@/utils/sqlTheme";
 import { sqlSelection } from "@/utils/sqlSelection";
 import { createSQLSearchPanel } from "@/utils/sqlSearchPanel";
@@ -20,7 +21,7 @@ const language = new Compartment();
 let view: EditorView | null = null;
 
 function sqlLanguage() {
-    return sql({ dialect: props.driver === "mysql" ? MySQL : props.driver === "sqlite" ? SQLite : PostgreSQL });
+    return sql({ dialect: editorDialect(props.driver) });
 }
 
 onMounted(() => {
