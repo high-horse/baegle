@@ -52,4 +52,5 @@ export interface SavedConsole {
     "sql": string;
     "position": number;
     "createdAt": number;
+    "tabState": string;
 }

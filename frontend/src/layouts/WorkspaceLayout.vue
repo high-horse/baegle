@@ -154,7 +154,9 @@ async function handleTableSelect(node: {
         return;
     }
 
-    const tab = queryTabsStore.createResultTab(node.label);
+    const tab = queryTabsStore.createResultTab(node.label, undefined, {
+        name: node.label, schema: node.schema ?? "", database: node.database ?? activeConnection.value?.dbname ?? "",
+    });
 
     await executeTableResult(tab.id, node);
     if (activeConnection.value) {
@@ -201,6 +203,21 @@ function quoteIdentifier(identifier: string, driver: string = "pgx"): string {
 
 let disconnecting = false;
 
+watch(() => queryTabsStore.activeTab, tab => {
+    if (!tab?.needsTableRestore || !tab.tableRef) return;
+    tab.needsTableRestore = false;
+    const table = tab.tableRef;
+    void executeTableResult(tab.id, { id: tab.id, label: table.name, schema: table.schema });
+    const connection = activeConnection.value?.id;
+    void DbService.GetActiveConnection().then(connectionId => {
+        if (activeConnection.value?.id === connection && queryTabsStore.tabs.includes(tab)) {
+            return tableEdits.load(tab.id, { ...table, connectionId });
+        }
+    }).catch(error => Notify.create({ type: "negative", message: `Could not restore table details: ${String(error)}` }));
+}, { immediate: true });
+
+function flushWorkspace() { void queryTabsStore.flushAutosave(); }
+
 async function handleDisconnect(discard = false) {
     if (disconnecting) return;
     if (Object.values(tableEdits.states).some(state => state.saving)) return;
@@ -213,6 +230,7 @@ async function handleDisconnect(discard = false) {
     if (session) {
         disconnecting = true;
         try {
+            await queryTabsStore.flushAutosave();
             await DbService.Disconnect(String(session.id));
             connectionStore.clearActiveSession();
             await $router.push({ name: "Welcome" });
@@ -342,6 +360,8 @@ function handleToggleResultTabShortcut(event: KeyboardEvent) {
 }
 
 onBeforeMount(() => {
+    window.addEventListener("blur", flushWorkspace);
+    window.addEventListener("pagehide", flushWorkspace);
     window.addEventListener("keydown", handleDisconnectShortcut, true);
     window.addEventListener("blur", resetEscapeShortcut);
     window.addEventListener("keydown", handleSaveConsoleShortcut, true);
@@ -353,6 +373,8 @@ onBeforeMount(() => {
 });
 
 onBeforeUnmount(() => {
+    window.removeEventListener("blur", flushWorkspace);
+    window.removeEventListener("pagehide", flushWorkspace);
     window.removeEventListener("keydown", handleDisconnectShortcut, true);
     window.removeEventListener("blur", resetEscapeShortcut);
     resetEscapeShortcut();

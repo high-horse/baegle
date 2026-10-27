@@ -11,7 +11,7 @@ func GetSavedConsoles(ctx context.Context, connectionID int) ([]types.SavedConso
 	if connectionID < 1 {
 		return nil, fmt.Errorf("save the connection before saving consoles")
 	}
-	rows, err := Conn.QueryContext(ctx, `SELECT connection_id, id, title, sql_text, position, created_at
+	rows, err := Conn.QueryContext(ctx, `SELECT connection_id, id, title, sql_text, position, created_at, tab_state
         FROM saved_consoles WHERE connection_id = ? ORDER BY position, created_at, id`, connectionID)
 	if err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func GetSavedConsoles(ctx context.Context, connectionID int) ([]types.SavedConso
 	result := []types.SavedConsole{}
 	for rows.Next() {
 		var console types.SavedConsole
-		if err := rows.Scan(&console.ConnectionID, &console.ID, &console.Title, &console.SQL, &console.Position, &console.CreatedAt); err != nil {
+		if err := rows.Scan(&console.ConnectionID, &console.ID, &console.Title, &console.SQL, &console.Position, &console.CreatedAt, &console.TabState); err != nil {
 			return nil, err
 		}
 		result = append(result, console)
@@ -35,10 +35,10 @@ func SaveConsole(ctx context.Context, console types.SavedConsole) error {
 	if strings.TrimSpace(console.ID) == "" || strings.TrimSpace(console.Title) == "" || console.Position < 0 {
 		return fmt.Errorf("invalid console identity or position")
 	}
-	result, err := Conn.ExecContext(ctx, `INSERT INTO saved_consoles (connection_id, id, title, sql_text, position, created_at)
-        SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM connections WHERE id = ?)
-        ON CONFLICT(connection_id, id) DO UPDATE SET title = excluded.title, sql_text = excluded.sql_text, position = excluded.position`,
-		console.ConnectionID, console.ID, console.Title, console.SQL, console.Position, console.CreatedAt, console.ConnectionID)
+	result, err := Conn.ExecContext(ctx, `INSERT INTO saved_consoles (connection_id, id, title, sql_text, position, created_at, tab_state)
+        SELECT ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM connections WHERE id = ?)
+        ON CONFLICT(connection_id, id) DO UPDATE SET title = excluded.title, sql_text = excluded.sql_text, position = excluded.position, tab_state = excluded.tab_state`,
+		console.ConnectionID, console.ID, console.Title, console.SQL, console.Position, console.CreatedAt, console.TabState, console.ConnectionID)
 	if err != nil {
 		return err
 	}

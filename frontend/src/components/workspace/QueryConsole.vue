@@ -22,7 +22,7 @@
                     Modified
                 </span>
                 <span v-else-if="activeTab?.savingConsole" class="text-[10px] text-[#a0a0a0]">Saving…</span>
-                <span v-else-if="activeTab?.savedSql !== undefined" class="text-[10px] text-teal-400">Saved</span>
+                <span v-else-if="activeTab?.savedSql !== undefined" class="text-[10px] text-teal-400">Autosaved</span>
             </div>
 
             <div
@@ -72,7 +72,7 @@
                 </div>
             </template>
             <template v-else>SQL file loaded for review. Edit it, then use <strong>Run script</strong> (Alt+X). Run / Ctrl+Enter executes the current statement or selection.</template>
-            <div class="text-[#a0a0a0]">Script execution stops on the first error. Earlier commits remain; use explicit transactions when needed. Ctrl+S saves this console for later.</div>
+            <div class="text-[#a0a0a0]">Script execution stops on the first error. Earlier commits remain; use explicit transactions when needed. This console saves automatically.</div>
         </div>
         <!-- Query Editor -->
         <div

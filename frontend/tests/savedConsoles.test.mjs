@@ -7,8 +7,7 @@ import { createPinia, setActivePinia } from 'pinia';
 
 const require = createRequire(import.meta.url);
 const source = readFileSync(new URL('../src/stores/queryTabsStore.ts', import.meta.url), 'utf8');
-function setup() {
-    const saved = new Map();
+function setup({ saved = new Map(), storage = new Map() } = {}) {
     const notifications = [];
     let executions = 0;
     const service = {
@@ -30,9 +29,19 @@ function setup() {
     };
     const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
     const module = { exports: {} };
-    new Function('module', 'exports', 'require', compiled)(module, module.exports, name => overrides[name] ?? require(name));
+    let scheduled;
+    const localStorage = {
+        getItem: key => storage.get(key) ?? null,
+        setItem: (key, value) => storage.set(key, value),
+        removeItem: key => storage.delete(key),
+    };
+    new Function('module', 'exports', 'require', 'localStorage', 'setTimeout', 'clearTimeout', compiled)(
+        module, module.exports, name => overrides[name] ?? require(name), localStorage,
+        callback => { scheduled = callback; return 1; }, () => { scheduled = undefined; });
     setActivePinia(createPinia());
-    return { store: module.exports.useQueryTabsStore(), saved, service, connection, notifications, executions: () => executions };
+    return { store: module.exports.useQueryTabsStore(), saved, storage, service, connection, notifications,
+        autosave: async () => { const callback = scheduled; scheduled = undefined; if (callback) await callback(); },
+        executions: () => executions };
 }
 
 test('saved SQL restores on reconnect without execution; explicit close deletes it', async () => {
@@ -71,7 +80,7 @@ test('queries from one connection do not restore into another', async () => {
     assert.equal(store.tabs[0].sql, 'SELECT 1');
 });
 
-test('executing does not save edits; edits made during saving remain modified', async () => {
+test('edits made during saving remain modified until the next autosave', async () => {
     const { store, service } = setup();
     const id = store.tabs[0].id;
     store.updateSql(id, 'SELECT 1');
@@ -86,6 +95,72 @@ test('executing does not save edits; edits made during saving remain modified', 
     await saving;
     assert.equal(store.tabs[0].savedSql, 'SELECT 1');
     assert.equal(store.tabs[0].dirty, true);
+});
+
+test('typing autosaves without Ctrl+S and restores after restarting the store', async () => {
+    const first = setup();
+    await first.store.restoreConsoles('1');
+    const id = first.store.tabs[0].id;
+    first.store.updateSql(id, 'SELECT 1;\nSELECT 2;');
+    assert.equal(first.saved.size, 0, 'database writes are debounced');
+    assert.ok(first.storage.get('baegle.workspace.1').includes('SELECT 2;'), 'latest typing has immediate recovery');
+    await first.autosave();
+    assert.equal(first.saved.get(`1:${id}`).sql, 'SELECT 1;\nSELECT 2;');
+    assert.equal(first.store.tabs[0].dirty, false);
+    assert.equal(first.storage.has('baegle.workspace.1'), false, 'durable saves release the recovery snapshot');
+    const restarted = setup(first);
+    await restarted.store.restoreConsoles('1');
+    assert.equal(restarted.store.tabs[0].sql, 'SELECT 1;\nSELECT 2;');
+    assert.equal(restarted.executions(), 0);
+});
+
+test('recovery retains latest typing when the window exits before the database save', async () => {
+    const first = setup();
+    await first.store.restoreConsoles('1');
+    const id = first.store.tabs[0].id;
+    first.store.updateSql(id, 'SELECT 1');
+    await first.autosave();
+    first.store.updateSql(id, 'SELECT 123');
+    const restarted = setup(first);
+    await restarted.store.restoreConsoles('1');
+    assert.equal(restarted.store.tabs[0].sql, 'SELECT 123');
+    await restarted.autosave();
+    assert.equal(first.saved.get(`1:${id}`).sql, 'SELECT 123');
+});
+
+test('table tabs, empty consoles, tab order and active selection survive restart', async () => {
+    const first = setup();
+    await first.store.restoreConsoles('1');
+    const blank = first.store.tabs[0];
+    const table = first.store.createResultTab('users', undefined, { name: 'users', schema: 'public', database: 'app' });
+    first.store.updateSql(table.id, 'SELECT * FROM "public"."users";');
+    table.result = { Rows: [[1, 'private row data']] };
+    first.store.moveTab(table.id, blank.id, 'before');
+    first.store.selectTab(table.id);
+    await first.autosave();
+    const restarted = setup(first);
+    await restarted.store.restoreConsoles('1');
+    assert.deepEqual(restarted.store.tabs.map(tab => tab.id), [table.id, blank.id]);
+    assert.equal(restarted.store.activeTabId, table.id);
+    assert.equal(restarted.store.tabs[0].type, 'result');
+    assert.deepEqual(restarted.store.tabs[0].tableRef, table.tableRef);
+    assert.equal(restarted.store.tabs[0].needsTableRestore, true);
+    assert.equal(restarted.store.tabs[0].result, null);
+    assert.equal(restarted.store.tabs[1].sql, '');
+    assert.equal(restarted.executions(), 0, 'store restore does not run saved SQL');
+    assert.ok(!JSON.stringify([...first.saved.values()]).includes('private row data'));
+});
+
+test('closing before autosave does not resurrect a tab from local recovery', async () => {
+    const first = setup();
+    await first.store.restoreConsoles('1');
+    const tab = first.store.tabs[0];
+    first.store.updateSql(tab.id, 'SELECT 1');
+    await first.store.closeTab(tab.id);
+    await first.autosave();
+    const restarted = setup(first);
+    await restarted.store.restoreConsoles('1');
+    assert.ok(!restarted.store.tabs.some(item => item.id === tab.id));
 });
 
 test('closing waits for in-flight save so a closed tab cannot be resurrected', async () => {

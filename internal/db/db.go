@@ -91,5 +91,31 @@ func runMigration(db *sql.DB) error {
 	if !groupFound {
 		_, err = db.Exec("ALTER TABLE connections ADD COLUMN group_name TEXT NOT NULL DEFAULT ''")
 	}
+	if err != nil {
+		return err
+	}
+	rows, err = db.Query("PRAGMA table_info(saved_consoles)")
+	if err != nil {
+		return err
+	}
+	tabStateFound := false
+	for rows.Next() {
+		var id, notNull, primaryKey int
+		var name, kind string
+		var defaultValue any
+		if err := rows.Scan(&id, &name, &kind, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			return err
+		}
+		tabStateFound = tabStateFound || name == "tab_state"
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	if !tabStateFound {
+		_, err = db.Exec("ALTER TABLE saved_consoles ADD COLUMN tab_state TEXT NOT NULL DEFAULT ''")
+	}
 	return err
 }

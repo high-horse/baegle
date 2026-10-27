@@ -1,7 +1,7 @@
 import { Dialog, Notify } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { defineStore } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 import type { QueryTab, QueryResult } from "@/types/queryTab";
@@ -36,6 +36,11 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
   const pendingSaves = new Map<string, Promise<boolean>>();
   const restoringConsoles = ref(false);
   let restoreVersion = 0;
+  let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
+  // The initial placeholder must never overwrite a previous workspace before
+  // connection restoration has finished.
+  let persistenceEnabled = false;
+  const persistedSnapshots = new Map<string, string>();
 
   const activeTabId = ref<string | null>(tabs.value[0].id);
 
@@ -66,7 +71,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     return tab;
   }
 
-  function createResultTab(title: string, connectionId?: string) {
+  function createResultTab(title: string, connectionId?: string, tableRef?: QueryTab["tableRef"]) {
     const id = crypto.randomUUID();
 
     const tab: QueryTab = {
@@ -79,7 +84,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       error: null,
       dirty: false,
       createdAt: Date.now(),
-      connectionId,
+      connectionId: connectionId ?? (useConnectionStore().activeConnection ? String(useConnectionStore().activeConnection!.id) : undefined),
+      tableRef,
     };
 
     tabs.value.push(tab);
@@ -157,9 +163,61 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     activeTabId.value = tabs.value[nextIndex].id;
   }
 
+  const recoveryKey = (connectionId: string) => `baegle.workspace.${connectionId}`;
+  function parseTabState(value?: string): { active?: boolean; table?: QueryTab["tableRef"] } {
+    try {
+      const state = JSON.parse(value || "{}");
+      const table = state.table;
+      return { active: state.active === true, table: state.type === "result" && table
+        && typeof table.name === "string" && typeof table.schema === "string" && typeof table.database === "string" ? table : undefined };
+    } catch { return {}; }
+  }
+  function tabSnapshot(tab: QueryTab, position: number) {
+    return { connectionId: Number(tab.connectionId ?? useConnectionStore().activeConnection?.id),
+      id: tab.id, title: tab.title, sql: tab.sql, position, createdAt: tab.createdAt,
+      tabState: JSON.stringify({ type: tab.type, table: tab.tableRef, active: activeTabId.value === tab.id }) };
+  }
+  function workspaceSnapshot() {
+    return tabs.value.map(tabSnapshot).filter(snapshot => Number.isSafeInteger(snapshot.connectionId) && snapshot.connectionId > 0
+      && !tabs.value.find(tab => tab.id === snapshot.id)?.closing);
+  }
+  function scheduleAutosave() {
+    if (!persistenceEnabled || restoringConsoles.value) return;
+    const snapshot = workspaceSnapshot();
+    // Keep the latest keystrokes synchronously, including when the window exits
+    // before the debounced database write can finish. Never cache result rows.
+    const connectionIds = new Set(snapshot.map(tab => tab.connectionId));
+    const activeId = Number(useConnectionStore().activeConnection?.id);
+    if (Number.isSafeInteger(activeId) && activeId > 0) connectionIds.add(activeId);
+    try {
+      for (const id of connectionIds) localStorage.setItem(recoveryKey(String(id)), JSON.stringify(snapshot.filter(tab => tab.connectionId === id)));
+    } catch { /* Continue saving to the application database. */ }
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(flushAutosave, 400);
+  }
+  async function flushAutosave() {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = undefined;
+    if (restoringConsoles.value) return;
+    const snapshot = workspaceSnapshot();
+    await Promise.all(snapshot.filter(tab => persistedSnapshots.get(tab.id) !== JSON.stringify(tab)).map(tab => saveConsole(tab.id)));
+    if (JSON.stringify(snapshot) !== JSON.stringify(workspaceSnapshot())
+      || snapshot.some(tab => persistedSnapshots.get(tab.id) !== JSON.stringify(tab))) return;
+    // Once durable, stop treating recovery data as authoritative over the DB.
+    const ids = new Set(snapshot.map(tab => tab.connectionId));
+    const activeId = Number(useConnectionStore().activeConnection?.id);
+    if (Number.isSafeInteger(activeId) && activeId > 0) ids.add(activeId);
+    try {
+      for (const id of ids) {
+        const key = recoveryKey(String(id));
+        if (localStorage.getItem(key) === JSON.stringify(snapshot.filter(tab => tab.connectionId === id))) localStorage.removeItem(key);
+      }
+    } catch { /* Recovery remains safe to replay when storage is unavailable. */ }
+  }
+
   function saveConsole(id: string): Promise<boolean> {
     const tab = tabs.value.find(tab => tab.id === id);
-    if (!tab || tab.type !== "query" || tab.closing) return Promise.resolve(false);
+    if (!tab || tab.closing) return Promise.resolve(false);
     const pending = pendingSaves.get(id);
     if (pending) return pending.then(() => saveConsole(id));
     const connectionID = Number(tab.connectionId ?? useConnectionStore().activeConnection?.id);
@@ -168,12 +226,12 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       return Promise.resolve(false);
     }
     tab.connectionId = String(connectionID);
-    const snapshot = { connectionId: connectionID, id: tab.id, title: tab.title, sql: tab.sql,
-      position: tabs.value.indexOf(tab), createdAt: tab.createdAt };
+    const snapshot = tabSnapshot(tab, tabs.value.indexOf(tab));
     tab.savingConsole = true;
     const task = Promise.resolve().then(async () => {
       try {
         await DatabaseService.SaveConsole(snapshot);
+        persistedSnapshots.set(id, JSON.stringify(snapshot));
         tab.savedSql = snapshot.sql;
         tab.dirty = tab.sql !== snapshot.sql;
         return true;
@@ -192,27 +250,63 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
   async function restoreConsoles(connectionId: string) {
     const version = ++restoreVersion;
     restoringConsoles.value = true;
+    clearTimeout(autosaveTimer);
+    let restoredSuccessfully = false;
     try {
       await Promise.all([...pendingSaves.values()]);
-      const saved = Number(connectionId) > 0 ? await DatabaseService.GetSavedConsoles(Number(connectionId)) : [];
+      const stored = Number(connectionId) > 0 ? await DatabaseService.GetSavedConsoles(Number(connectionId)) : [];
       if (version !== restoreVersion) return;
+      let saved = stored;
+      let recovered = false;
+      try {
+        const recovery = localStorage.getItem(recoveryKey(connectionId));
+        if (recovery !== null) {
+          const parsed: unknown = JSON.parse(recovery);
+          if (Array.isArray(parsed) && parsed.every(item => item && typeof item.id === "string"
+            && typeof item.sql === "string" && typeof item.title === "string" && item.connectionId === Number(connectionId))) {
+            saved = parsed;
+            recovered = true;
+          }
+        }
+      } catch { /* Database persistence also works when browser storage is unavailable. */ }
+      if (recovered) {
+        // Finish closes interrupted by window shutdown before removing recovery.
+        await Promise.all((stored ?? []).filter(tab => !(saved ?? []).some(item => item.id === tab.id))
+          .map(tab => DatabaseService.DeleteSavedConsole(Number(connectionId), tab.id)));
+        if (version !== restoreVersion) return;
+      }
       // Keep any text entered while the saved tabs were loading.
       const existing = tabs.value.filter(tab => (!tab.connectionId || tab.connectionId === connectionId)
         && (tab.type !== "query" || tab.sql.length > 0 || tab.loading || tab.savedSql !== undefined));
-      const restored: QueryTab[] = (saved ?? []).map(console => existing.find(tab => tab.id === console.id) ?? ({
-        id: console.id, title: console.title, type: "query", sql: console.sql, savedSql: console.sql,
-        connectionId, createdAt: console.createdAt, result: null, loading: false, error: null, dirty: false,
-      }));
+      const restored: QueryTab[] = (saved ?? []).map(console => {
+        const existingTab = existing.find(tab => tab.id === console.id);
+        if (existingTab) return existingTab;
+        const state = parseTabState(console.tabState);
+        return {
+          id: console.id, title: console.title, type: state.table ? "result" : "query", sql: console.sql, savedSql: console.sql,
+          tableRef: state.table, needsTableRestore: !!state.table,
+          connectionId, createdAt: console.createdAt, result: null, loading: false, error: null, dirty: false,
+        };
+      });
       tabs.value = [...restored, ...existing.filter(tab => !restored.some(saved => saved.id === tab.id))];
       for (const tab of tabs.value) tab.connectionId ??= connectionId;
       if (!tabs.value.length) createTab(connectionId);
-      else if (!tabs.value.some(tab => tab.id === activeTabId.value)) activeTabId.value = tabs.value[0].id;
+      else {
+        const selected = saved?.find(console => parseTabState(console.tabState).active);
+        if (selected && tabs.value.some(tab => tab.id === selected.id)) activeTabId.value = selected.id;
+        else if (!tabs.value.some(tab => tab.id === activeTabId.value)) activeTabId.value = tabs.value[0].id;
+      }
+      restoredSuccessfully = true;
     } catch (error) {
       if (version !== restoreVersion) return;
       Notify.create({ type: "negative", message: `Could not restore saved consoles: ${String(error)}` });
       if (!tabs.value.length) createTab(connectionId);
     } finally {
-      if (version === restoreVersion) restoringConsoles.value = false;
+      if (version === restoreVersion) {
+        restoringConsoles.value = false;
+        persistenceEnabled = true;
+        if (restoredSuccessfully) scheduleAutosave();
+      }
     }
   }
 
@@ -237,7 +331,6 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tab.result = result;
     tab.loading = false;
     tab.error = null;
-    // Executing SQL does not save the console text.
   }
 
   function setLoading(id: string, loading: boolean) {
@@ -550,6 +643,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
   }
 
   function clearResults() {
+    void flushAutosave();
+    persistenceEnabled = false;
     restoreVersion++;
     restoringConsoles.value = false;
     useTableEditsStore().clearAll();
@@ -557,6 +652,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tabs.value = [];
     activeTabId.value = null;
   }
+
+  watch(() => JSON.stringify(workspaceSnapshot()), scheduleAutosave, { flush: "sync" });
 
   return {
     tabs,
@@ -569,6 +666,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     moveTab,
     closeTab,
     saveConsole,
+    flushAutosave,
     restoreConsoles,
     restoringConsoles,
     updateSql,

@@ -12,7 +12,7 @@ import { linter, type Diagnostic } from "@codemirror/lint";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { format } from "sql-formatter";
 import { Notify } from "quasar";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap, tooltips } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { search, searchKeymap } from "@codemirror/search";
@@ -246,6 +246,9 @@ onMounted(() => {
             // Dark editor theme
             sqlTheme,
             editorFont.of(fontExtension()),
+            // Splitter panels clip their contents. Mount suggestions outside
+            // those panels so they can extend over the result grid.
+            tooltips({ parent: document.body }),
             EditorView.domEventHandlers({
                 mousedown(event, view) {
                     if (props.dbDriver === "mongodb" || event.button !== 0 || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return false;
@@ -276,7 +279,9 @@ onMounted(() => {
             EditorView.lineWrapping,
             // Custom styling
             EditorView.theme({
-                "&": {
+                // The body-mounted tooltip host also receives theme classes.
+                // Keep editor sizing off that host to avoid page overflow.
+                "&.cm-editor": {
                     height: "100%",
                     width: "100%",
                     minWidth: "0",
@@ -328,6 +333,7 @@ onMounted(() => {
                 },
             
                 ".cm-tooltip-autocomplete": {
+                    zIndex: "1000",
                     backgroundColor: "#353535",
                     color: "#d1d5db",
                     border: "1px solid #505050",

@@ -45,6 +45,8 @@ export interface QueryTab {
   createdAt: number;
 
   connectionId?: string;
+  tableRef?: { name: string; schema: string; database: string };
+  needsTableRestore?: boolean;
   pages?: QueryResult[];
   pageIndex?: number;
   cursor?: string;

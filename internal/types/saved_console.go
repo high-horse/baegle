@@ -7,4 +7,5 @@ type SavedConsole struct {
 	SQL          string `json:"sql"`
 	Position     int    `json:"position"`
 	CreatedAt    int64  `json:"createdAt"`
+	TabState     string `json:"tabState"`
 }

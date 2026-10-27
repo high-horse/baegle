@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS saved_consoles (
     sql_text TEXT NOT NULL,
     position INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
+    tab_state TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (connection_id, id),
     FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE CASCADE
 );
