@@ -40,6 +40,15 @@
              ========================================================= -->
 
         <q-table
+            ref="dataTable"
+            role="grid"
+            tabindex="0"
+            aria-label="Query results. Use arrow keys to move between cells."
+            :aria-activedescendant="activeCellId"
+            :aria-rowcount="mappedRows.length + 1"
+            :aria-colcount="result.Columns.length + 1"
+            @keydown="handleGridKeydown"
+            @virtual-scroll="onVirtualScroll"
             flat
             square
             dense
@@ -254,9 +263,13 @@
                         :class="{
                             'sticky-col-body pl-2 pr-1 text-left text-[#909090]':
                                 col.name === 'sn',
+                            'active-result-cell': activeCell?.rowKey === String(props.row.id) && col.name === `column-${activeCell.column}`,
                         }"
+                        :id="col.name !== 'sn' ? cellId(props.rowIndex, Number(col.name.slice(7))) : undefined"
+                        :role="col.name === 'sn' ? 'rowheader' : 'gridcell'"
+                        :aria-selected="col.name !== 'sn' ? activeCell?.rowKey === String(props.row.id) && col.name === `column-${activeCell.column}` : undefined"
                         :style="getColumnStyle(col.name)"
-                        @click="col.name !== 'sn' && ($event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
+                        @click="selectCell(String(props.row.id), col.name); col.name !== 'sn' && ($event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
                     >
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
@@ -386,10 +399,11 @@ import {
     watch,
 } from "vue";
 
-import type { QTableColumn } from "quasar";
+import type { QTable, QTableColumn } from "quasar";
 
 import TableDataEditor from "./TableDataEditor.vue";
 import ResultFilterInput from "./ResultFilterInput.vue";
+import { useResultCellNavigation } from "./useResultCellNavigation";
 import DataTransfer from "../DataTransfer.vue";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 const resultSettings = useResultSettingsStore();
@@ -827,6 +841,11 @@ const mappedRows = computed(() => filteredRows.value.map(({ row, key, status, nu
     row.forEach((value, column) => { mapped[`column-${column}`] = value; });
     return mapped;
 }));
+
+const dataTable = ref<QTable | null>(null);
+const { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll } = useResultCellNavigation(
+    dataTable, mappedRows, computed(() => props.result.Columns.map(column => column.Name)), selectedRowKey,
+);
 
 /* =========================================================
    PAGINATION
@@ -1368,5 +1387,12 @@ const mappedColumns =
     min-width: 0;
     max-width: none;
     width: auto;
+}
+
+.data-explorer-grid:focus { outline: none; }
+.data-explorer-grid :deep(td.active-result-cell) {
+    background: #3d5066 !important;
+    color: #fff;
+    box-shadow: inset 0 0 0 2px #ffca28 !important;
 }
 </style>
