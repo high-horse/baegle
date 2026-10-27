@@ -6,6 +6,7 @@
 import { getCurrentInstance, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
+import { selectAll } from "@codemirror/commands";
 import { search, searchKeymap } from "@codemirror/search";
 import { sql, PostgreSQL, MySQL, SQLite } from "@codemirror/lang-sql";
 import { sqlTheme } from "@/utils/sqlTheme";
@@ -32,7 +33,7 @@ onMounted(() => {
                 sqlTheme,
                 sqlSelection,
                 search({ top: true, createPanel: view => createSQLSearchPanel(view, appContext) }),
-                keymap.of(searchKeymap),
+                keymap.of([{ key: "Mod-a", run: selectAll }, ...searchKeymap]),
                 language.of(sqlLanguage()),
                 lineNumbers(),
                 EditorState.readOnly.of(true),
