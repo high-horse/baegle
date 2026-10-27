@@ -17,8 +17,9 @@ import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { search, searchKeymap } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
+import { json } from "@codemirror/lang-json";
 import { sql, keywordCompletionSource, schemaCompletionSource } from "@codemirror/lang-sql";
-import { editorDialect as getDialect, formatterDialect, type DatabaseDriver } from '@/utils/databaseDialect';
+import { editorDialect as getDialect, formatterDialect, isJSONDriver, type DatabaseDriver } from '@/utils/databaseDialect';
 import { enterpriseStatementAt } from '@/utils/enterpriseStatement';
 import { sqlSelection } from "@/utils/sqlSelection";
 import { sqlTheme } from "@/utils/sqlTheme";
@@ -64,7 +65,7 @@ watch(() => resultSettings.settings.consoleFontSize, () => {
 
 
 async function completeSQLSchema(context: CompletionContext) {
-    if (props.dbDriver === "mongodb") return null;
+    if (isJSONDriver(props.dbDriver)) return null;
     const tables = props.tables ?? [];
     const requested = new Set(getSQLTableReferences(context.state, context.pos)
         .map(reference => matchingSQLTable(tables, reference.path)).filter((table): table is InspectTableInfo => !!table));
@@ -86,12 +87,12 @@ async function completeSQLSchema(context: CompletionContext) {
 
 function languageExtension(driver: string) {
     return [
-        driver === "mongodb" ? [] : sql({ dialect: getDialect(driver), upperCaseKeywords: true }),
+        isJSONDriver(driver) ? json() : sql({ dialect: getDialect(driver), upperCaseKeywords: true }),
         autocompletion({
             activateOnTyping: true,
             defaultKeymap: true,
             closeOnBlur: true,
-            override: driver === "mongodb" ? [] : [completeSQLSchema, keywordCompletionSource(getDialect(driver), true)],
+            override: isJSONDriver(driver) ? [] : [completeSQLSchema, keywordCompletionSource(getDialect(driver), true)],
         }),
     ];
 }
@@ -124,7 +125,7 @@ function getCurrentQuery(view: EditorView): string | null {
         return selected || null;
     }
 
-    if (props.dbDriver === "mongodb") return view.state.doc.toString().trim() || null;
+    if (isJSONDriver(props.dbDriver)) return view.state.doc.toString().trim() || null;
     if (['oracle', 'sqlserver', 'db2'].includes(props.dbDriver)) {
         const range = enterpriseStatementAt(view.state.doc.toString(), head, props.dbDriver);
         if (!range) return null;
@@ -168,7 +169,7 @@ function getCurrentQuery(view: EditorView): string | null {
 }
 
 function formatCurrentQuery(view: EditorView): boolean {
-    if (props.dbDriver === "mongodb" || view.state.readOnly) return false;
+    if (isJSONDriver(props.dbDriver) || view.state.readOnly) return false;
     const selection = view.state.selection.main;
     const tree = ensureSyntaxTree(view.state, selection.head, 100);
     const statement = tree?.topNode.getChildren("Statement")
@@ -248,7 +249,7 @@ onMounted(() => {
             tooltips({ parent: document.body }),
             EditorView.domEventHandlers({
                 mousedown(event, view) {
-                    if (props.dbDriver === "mongodb" || event.button !== 0 || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return false;
+                    if (isJSONDriver(props.dbDriver) || event.button !== 0 || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return false;
                     const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
                     const table = pos === null ? undefined : sqlTableAtPosition(view.state, pos, props.tables ?? []);
                     if (!table) return false;
@@ -257,7 +258,7 @@ onMounted(() => {
                     return true;
                 },
                 mousemove(event, view) {
-                    const pos = props.dbDriver !== "mongodb" && (event.ctrlKey || event.metaKey)
+                    const pos = !isJSONDriver(props.dbDriver) && (event.ctrlKey || event.metaKey)
                         ? view.posAtCoords({ x: event.clientX, y: event.clientY }) : null;
                     const table = pos === null ? undefined : sqlTableAtPosition(view.state, pos, props.tables ?? []);
                     view.contentDOM.style.cursor = table ? "pointer" : "";

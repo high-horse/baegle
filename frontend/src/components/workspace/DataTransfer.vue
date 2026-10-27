@@ -1,6 +1,6 @@
 <template>
     <q-btn v-if="action === 'import'" flat dense round icon="file_upload" size="sm" title="Import data" aria-label="Import data"
-        :disable="connection.activeConnection?.read_only" @click="open('import')" />
+        :disable="connection.activeConnection?.read_only || nativeNoSQL" @click="open('import')" />
     <q-btn v-else flat dense no-caps class="export-button" title="Export result data" aria-label="Export data"
         :disable="disabled" @click="open('export')">
         <q-icon name="file_download" size="16px" /><span>Export</span>
@@ -125,6 +125,7 @@
 </template>
 
 <script setup lang="ts">
+import { isNoSQL } from "@/utils/databaseDialect";
 import { computed, ref, shallowRef, watch } from 'vue';
 import { DbService } from '@bindings/db-lens/internal/app';
 import type { ImportPreview, ExportRequest } from '@bindings/db-lens/internal/app';
@@ -182,6 +183,7 @@ const startedAt = ref<number | null>(null);
 const error = ref('');
 const success = ref('');
 const isMongo = computed(() => connection.activeConnection?.driver === 'mongodb');
+const nativeNoSQL = computed(() => isNoSQL(connection.activeConnection?.driver) && !isMongo.value);
 const options = computed(() => ({ format: format.value, delimiter: delimiter.value, nullToken: nullToken.value, sheet: sheet.value || '' }));
 const keyFor = (t: { name: string; schema?: string; database?: string }) => JSON.stringify([t.database || '', t.schema || '', t.name]);
 const tables = computed(() => (connection.activeConnectionMetadata ?? []).filter(t => mode.value === 'export' || t.type.toUpperCase() !== 'VIEW'));
@@ -193,11 +195,11 @@ const table = computed(() => {
 });
 const formats = computed(() => [
     { label: 'CSV (.csv)', value: 'csv' }, { label: 'JSON (.json)', value: 'json' },
-    { label: 'Excel (.xlsx)', value: 'xlsx' }, ...(!isMongo.value ? [{ label: mode.value === 'import' ? 'SQL script (.sql)' : 'SQL inserts (.sql)', value: 'sql' }] : []),
+    { label: 'Excel (.xlsx)', value: 'xlsx' }, ...(!isNoSQL(connection.activeConnection?.driver) ? [{ label: mode.value === 'import' ? 'SQL script (.sql)' : 'SQL inserts (.sql)', value: 'sql' }] : []),
 ]);
 const scopes = computed(() => [
-    ...(sourceTable.value && (!isMongo.value || format.value === 'json') ? [{ label: isMongo.value ? 'Entire collection' : 'Entire source table / view', value: 'table' }] : []),
-    ...(!isMongo.value && sourceQuery.value && sourceResult.value?.IsQuery ? [{ label: 'All query rows (query the database)', value: 'query' }] : []),
+    ...(!nativeNoSQL.value && sourceTable.value && (!isMongo.value || format.value === 'json') ? [{ label: isMongo.value ? 'Entire collection' : 'Entire source table / view', value: 'table' }] : []),
+    ...(!isNoSQL(connection.activeConnection?.driver) && sourceQuery.value && sourceResult.value?.IsQuery ? [{ label: 'All query rows (query the database)', value: 'query' }] : []),
     ...(sourceResult.value?.IsQuery ? [{ label: 'Fetched rows (current result page)', value: 'page' }] : []),
 ]);
 const canExport = computed(() => scopes.value.some(item => item.value === scope.value) &&
@@ -231,7 +233,7 @@ async function open(value: 'import' | 'export') {
     exportStep.value = 0;
     if (isMongo.value && activeTable) format.value = 'json';
     tableKey.value = activeTable ? keyFor(activeTable) : tableOptions.value[0]?.value ?? '';
-    scope.value = activeTable ? 'table' : !isMongo.value && sourceQuery.value ? 'query' : 'page';
+    scope.value = nativeNoSQL.value ? 'page' : activeTable ? 'table' : !isMongo.value && sourceQuery.value ? 'query' : 'page';
     visible.value = true;
     if (!connection.activeConnectionMetadata) await task('Loading tables…', async () => { await connection.setActiveConnectionMetadata(); tableKey.value = tableOptions.value[0]?.value ?? ''; });
 }

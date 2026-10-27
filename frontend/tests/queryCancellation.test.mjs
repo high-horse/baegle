@@ -1,3 +1,4 @@
+import * as databaseDialect from "../src/utils/databaseDialect.ts";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -19,6 +20,7 @@ function setup(rowsPerPage = 100) {
     };
     const edits = { hasPending: () => false, isSaving: () => false, clear() {}, clearAll() {} };
     const overrides = {
+        "@/utils/databaseDialect": databaseDialect,
         quasar: { Dialog: {} },
         '@/stores/tableEditsStore': { useTableEditsStore: () => edits },
         '@/stores/connectionStore': { useConnectionStore: () => ({ activeConnection: { driver: 'sqlite' } }) },
@@ -187,6 +189,28 @@ test('Next and final-page totals do not require counting', async () => {
     assert.equal(requests.length, 1, 'Next stops at the final page');
 });
 
+
+test('native cursors advance request pages independently of uneven and empty result pages', async () => {
+    const { store, backend } = setup();
+    const tab = store.tabs[0];
+    tab.result = { CanNavigate: false, StartRow: 1, PageSize: 2, HasMore: true, Cursor: 'native', Rows: [], Columns: [] };
+    tab.pages = [tab.result]; tab.cursor = 'native'; tab.streamNextPage = 2;
+    const pages = [];
+    backend.ExecuteQuery = async input => {
+        pages.push(input.page);
+        return { columns: [], rows: input.page === 2 ? [[1], [2], [3]] : [[4]], startRow: input.page === 2 ? 1 : 4, pageSize: 2,
+            hasMore: input.page === 2, canNavigate: false, cursor: input.page === 2 ? 'native' : '', isQuery: true };
+    };
+    await store.navigate(tab.id, 'next');
+    await store.navigate(tab.id, 'next');
+    assert.deepEqual(pages, [2, 3]);
+    assert.equal(tab.totalRows, 4);
+    await store.navigate(tab.id, 'previous');
+    assert.equal(tab.result.Rows.length, 3);
+    await store.navigate(tab.id, 'last');
+    assert.equal(tab.result.StartRow, 4);
+    assert.equal(pages.length, 2, 'cached pages do not reexecute commands');
+});
 
 function countableTab(store) {
     const tab = store.tabs[0];

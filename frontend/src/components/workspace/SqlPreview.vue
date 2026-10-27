@@ -9,7 +9,8 @@ import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { selectAll } from "@codemirror/commands";
 import { search, searchKeymap } from "@codemirror/search";
 import { sql } from "@codemirror/lang-sql";
-import { editorDialect } from '@/utils/databaseDialect';
+import { json } from "@codemirror/lang-json";
+import { editorDialect, isJSONDriver } from '@/utils/databaseDialect';
 import { sqlTheme } from "@/utils/sqlTheme";
 import { sqlSelection } from "@/utils/sqlSelection";
 import { createSQLSearchPanel } from "@/utils/sqlSearchPanel";
@@ -21,7 +22,7 @@ const language = new Compartment();
 let view: EditorView | null = null;
 
 function sqlLanguage() {
-    return sql({ dialect: editorDialect(props.driver) });
+    return isJSONDriver(props.driver) ? json() : sql({ dialect: editorDialect(props.driver) });
 }
 
 onMounted(() => {

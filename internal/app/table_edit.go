@@ -36,6 +36,10 @@ func (s *DbService) DescribeTableEdit(ctx context.Context, table entities.TableR
 		return nil, fmt.Errorf("table not found")
 	}
 	info := &entities.TableEditInfo{Table: table, Driver: conn.Type(), Columns: []entities.InspectColumnInfo{}, Keys: []string{}}
+	if conn.Type() == "cassandra" || conn.Type() == "couchdb" || conn.Type() == "redis" {
+		info.Reason = "Use the native query console to modify data in this database"
+		return info, nil
+	}
 	if conn.Config().ReadOnly {
 		info.Reason = "This connection is read-only"
 		return info, nil

@@ -41,17 +41,20 @@
                             {{ form.use_ssh ? 'Use the database host reachable from your SSH server.' : 'Enter a host or mongodb:// / mongodb+srv:// URI.' }}
                         </div>
                         <div class="col-12 col-sm-6">
-                            <q-input v-model="form.user" :label="form.type === 'mongodb' ? 'User (optional)' : 'User'" :disable="isMongoURI" :rules="form.type === 'mongodb' ? [] : [required]" outlined dense color="amber" hide-bottom-space />
+                            <q-input v-model="form.user" :label="isNoSQL(form.type) ? 'User (optional)' : 'User'" :disable="isMongoURI" :rules="isNoSQL(form.type) ? [] : [required]" outlined dense color="amber" hide-bottom-space />
                         </div>
                         <div class="col-12 col-sm-6">
                             <q-input v-model="form.password" label="Password" type="password" :disable="isMongoURI" outlined dense color="amber" hide-bottom-space />
                         </div>
                         <div class="col-12">
-                            <q-input v-model="form.database" :label="form.type === 'oracle' ? 'Service name' : 'Database'" :rules="[required]" outlined dense color="amber" hide-bottom-space />
+                            <q-input v-model="form.database" :label="form.type === 'oracle' ? 'Service name' : form.type === 'cassandra' ? 'Keyspace' : form.type === 'redis' ? 'Database index' : 'Database'" :rules="form.type === 'redis' ? [validRedisDatabase] : [required]" outlined dense color="amber" hide-bottom-space />
                         </div>
                         <div v-if="form.type === 'oracle'" class="col-12 text-caption text-grey-5">Enter the Oracle service name, for example FREEPDB1. Connects using a database username and password.</div>
                         <div v-if="form.type === 'sqlserver'" class="col-12 text-caption text-grey-5">Use SQL Server authentication and the instance’s TCP port (usually 1433).</div>
                         <div v-if="form.type === 'db2'" class="col-12 text-caption text-grey-5">Db2 LUW requires a Db2-enabled app build and the IBM CLI client libraries.</div>
+                        <div v-if="form.type === 'cassandra'" class="col-12 text-caption text-grey-5">Connects to this Cassandra node. Enter an existing keyspace and run CQL statements.</div>
+                        <div v-if="form.type === 'couchdb'" class="col-12 text-caption text-grey-5">Enter the host without http:// and an existing database name. Enable TLS for HTTPS.</div>
+                        <div v-if="form.type === 'redis'" class="col-12 text-caption text-grey-5">Standalone Redis. Database 0 is the default. Leave User empty for password-only authentication.</div>
                     </template>
                     <div v-else class="col-12">
                         <q-input v-model="form.database" label="Database file" hint="/path/to/database.db" :rules="[required]" outlined dense color="amber">
@@ -62,7 +65,7 @@
                 <div class="row items-center q-gutter-x-lg q-mt-lg">
                     <q-checkbox v-if="!editingId" v-model="form.save_connection" label="Save connection" dense color="amber" />
                     <q-checkbox v-model="form.readonly" label="Read only" dense color="amber" />
-                    <q-checkbox v-if="['oracle', 'sqlserver', 'db2'].includes(form.type)" v-model="form.ssl" label="Require TLS encryption" dense color="amber" />
+                    <q-checkbox v-if="['oracle', 'sqlserver', 'db2'].includes(form.type) || isNoSQL(form.type)" v-model="form.ssl" label="Require TLS encryption" dense color="amber" />
                 </div>
                 <q-list v-if="form.type !== 'sqlite'" bordered class="connection-options q-mt-lg">
                     <q-item>
@@ -134,6 +137,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { isNoSQL } from '@/utils/databaseDialect';
 import ConnectionGroupSelect from "@/components/connections/ConnectionGroupSelect.vue";
 import type { QForm } from "quasar";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -178,15 +182,22 @@ const sqlDatabases = [
     { value: 'db2', label: 'IBM Db2' },
 ];
 const lastSQLDriver = ref('pgx');
+const lastNoSQLDriver = ref('mongodb');
+const nosqlDatabases = [
+    { value: 'mongodb', label: 'MongoDB' },
+    { value: 'cassandra', label: 'Cassandra' },
+    { value: 'couchdb', label: 'CouchDB' },
+    { value: 'redis', label: 'Redis' },
+];
 const databaseGroup = computed({
-    get: () => form.value.type === 'mongodb' ? 'nosql' : 'sql',
+    get: () => isNoSQL(form.value.type) ? 'nosql' : 'sql',
     set: (group: string) => {
         if (saving.value || loadingSavedConnection.value || group === databaseGroup.value) return;
-        form.value.type = group === 'nosql' ? 'mongodb' : lastSQLDriver.value;
+        form.value.type = group === 'nosql' ? lastNoSQLDriver.value : lastSQLDriver.value;
     },
 });
 const availableDatabases = computed(() => databaseGroup.value === 'sql'
-    ? sqlDatabases : [{ value: 'mongodb', label: 'MongoDB' }]);
+    ? sqlDatabases : nosqlDatabases);
 const sshForm = ref({
     name: "",
     host: "",
@@ -212,6 +223,7 @@ const required = (value: string | number | null) =>
 
 const validPort = (value: string | number | null) =>
     (Number.isInteger(Number(value)) && Number(value) > 0 && Number(value) <= 65535) || "Enter a port between 1 and 65535";
+const validRedisDatabase = (value: string) => /^\d+$/.test(value) || 'Enter a non-negative database index, usually 0';
 
 async function connect() {
     const valid = await formRef.value?.validate();
@@ -341,6 +353,7 @@ watch(
     () => form.value.type,
     (newVal) => {
         if (sqlDatabases.some(database => database.value === newVal)) lastSQLDriver.value = newVal;
+        if (isNoSQL(newVal)) lastNoSQLDriver.value = newVal;
         if (loadingSavedConnection.value) return;
         if (newVal === "pgx") {
             form.value.port = 5432;
@@ -348,6 +361,13 @@ watch(
             form.value.port = 3306;
         } else if (newVal === "mongodb") {
             form.value.port = 27017;
+        } else if (newVal === "cassandra") {
+            form.value.port = 9042;
+        } else if (newVal === "couchdb") {
+            form.value.port = 5984;
+        } else if (newVal === "redis") {
+            form.value.port = 6379;
+            if (!/^\d+$/.test(form.value.database)) form.value.database = '0';
         } else if (newVal === "oracle") {
             form.value.port = 1521;
         } else if (newVal === "sqlserver") {

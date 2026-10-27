@@ -8,6 +8,7 @@ import (
 	"db-lens/internal/engine/drivers/enterprise"
 	"db-lens/internal/engine/drivers/mongodb"
 	"db-lens/internal/engine/drivers/mysql"
+	"db-lens/internal/engine/drivers/nosql"
 	"db-lens/internal/engine/drivers/postgres"
 	"db-lens/internal/engine/drivers/sqlite"
 	"db-lens/internal/engine/entities"
@@ -42,6 +43,9 @@ func NewDbService(historyRepo *db.HistoryRepository) *DbService {
 	f.Register(mysql.NewDriver())
 	f.Register(postgres.NewDriver())
 	f.Register(sqlite.NewDriver())
+	for _, kind := range []string{"cassandra", "couchdb", "redis"} {
+		f.Register(nosql.New(kind))
+	}
 	for _, dialect := range []string{"oracle", "sqlserver", "db2"} {
 		f.Register(enterprise.New(dialect))
 	}
@@ -205,6 +209,30 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 
 	if conn.Type() == "mongodb" {
 		return s.executeMongo(ctx, conn, queryInput)
+	}
+	if native, ok := conn.(interface {
+		ExecuteInput(context.Context, entities.QueryInput) (*entities.QueryResult, error)
+	}); ok {
+		result, err := native.ExecuteInput(ctx, queryInput)
+		if s.historyRepo != nil && (queryInput.Type == entities.QueryExecutionExecute || queryInput.Type == entities.QueryExecuteRefresh) {
+			entry := db.QueryHistoryEntity{ConnectionId: conn.ID(), DatabaseName: conn.DatabaseName(), QueryText: queryInput.Query, Status: "SUCCESS"}
+			if err != nil {
+				entry.Status = "ERROR"
+			} else if result != nil {
+				entry.Duration = int(result.Duration.Milliseconds())
+			}
+			go func() {
+				logCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				_ = s.historyRepo.Log(logCtx, entry)
+			}()
+		}
+		if err != nil || result == nil {
+			return result, err
+		}
+		response := *result
+		response.Duration = time.Duration(result.Duration.Milliseconds())
+		return &response, nil
 	}
 
 	if queryInput.Type == entities.QueryExecutionClose {

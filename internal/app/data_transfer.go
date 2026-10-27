@@ -398,8 +398,8 @@ func (s *DbService) writeExport(ctx context.Context, w io.Writer, input ExportRe
 	if input.Table.Name != "" {
 		target = tableedit.TableName(input.Table, conn.Type())
 	}
-	if conn.Type() == "mongodb" && input.Options.Format == "sql" {
-		return 0, fmt.Errorf("SQL export is not available for MongoDB")
+	if (conn.Type() == "mongodb" || conn.Type() == "cassandra" || conn.Type() == "couchdb" || conn.Type() == "redis") && input.Options.Format == "sql" {
+		return 0, fmt.Errorf("SQL export is not available for this NoSQL database")
 	}
 	if input.Scope == "page" {
 		if conn.Type() == "mongodb" && input.Options.Format == "json" {

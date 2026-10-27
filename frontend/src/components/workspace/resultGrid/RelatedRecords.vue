@@ -1,5 +1,5 @@
 <template>
-  <q-item v-if="connection.activeConnection?.driver !== 'mongodb'" clickable :disable="disabled || loading" @click="load">
+  <q-item v-if="!isNoSQL(connection.activeConnection?.driver)" clickable :disable="disabled || loading" @click="load">
     <q-item-section>{{ loading ? 'Loading relations…' : 'Related records…' }}</q-item-section>
   </q-item>
   <q-dialog v-model="show">
@@ -19,6 +19,7 @@
   </q-dialog>
 </template>
 <script setup lang="ts">
+import { isNoSQL } from "@/utils/databaseDialect";
 import { ref } from 'vue';
 import { DbService } from '@bindings/db-lens/internal/app';
 import { useConnectionStore } from '@/stores/connectionStore';

@@ -1,3 +1,4 @@
+import * as databaseDialect from "../src/utils/databaseDialect.ts";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -17,6 +18,7 @@ function setup({ saved = new Map(), storage = new Map() } = {}) {
     };
     const connection = { activeConnection: { id: 1, driver: 'pgx' } };
     const overrides = {
+        "@/utils/databaseDialect": databaseDialect,
         quasar: { Dialog: {}, Notify: { create: value => notifications.push(value) } },
         '@/stores/tableEditsStore': { useTableEditsStore: () => ({ hasPending: () => false, isSaving: () => false, clear() {}, clearAll() {} }) },
         '@/stores/connectionStore': { useConnectionStore: () => connection },

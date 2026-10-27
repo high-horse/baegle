@@ -1,3 +1,4 @@
+import { isJSONDriver } from "@/utils/databaseDialect";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { DatabaseService } from "@bindings/db-lens/internal/app";
@@ -26,7 +27,7 @@ export const useConnectionStore = defineStore("connection", () => {
   }
   async function loadTableColumns(table: InspectTableInfo): Promise<InspectColumnInfo[]> {
     const connection = activeConnection.value;
-    if (!connection || connection.driver === "mongodb") return [];
+    if (!connection || isJSONDriver(connection.driver)) return [];
     const key = columnKey(table);
     if (tableColumns.value[key]) return tableColumns.value[key];
     const pending = pendingColumns.get(key);

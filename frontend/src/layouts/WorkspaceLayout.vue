@@ -85,6 +85,7 @@
 </template>
 
 <script setup lang="ts">
+import { consoleExtension } from "@/utils/databaseDialect";
 import { nextTick, ref, watch, onMounted, onBeforeMount, onBeforeUnmount } from "vue";
 
 import { storeToRefs } from "pinia";
@@ -124,7 +125,7 @@ watch(() => activeConnection.value?.id, id => {
 watch(() => activeConnection.value?.driver, (driver) => {
     for (const tab of queryTabsStore.tabs) {
         if (tab.type === "query" && !tab.sql.trim()) {
-            tab.title = tab.title.replace(/\.(sql|json)$/, driver === "mongodb" ? ".json" : ".sql");
+            tab.title = tab.title.replace(/\.(sql|json|cql)$/, `.${consoleExtension(driver)}`);
         }
     }
 }, { immediate: true });
@@ -174,6 +175,12 @@ async function executeTableResult(
         schema?: string;
     },
 ) {
+    if (["couchdb", "redis"].includes(activeConnection.value?.driver ?? "")) {
+        const command = JSON.stringify(activeConnection.value?.driver === "redis" ? ["SCAN", "0", "MATCH", "*"] : { method: "GET", path: "/_all_docs?include_docs=true" }, null, 2);
+        queryTabsStore.updateSql(id, command);
+        await executeQuery(id, command);
+        return;
+    }
     if (activeConnection.value?.driver === "mongodb") {
         const command = JSON.stringify({ find: node.label, filter: {} }, null, 2);
         queryTabsStore.updateSql(id, command);

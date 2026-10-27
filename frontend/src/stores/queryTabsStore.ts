@@ -1,3 +1,4 @@
+import { consoleExtension } from "@/utils/databaseDialect";
 import { Dialog, Notify } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { defineStore } from "pinia";
@@ -53,7 +54,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
 
     const tab: QueryTab = {
       id,
-      title: `console_${tabs.value.length + 1}.${useConnectionStore().activeConnection?.driver === "mongodb" ? "json" : "sql"}`,
+      title: `console_${tabs.value.length + 1}.${consoleExtension(useConnectionStore().activeConnection?.driver)}`,
       type: "query",
       sql: "",
       result: null,
@@ -565,12 +566,13 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     try {
       do {
         const last = tab.pages[tab.pages.length - 1];
-        const response = await DbService.ExecuteQuery({ query: "", cursor: tab.cursor, type: QueryExecutionType.QueryExecutionFetchPaged, pageSize: last.PageSize, page: Math.floor((last.StartRow - 1) / last.PageSize) + 2, sortColumn: 0, sortDirection: "" });
+        const response = await DbService.ExecuteQuery({ query: "", cursor: tab.cursor, type: QueryExecutionType.QueryExecutionFetchPaged, pageSize: last.PageSize, page: tab.streamNextPage ?? 2, sortColumn: 0, sortDirection: "" });
         if (!response) throw new Error("No result page returned");
         if (!tabs.value.includes(tab)) { releaseCursor(response.cursor); return; }
         const result = mapResult(response);
         tab.cursor = result.Cursor;
         if (!result.HasMore) tab.totalRows = result.StartRow - 1 + result.Rows.length;
+        tab.streamNextPage = (tab.streamNextPage ?? 2) + 1;
         tab.pages.push(result);
         // Keep navigation memory bounded regardless of the database size.
         if (tab.pages.length > 10) tab.pages.shift();

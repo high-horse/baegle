@@ -1,5 +1,7 @@
 # Oracle, Microsoft SQL Server, and IBM Db2 LUW
 
+For Cassandra, CouchDB and Redis, see [NoSQL drivers](nosql-drivers.md).
+
 The connection form supports the following database engines with username/password authentication:
 
 | Engine | Driver key | Default port | Database field | Target versions |

@@ -30,14 +30,14 @@
                 class="flex flex-nowrap shrink-0 items-center gap-2 text-[10px] text-[#909090]"
             >
                 <QueryHistory />
-                <span v-if="dbDriver === 'mongodb'">MongoDB JSON command</span>
+                <span v-if="isNoSQL(dbDriver)">{{ dbDriver === 'cassandra' ? 'CQL' : dbDriver === 'redis' ? 'Redis command array' : dbDriver === 'couchdb' ? 'CouchDB JSON request' : 'MongoDB JSON command' }}</span>
                 <q-btn flat dense no-caps size="sm" class="query-action" icon="save" label="Save" color="amber" :loading="activeTab.savingConsole" :disable="activeTab.closing" title="Save console (Ctrl+S)" aria-label="Save console" @click="queryTabsStore.saveConsole(activeTab.id)" />
                 <span>{{ activeTab.stopping ? 'Stopping…' : activeTab.runningScript ? 'Script running…' : activeTab.runningQuery ? 'Query running…' : 'Ctrl + Enter' }}</span>
                 <QueryElapsedTime v-if="activeTab.runningQuery && activeTab.queryStartedAt != null" :started-at="activeTab.queryStartedAt" />
 
                 <q-btn v-if="activeTab.runningQuery" unelevated dense no-caps color="negative" size="sm" class="query-action" icon="stop" :label="activeTab.stopping ? 'Stopping…' : 'Stop'" :disable="activeTab.stopping" aria-label="Cancel running query" @click="queryTabsStore.cancelQuery(activeTab.id)" />
 
-                <q-btn v-if="dbDriver !== 'mongodb'" flat dense no-caps size="sm" class="query-action" icon="playlist_play" label="Run script"
+                <q-btn v-if="!isNoSQL(dbDriver)" flat dense no-caps size="sm" class="query-action" icon="playlist_play" label="Run script"
                     title="Execute all statements in this console (Alt+X)" aria-label="Run SQL script"
                     :disable="activeTab.loading || !activeTab.sql.trim() || connectionStore.activeConnection?.read_only"
                     @click="executeScript" />
@@ -61,6 +61,15 @@
 
         <div v-if="dbDriver === 'mongodb'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#484848]">
             Example: {"find":"users","filter":{},"sort":{"_id":1}} · Double-click a result document to inspect it.
+        </div>
+        <div v-if="dbDriver === 'couchdb'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#484848]">
+            Example: {"method":"POST","path":"/_find","body":{"selector":{}}} · Paths are relative to the selected database.
+        </div>
+        <div v-if="dbDriver === 'redis'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#484848]">
+            Examples: ["SCAN","0","MATCH","*"] · ["GET","key"] · ["HGETALL","key"]
+        </div>
+        <div v-if="dbDriver === 'cassandra'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#484848]">
+            Run one CQL statement at a time. Results use native Cassandra paging.
         </div>
         <div v-if="activeTab?.importedScript || activeTab?.scriptResult" class="script-info shrink-0 px-3 py-2 text-xs border-b border-[#484848]" role="status">
             <template v-if="activeTab.scriptResult">
@@ -126,11 +135,12 @@ import { ref, computed } from "vue";
 import { formatDuration } from "@/utils/formatDuration";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
+import { isNoSQL } from '@/utils/databaseDialect';
 const queryTabsStore = useQueryTabsStore();
 const connectionStore = useConnectionStore();
 const dbDriver = computed(() => {
  const driver = connectionStore.activeConnection?.driver;
- return driver === "mysql" || driver === "sqlite" || driver === "mongodb" || driver === "oracle" || driver === "sqlserver" || driver === "db2" ? driver : "pgx";
+ return driver === "mysql" || driver === "sqlite" || driver === "mongodb" || driver === "oracle" || driver === "sqlserver" || driver === "db2" || driver === "cassandra" || driver === "couchdb" || driver === "redis" ? driver : "pgx";
 });
 import type { QueryTab } from "@/types/queryTab";
 import type { InspectTableInfo } from "@bindings/db-lens/internal/engine/entities";
@@ -184,7 +194,7 @@ function executeActiveTab(sql: string) {
 }
 
 function executeScript() {
-    if (!props.activeTab || connectionStore.activeConnection?.read_only || dbDriver.value === 'mongodb') return;
+    if (!props.activeTab || connectionStore.activeConnection?.read_only || isNoSQL(dbDriver.value)) return;
     void queryTabsStore.executeScript(props.activeTab.id);
 }
 </script>

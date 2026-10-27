@@ -7,11 +7,13 @@
 
 Browse tables, run queries, and work with your data in one place. Built with Go, Wails 3, and Vue.
 
-- Connect to PostgreSQL, MySQL, SQLite, and MongoDB.
+- Connect to PostgreSQL, MySQL, SQLite, Oracle, SQL Server, Db2 LUW, MongoDB, Cassandra, CouchDB, and Redis.
 - Browse schemas, tables, and documents.
-- Run SQL queries or MongoDB JSON commands.
+- Run SQL, Cassandra CQL, MongoDB commands, CouchDB requests, or Redis command arrays.
 - Edit table data, import and export data, and save query consoles.
 - Connect to remote databases through SSH tunnels.
+
+See [SQL driver setup](docs/database-drivers.md) and [NoSQL usage and limitations](docs/nosql-drivers.md).
 
 ## Download
 
