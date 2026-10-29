@@ -8,8 +8,15 @@ import ts from 'typescript';
 const source = readFileSync(new URL('../src/components/workspace/resultGrid/useResultCellNavigation.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
 const module = { exports: {} };
-new Function('module', 'exports', 'require', 'window', compiled)(module, module.exports,
-    createRequire(import.meta.url), { getSelection: () => null });
+const listeners = new Map();
+let hitCell = null;
+const browserWindow = { getSelection: () => null,
+    addEventListener: (name, handler) => listeners.set(name, handler),
+    removeEventListener: (name, handler) => { if (listeners.get(name) === handler) listeners.delete(name); },
+    requestAnimationFrame: () => 1, cancelAnimationFrame() {},
+};
+new Function('module', 'exports', 'require', 'window', 'document', compiled)(module, module.exports,
+    createRequire(import.meta.url), browserWindow, { elementFromPoint: () => hitCell });
 
 function setup(t) {
     const scope = effectScope();
@@ -18,7 +25,7 @@ function setup(t) {
     const columns = ref(['id', 'name', 'value']);
     const selectedRow = ref('');
     const scrolls = [];
-    const root = { focus() {}, querySelector: () => null };
+    const root = { focus() {}, querySelector: () => null, contains: () => true };
     const table = ref({ $el: root, scrollTo: row => scrolls.push(row) });
     const nav = scope.run(() => module.exports.useResultCellNavigation(table, computed(() => rows.value), computed(() => columns.value), selectedRow));
     const press = (key, modifiers = {}) => {
@@ -43,6 +50,43 @@ test('clicking selects a cell and arrow keys move through rows and columns witho
     grid.press('ArrowLeft');
     grid.press('ArrowUp');
     assert.deepEqual(grid.activeCell.value, { rowKey: 'b', column: 1 });
+});
+
+test('dragging extends a rectangle in either direction and never selects row numbers', t => {
+    const grid = setup(t);
+    let prevented = false;
+    const event = { button: 0, buttons: 1, pointerType: 'mouse', pointerId: 1, clientX: 20, clientY: 20,
+        preventDefault() { prevented = true; } };
+    grid.startCellDrag(event, 'a', 'sn');
+    assert.equal(grid.activeCell.value, null);
+    assert.equal(prevented, false);
+    grid.startCellDrag(event, 'c', 'column-2');
+    assert.equal(prevented, true);
+    hitCell = { closest: () => ({ dataset: { gridRow: 'a', gridColumn: 'column-0' } }) };
+    listeners.get('pointermove')(event);
+    assert.deepEqual(grid.selectionRange.value, { fromRow: 0, toRow: 2, fromColumn: 0, toColumn: 2 });
+    assert.equal(grid.isCellSelected(0, 'sn'), false);
+    grid.selectContextCell('b', 'column-1');
+    assert.equal(grid.selectionRange.value.toRow, 2, 'context menu preserves selected range');
+    listeners.get('pointerup')(event);
+    assert.equal(listeners.size, 0);
+    assert.equal(grid.selectionRange.value.toColumn, 2, 'release retains highlighting');
+    grid.startCellDrag({ ...event, shiftKey: true }, 'b', 'column-1');
+    assert.deepEqual(grid.selectionRange.value, { fromRow: 1, toRow: 2, fromColumn: 1, toColumn: 2 });
+    listeners.get('blur')();
+    assert.equal(listeners.size, 0);
+});
+
+test('drag cancellation and page replacement remove global pointer listeners', t => {
+    const grid = setup(t);
+    const event = { button: 0, buttons: 1, pointerId: 3, clientX: 0, clientY: 0, preventDefault() {} };
+    grid.startCellDrag(event, 'a', 'column-0');
+    listeners.get('pointercancel')(event);
+    assert.equal(listeners.size, 0);
+    grid.startCellDrag(event, 'a', 'column-0');
+    grid.rows.value = [{ id: 'new-page' }];
+    assert.equal(listeners.size, 0);
+    assert.equal(grid.selectionRange.value, null);
 });
 
 test('navigation follows displayed order while selection stays with a row after sorting', t => {

@@ -2,13 +2,21 @@
     <div class="h-full relative overflow-hidden bg-[#2d2d2d]">
         <div class="q-ma-lg">
             <q-table
+                ref="dataTable"
+                role="grid"
+                tabindex="0"
+                aria-label="Schema columns"
+                aria-multiselectable="true"
+                :aria-activedescendant="activeCellId"
+                @keydown="handleGridKeydown"
+                @copy="copyResultSelection($event, displayedRows, selectionRange)"
                 flat
                 square
                 dense
                 dark
                 :rows="rows"
                 :columns="columns"
-                row-key="name"
+                row-key="id"
                 :pagination="{
                     rowsPerPage: 0,
                 }"
@@ -41,7 +49,16 @@
                             :props="props"
                             :class="{
                                 'sn-cell': col.name === 'sn',
+                                'selected-result-cell': isCellSelected(props.rowIndex, gridColumn(col.name)),
+                                'active-result-cell': col.name !== 'sn' && activeCell?.rowKey === props.row.id && activeCell?.column === columnIndex(col.name),
                             }"
+                            :role="col.name === 'sn' ? 'rowheader' : 'gridcell'"
+                            :id="col.name !== 'sn' ? cellId(props.rowIndex, columnIndex(col.name)) : undefined"
+                            :aria-selected="col.name !== 'sn' ? isCellSelected(props.rowIndex, gridColumn(col.name)) : undefined"
+                            :data-grid-row="col.name !== 'sn' ? props.row.id : undefined"
+                            :data-grid-column="col.name !== 'sn' ? gridColumn(col.name) : undefined"
+                            @pointerdown="startCellDrag($event, props.row.id, gridColumn(col.name))"
+                            @contextmenu="selectContextCell(props.row.id, gridColumn(col.name))"
                         >
                             <template v-if="col.name === 'sn'">
                                 {{ props.rowIndex + 1 }}
@@ -79,7 +96,7 @@
     
                             <template v-else-if="col.name === 'default'">
                                 <span
-                                    v-if="props.row.defaultValue"
+                                    v-if="props.row.defaultValue != null && props.row.defaultValue !== ''"
                                     class="text-purple-300"
                                 >
                                     {{ props.row.defaultValue }}
@@ -106,9 +123,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import type { QTableColumn } from "quasar";
+import { computed, ref } from "vue";
+import type { QTable, QTableColumn } from "quasar";
 import type { QueryResult } from "@/types/queryTab";
+import { useResultCellNavigation } from '../useResultCellNavigation';
+import { copyResultSelection } from '@/utils/resultClipboard';
 
 const props = defineProps<{
     result: QueryResult;
@@ -157,11 +176,33 @@ const columns = computed<QTableColumn[]>(() => [
 ]);
 
 const rows = computed(() => {
-    return props.result.Columns.map((column) => ({
+    return props.result.Columns.map((column, index) => ({
+        id: String(index),
         name: column.Name,
         type: column.Type,
         nullable: column.Nullable,
         defaultValue: column.DefaultValue,
+        'column-0': column.Name,
+        'column-1': column.Type,
+        'column-2': column.Nullable ? 'YES' : 'NO',
+        'column-3': column.DefaultValue,
     }));
 });
+const dataTable = ref<QTable | null>(null);
+const displayedRows = computed(() => [...(dataTable.value?.filteredSortedRows ?? rows.value)]);
+const dataColumns = computed(() => columns.value.filter(column => column.name !== 'sn').map(column => column.name));
+const columnIndex = (name: string) => dataColumns.value.indexOf(name);
+const gridColumn = (name: string) => name === 'sn' ? 'sn' : `column-${columnIndex(name)}`;
+const { activeCell, activeCellId, cellId, selectContextCell, startCellDrag, handleGridKeydown, selectionRange, isCellSelected } = useResultCellNavigation(
+    dataTable, displayedRows, dataColumns, ref(''),
+);
 </script>
+
+<style scoped>
+.schema-grid:focus { outline: none; }
+.schema-grid :deep(.q-table__middle) { overflow: auto; max-height: 100%; }
+.schema-grid :deep(th), .schema-grid :deep(td) { user-select: none; -webkit-user-select: none; }
+.schema-grid :deep(thead th) { position: sticky; top: 0; z-index: 1; background: #353535; }
+.schema-grid :deep(td.selected-result-cell) { background: #3d5066 !important; color: #fff; }
+.schema-grid :deep(td.active-result-cell) { box-shadow: inset 0 0 0 2px #ffca28; }
+</style>

@@ -1,6 +1,17 @@
 export type ClipboardCell = string | number | boolean | null;
 export const GRID_CLIPBOARD_TYPE = 'application/x-baegle-grid+json';
 
+export function copyResultSelection(event: ClipboardEvent, rows: Record<string, unknown>[], range: {
+    fromRow: number; toRow: number; fromColumn: number; toColumn: number;
+} | null) {
+    if (event.target !== event.currentTarget || !event.clipboardData || !range) return;
+    const cells = rows.slice(range.fromRow, range.toRow + 1).map(row =>
+        Array.from({ length: range.toColumn - range.fromColumn + 1 }, (_, offset) => row[`column-${range.fromColumn + offset}`] ?? null));
+    event.clipboardData.setData('text/plain', encodeGridText(cells));
+    event.clipboardData.setData(GRID_CLIPBOARD_TYPE, JSON.stringify(cells));
+    event.preventDefault();
+}
+
 export function encodeGridText(rows: unknown[][]): string {
     return rows.map(row => row.map(value => {
         const text = value == null ? '' : String(value);

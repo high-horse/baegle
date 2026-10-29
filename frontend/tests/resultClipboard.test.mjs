@@ -9,6 +9,22 @@ const module = { exports: {} };
 new Function('module', 'exports', compiled)(module, module.exports);
 const { encodeGridText, parseGridText, validateGridCells, prepareGridPaste } = module.exports;
 
+test('shared table copying uses only selected data cells in displayed order, excluding row numbers', () => {
+    const root = {}, output = {};
+    let prevented = false;
+    const event = { target: root, currentTarget: root, clipboardData: { setData(type, value) { output[type] = value; } }, preventDefault() { prevented = true; } };
+    const rows = [{ id: 'b', sn: 99, 'column-0': 'name', 'column-1': 'second' }, { id: 'a', sn: 98, 'column-0': 'empty', 'column-1': null }];
+    module.exports.copyResultSelection(event, rows, { fromRow: 0, toRow: 1, fromColumn: 0, toColumn: 1 });
+    assert.equal(output['text/plain'], 'name\tsecond\nempty\t');
+    assert.deepEqual(JSON.parse(output[module.exports.GRID_CLIPBOARD_TYPE]), [['name', 'second'], ['empty', null]]);
+    assert.equal(prevented, true);
+    module.exports.copyResultSelection(event, rows, { fromRow: 0, toRow: 0, fromColumn: 1, toColumn: 1 });
+    assert.equal(output['text/plain'], 'second');
+    prevented = false;
+    module.exports.copyResultSelection({ ...event, target: {} }, rows, { fromRow: 0, toRow: 1, fromColumn: 0, toColumn: 1 });
+    assert.equal(prevented, false, 'nested inputs retain native copy');
+});
+
 test('spreadsheet text round-trips tabs, quoted/multiline strings and Unicode', () => {
     const rows = [['plain', 'a\tb', 'line 1\nline 2'], ['नमस्ते', '"quoted"', '']];
     assert.deepEqual(parseGridText(encodeGridText(rows)), rows);

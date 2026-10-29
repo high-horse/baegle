@@ -288,11 +288,14 @@
                         }"
                         :id="col.name !== 'sn' ? cellId(props.rowIndex, Number(col.name.slice(7))) : undefined"
                         :role="col.name === 'sn' ? 'rowheader' : 'gridcell'"
+                        :data-grid-row="col.name !== 'sn' ? String(props.row.id) : undefined"
+                        :data-grid-column="col.name !== 'sn' ? col.name : undefined"
                         :aria-selected="col.name !== 'sn' ? isCellSelected(props.rowIndex, col.name) : undefined"
                         :style="getColumnStyle(col.name)"
                         :data-pinned="isPinned(col.name) || undefined"
-                        @contextmenu="selectCell(String(props.row.id), col.name)"
-                        @click="selectCell(String(props.row.id), col.name, true, $event.shiftKey); col.name !== 'sn' && ($event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
+                        @pointerdown="startCellDrag($event, String(props.row.id), col.name)"
+                        @contextmenu="selectContextCell(String(props.row.id), col.name)"
+                        @click="col.name !== 'sn' && ($event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
                     >
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
@@ -968,14 +971,12 @@ const mappedRows = computed(() => filteredRows.value.map(({ row, key, status, nu
 }));
 
 const dataTable = ref<QTable | null>(null);
-const { activeCell, activeCellId, cellId, selectCell, handleGridKeydown, onVirtualScroll, revealActiveCell, selectionRange, isCellSelected } = useResultCellNavigation(
+const { activeCell, activeCellId, cellId, selectCell, selectContextCell, startCellDrag, handleGridKeydown, onVirtualScroll, revealActiveCell, selectionRange, isCellSelected } = useResultCellNavigation(
     dataTable, mappedRows, computed(() => displayedColumns.value.map(column => column.Name)), selectedRowKey,
 );
 
 function copyCells(event: ClipboardEvent) {
     if (event.target !== event.currentTarget || !event.clipboardData || !selectionRange.value) return;
-    const nativeSelection = window.getSelection();
-    if (nativeSelection && !nativeSelection.isCollapsed && (event.currentTarget as HTMLElement).contains(nativeSelection.anchorNode)) return;
     const range = selectionRange.value;
     const cells = mappedRows.value.slice(range.fromRow, range.toRow + 1).map(row =>
         displayedColumns.value.slice(range.fromColumn, range.toColumn + 1).map((_column, offset) => row[`column-${range.fromColumn + offset}`] ?? null));
@@ -1329,7 +1330,8 @@ const mappedColumns =
 
     text-overflow: ellipsis;
 
-    user-select: text;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 /* =========================================================

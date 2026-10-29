@@ -1,5 +1,5 @@
 <template>
-    <section ref="container" class="result-record" tabindex="0" aria-label="Row details" @keydown="handleKeydown">
+    <section ref="container" class="result-record" tabindex="0" aria-label="Row details" :aria-activedescendant="activeCellId" @keydown="handleKeydown" @copy="copyResultSelection($event, fieldRows, selectionRange)">
         <header class="record-header">
             <div class="record-summary" role="status">
                 <strong>Row {{ row._rowNumber }}</strong>
@@ -13,11 +13,13 @@
             </div>
         </header>
         <div class="record-fields" @click="focus">
-            <table aria-label="Selected row fields">
+            <table role="grid" aria-multiselectable="true" aria-label="Selected row fields">
                 <thead><tr><th scope="col">Column</th><th scope="col">Value</th></tr></thead>
                 <tbody>
-                    <tr v-for="(column, index) in columns" :key="index" :class="{ 'record-active-field': index === selectedColumn }" :data-column="index" @click="emit('selectColumn', index)">
-                        <th scope="row">
+                    <tr v-for="(column, index) in columns" :key="index" :data-column="index">
+                        <th scope="row" role="gridcell" :id="cellId(index, 0)" :data-grid-row="fieldRows[index].id" data-grid-column="column-0"
+                            :aria-selected="isCellSelected(index, 'column-0')" :class="cellClass(index, 0)"
+                            @pointerdown="startCellDrag($event, String(fieldRows[index].id), 'column-0')" @contextmenu="selectContextCell(String(fieldRows[index].id), 'column-0')">
                             <div>{{ column.Name }}</div>
                             <q-tooltip v-if="column.Type || column.Nullable !== undefined || column.DefaultValue != null" :delay="200" class="record-field-tooltip" max-width="360px">
                                 <div v-if="column.Type">{{ column.Type }}</div>
@@ -25,7 +27,9 @@
                                 <div v-if="column.DefaultValue != null">Default: {{ column.DefaultValue }}</div>
                             </q-tooltip>
                         </th>
-                        <td>
+                        <td role="gridcell" :id="cellId(index, 1)" :data-grid-row="fieldRows[index].id" data-grid-column="column-1"
+                            :aria-selected="isCellSelected(index, 'column-1')" :class="cellClass(index, 1)"
+                            @pointerdown="startCellDrag($event, String(fieldRows[index].id), 'column-1')" @contextmenu="selectContextCell(String(fieldRows[index].id), 'column-1')">
                             <span v-if="row[`column-${index}`] == null" class="record-empty">NULL</span>
                             <span v-else-if="row[`column-${index}`] === ''" class="record-empty">(empty string)</span>
                             <span v-else>{{ row[`column-${index}`] }}</span>
@@ -38,8 +42,10 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import type { QueryColumn } from '@/types/queryTab';
+import { useResultCellNavigation } from './useResultCellNavigation';
+import { copyResultSelection } from '@/utils/resultClipboard';
 
 const props = defineProps<{
     row: Record<string, unknown>;
@@ -50,8 +56,29 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ close: []; move: [offset: number]; selectColumn: [column: number] }>();
 const container = ref<HTMLElement | null>(null);
+const fieldRows = computed(() => props.columns.map((column, index) => ({
+    id: `${props.row.id}:${index}`, 'column-0': column.Name, 'column-1': props.row[`column-${index}`],
+})));
+const table = computed(() => container.value ? { $el: container.value } : null);
+const { activeCell, activeCellId, cellId, selectCell, selectContextCell, startCellDrag, handleGridKeydown, selectionRange, isCellSelected } = useResultCellNavigation(
+    table, fieldRows, computed(() => ['Column', 'Value']), ref(''), { scroller: '.record-fields', rowHeader: false },
+);
+function cellClass(index: number, column: number) {
+    return { 'selected-result-cell': isCellSelected(index, `column-${column}`),
+        'active-result-cell': activeCell.value?.rowKey === fieldRows.value[index].id && activeCell.value.column === column };
+}
+watch(activeCell, cell => {
+    const index = fieldRows.value.findIndex(row => row.id === cell?.rowKey);
+    if (index >= 0) emit('selectColumn', index);
+});
+watch(() => props.row.id, async () => {
+    await nextTick();
+    const row = fieldRows.value[props.selectedColumn];
+    if (row) selectCell(row.id, 'column-1', false);
+});
 function focus() { container.value?.focus({ preventScroll: true }); }
 function handleKeydown(event: KeyboardEvent) {
+    handleGridKeydown(event);
     if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
     if (event.key === 'Escape' || (event.key === 'Tab' && event.target === event.currentTarget)) {
         event.preventDefault();
@@ -62,6 +89,8 @@ function handleKeydown(event: KeyboardEvent) {
 onMounted(async () => {
     await nextTick();
     focus();
+    const selected = fieldRows.value[props.selectedColumn];
+    if (selected) selectCell(selected.id, 'column-1', false);
     const scroller = container.value?.querySelector<HTMLElement>('.record-fields');
     const field = scroller?.querySelector<HTMLElement>(`[data-column="${props.selectedColumn}"]`);
     if (scroller && field) scroller.scrollTop = Math.max(0, field.offsetTop - 30);
@@ -75,7 +104,7 @@ onMounted(async () => {
 .record-summary strong { color: #fbbf24; }
 .record-summary > span { color: #a0a0a0; }
 .record-actions { display: flex; flex-shrink: 0; align-items: center; gap: 2px; }
-.record-fields { position: relative; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; user-select: text; }
+.record-fields { position: relative; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; }
 table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; }
 th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid #484848; overflow-wrap: anywhere; }
 thead th { position: sticky; top: 0; z-index: 1; background: #353535; color: #fbbf24; }
@@ -84,6 +113,6 @@ tbody th { font-weight: 500; }
 td { white-space: pre-wrap; }
 .record-field-tooltip { font-family: monospace; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 .record-empty { color: #a0a0a0; font-style: italic; }
-.record-active-field { background: #3d5066; }
-.record-active-field th { box-shadow: inset 3px 0 #ffca28; }
+.selected-result-cell { background: #3d5066; color: #fff; }
+.active-result-cell { box-shadow: inset 0 0 0 2px #ffca28; }
 </style>
