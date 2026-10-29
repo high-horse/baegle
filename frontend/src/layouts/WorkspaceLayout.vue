@@ -30,6 +30,8 @@
                             @create-tab="queryTabsStore.createTab()"
                             @select-tab="queryTabsStore.selectTab"
                             @close-tab="queryTabsStore.closeTab"
+                            :closing-tabs="queryTabsStore.closingTabs"
+                            @close-tabs="queryTabsStore.closeTabs"
                             @move-tab="queryTabsStore.moveTab"
                         />
 

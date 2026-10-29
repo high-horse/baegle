@@ -11,7 +11,7 @@
             <div class="tabs-content h-full flex items-center" @dragover="dragOverStrip" @drop.prevent="dropTab" @dragleave="leaveStrip">
                 <!-- Tabs -->
                 <div
-                    v-for="tab in tabs"
+                    v-for="(tab, index) in tabs"
                     :key="tab.id"
                     class="workspace-tab h-full shrink-0 flex items-center border-r border-[#484848]"
                     :data-tab-id="tab.id"
@@ -27,6 +27,17 @@
                             : 'bg-[#353535] hover:bg-[#404040]'
                     "
                 >
+                    <q-menu context-menu dark class="bg-[#353535] text-gray-300">
+                        <q-list dense style="min-width: 210px">
+                            <q-item clickable v-close-popup :disable="closingTabs || tab.closing" @click="closeTab(tab.id)"><q-item-section>Close Tab</q-item-section></q-item>
+                            <q-item clickable v-close-popup :disable="closingTabs || tabs.length < 2" @click="closeTabs(tabs.filter(item => item.id !== tab.id))"><q-item-section>Close Other Tabs</q-item-section></q-item>
+                            <q-separator dark />
+                            <q-item clickable v-close-popup :disable="closingTabs || index === 0" @click="closeTabs(tabs.slice(0, index))"><q-item-section>Close Tabs to the Left</q-item-section></q-item>
+                            <q-item clickable v-close-popup :disable="closingTabs || index === tabs.length - 1" @click="closeTabs(tabs.slice(index + 1))"><q-item-section>Close Tabs to the Right</q-item-section></q-item>
+                            <q-separator dark />
+                            <q-item clickable v-close-popup :disable="closingTabs" @click="closeTabs(tabs)"><q-item-section>Close All Tabs</q-item-section></q-item>
+                        </q-list>
+                    </q-menu>
                     <!-- Tab button -->
                     <q-btn
                         flat
@@ -132,12 +143,14 @@ import type { QueryTab } from "@/types/queryTab";
 const props = defineProps<{
     tabs: QueryTab[];
     activeTabId: string | null;
+    closingTabs?: boolean;
 }>();
 
 const emit = defineEmits<{
     createTab: [];
     selectTab: [id: string];
     closeTab: [id: string];
+    closeTabs: [ids: string[]];
     moveTab: [id: string, targetId: string, side: "before" | "after"];
 }>();
 
@@ -221,6 +234,10 @@ function selectTab(id: string) {
 
 function closeTab(id: string) {
     emit("closeTab", id);
+}
+
+function closeTabs(tabs: QueryTab[]) {
+    emit('closeTabs', tabs.map(tab => tab.id));
 }
 </script>
 

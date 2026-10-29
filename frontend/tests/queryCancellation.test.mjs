@@ -11,6 +11,8 @@ const source = readFileSync(new URL('../src/stores/queryTabsStore.ts', import.me
 function setup(rowsPerPage = 100) {
     const calls = [];
     const cancellations = [];
+    const dialogs = [];
+    const database = { DeleteSavedConsole: async () => {} };
     const backend = {
         ExecuteConsoleQuery(id, requestID, input) {
             return new Promise((resolve, reject) => calls.push({ id, requestID, input, resolve, reject }));
@@ -21,19 +23,67 @@ function setup(rowsPerPage = 100) {
     const edits = { hasPending: () => false, isSaving: () => false, clear() {}, clearAll() {} };
     const overrides = {
         "@/utils/databaseDialect": databaseDialect,
-        quasar: { Dialog: {} },
+        quasar: { Dialog: { create() {
+            const dialog = { onOk(callback) { this.ok = callback; return this; }, onCancel(callback) { this.cancel = callback; return this; } };
+            dialogs.push(dialog); return dialog;
+        } }, Notify: { create() {} } },
         '@/stores/tableEditsStore': { useTableEditsStore: () => edits },
         '@/stores/connectionStore': { useConnectionStore: () => ({ activeConnection: { driver: 'sqlite' } }) },
         '@/stores/resultSettingsStore': { useResultSettingsStore: () => ({ settings: { rowsPerPage } }) },
-        '@bindings/db-lens/internal/app': { DbService: backend },
+        '@bindings/db-lens/internal/app': { DbService: backend, DatabaseService: database },
         '@bindings/db-lens/internal/engine/entities': { QueryExecutionType: { QueryExecutionExecute: 0, QueryExecutionClose: 2, QueryExecutionNavigate: 4, QueryExecutionFetchPaged: 1, QueryExecutionCount: 5 } },
     };
     const module = { exports: {} };
     const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
     new Function('module', 'exports', 'require', compiled)(module, module.exports, name => overrides[name] ?? require(name));
     setActivePinia(createPinia());
-    return { store: module.exports.useQueryTabsStore(), calls, cancellations, backend };
+    return { store: module.exports.useQueryTabsStore(), calls, cancellations, backend, edits, dialogs, database };
 }
+
+test('bulk tab closing snapshots IDs, retains other tabs and updates active selection', async () => {
+    const { store } = setup();
+    const a = store.tabs[0].id, b = store.createTab().id, c = store.createTab().id, d = store.createTab().id;
+    store.selectTab(b);
+    await store.closeTabs([a, c, 'missing', c]);
+    assert.deepEqual(store.tabs.map(tab => tab.id), [b, d]);
+    assert.equal(store.activeTabId, b);
+    await store.closeTabs([b, d]);
+    assert.equal(store.tabs.length, 0);
+    assert.equal(store.activeTabId, null);
+    assert.equal(store.closingTabs, false);
+});
+
+test('bulk closing waits for staged-edit decisions and cancellation stops the batch', async () => {
+    const { store, edits, dialogs } = setup();
+    const a = store.tabs[0].id, b = store.createTab().id, c = store.createTab().id;
+    edits.hasPending = id => id === a || id === b;
+    const closing = store.closeTabs([a,b,c]);
+    assert.equal(dialogs.length, 1);
+    assert.equal(store.closingTabs, true);
+    await store.closeTabs([c]);
+    assert.equal(store.tabs.length, 3, 'overlapping batch ignored');
+    dialogs[0].ok();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(dialogs.length, 2, 'one dialog at a time');
+    dialogs[1].cancel();
+    await closing;
+    assert.deepEqual(store.tabs.map(tab => tab.id), [b,c]);
+    assert.equal(store.closingTabs, false);
+});
+
+test('bulk closing stops on persistence errors and preserves tabs being saved', async () => {
+    const { store, database, edits } = setup();
+    const a = store.tabs[0], b = store.createTab();
+    a.savedSql = ''; a.connectionId = '1';
+    database.DeleteSavedConsole = async () => { throw new Error('write failed'); };
+    await store.closeTabs([a.id,b.id]);
+    assert.equal(store.tabs.length, 2);
+    assert.equal(a.closing, false);
+    assert.equal(store.closingTabs, false);
+    edits.isSaving = id => id === a.id;
+    await store.closeTabs([a.id,b.id]);
+    assert.equal(store.tabs.length, 2);
+});
 
 test('SQL files open without execution; Run script uses edited text and shares the console lock', async () => {
     const { store, calls, cancellations, backend } = setup();

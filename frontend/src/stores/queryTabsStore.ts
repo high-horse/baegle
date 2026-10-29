@@ -36,6 +36,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
   const rowCounts = new Map<string, { requestID: string; cancelled: boolean; stopping: boolean }>();
   const pendingSaves = new Map<string, Promise<boolean>>();
   const restoringConsoles = ref(false);
+  const closingTabs = ref(false);
   let restoreVersion = 0;
   let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   // The initial placeholder must never overwrite a previous workspace before
@@ -115,15 +116,18 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tabs.value.splice(target + (side === "after" ? 1 : 0), 0, tab);
   }
 
-  async function closeTab(id: string, discard = false) {
+  async function closeTab(id: string, discard = false): Promise<boolean> {
     const edits = useTableEditsStore();
-    if (edits.isSaving(id)) return;
+    if (edits.isSaving(id)) return false;
     if (!discard && edits.hasPending(id)) {
-      Dialog.create({ title: "Unsaved changes", message: "Discard the staged row changes and close this tab?", cancel: true, ok: "Discard" }).onOk(() => closeTab(id, true));
-      return;
+      return new Promise(resolve => {
+        Dialog.create({ title: "Unsaved changes", message: "Discard the staged row changes and close this tab?", cancel: true, ok: "Discard" })
+          .onOk(() => { void closeTab(id, true).then(resolve); })
+          .onCancel(() => resolve(false));
+      });
     }
     const tab = tabs.value.find(tab => tab.id === id);
-    if (!tab || tab.closing) return;
+    if (!tab || tab.closing) return false;
     tab.closing = true;
     try {
       // Wait for an in-flight Save before deleting, so it cannot recreate a closed tab.
@@ -135,10 +139,10 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     } catch (error) {
       tab.closing = false;
       Notify.create({ type: "negative", message: `Could not close saved console: ${String(error)}` });
-      return;
+      return false;
     }
     const index = tabs.value.findIndex(tab => tab.id === id);
-    if (index === -1) return;
+    if (index === -1) return true;
     edits.clear(id);
 
     const wasActive = activeTabId.value === id;
@@ -151,17 +155,31 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tabs.value.splice(index, 1);
 
     if (!wasActive) {
-      return;
+      return true;
     }
 
     if (tabs.value.length === 0) {
       activeTabId.value = null;
-      return;
+      return true;
     }
 
     const nextIndex = Math.min(index, tabs.value.length - 1);
 
     activeTabId.value = tabs.value[nextIndex].id;
+    return true;
+  }
+
+  async function closeTabs(ids: string[]) {
+    if (closingTabs.value) return;
+    closingTabs.value = true;
+    try {
+      // Snapshot the requested tabs before asynchronous saves/dialogs can change
+      // their positions. Cancel or failure stops the remaining batch.
+      for (const id of [...new Set(ids)]) {
+        if (!tabs.value.some(tab => tab.id === id)) continue;
+        if (!(await closeTab(id))) break;
+      }
+    } finally { closingTabs.value = false; }
   }
 
   const recoveryKey = (connectionId: string) => `baegle.workspace.${connectionId}`;
@@ -683,6 +701,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     selectTab,
     moveTab,
     closeTab,
+    closeTabs,
+    closingTabs,
     saveConsole,
     flushAutosave,
     restoreConsoles,
