@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import test from 'node:test';
-import { computed, effectScope, nextTick, ref } from 'vue';
+import { computed, effectScope, nextTick, ref, watch } from 'vue';
 import ts from 'typescript';
 
 const source = readFileSync(new URL('../src/components/workspace/resultGrid/useResultCellNavigation.ts', import.meta.url), 'utf8');
@@ -10,13 +10,20 @@ const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.Scri
 const module = { exports: {} };
 const listeners = new Map();
 let hitCell = null;
+let hitTests = 0, frameID = 0;
+const frames = new Map();
+function flushFrame() {
+    const callbacks = [...frames.values()]; frames.clear();
+    callbacks.forEach(callback => callback());
+}
 const browserWindow = { getSelection: () => null,
     addEventListener: (name, handler) => listeners.set(name, handler),
     removeEventListener: (name, handler) => { if (listeners.get(name) === handler) listeners.delete(name); },
-    requestAnimationFrame: () => 1, cancelAnimationFrame() {},
+    requestAnimationFrame: callback => { frames.set(++frameID, callback); return frameID; },
+    cancelAnimationFrame: id => frames.delete(id),
 };
 new Function('module', 'exports', 'require', 'window', 'document', compiled)(module, module.exports,
-    createRequire(import.meta.url), browserWindow, { elementFromPoint: () => hitCell });
+    createRequire(import.meta.url), browserWindow, { elementFromPoint: () => { hitTests++; return hitCell; } });
 
 function setup(t) {
     const scope = effectScope();
@@ -64,6 +71,7 @@ test('dragging extends a rectangle in either direction and never selects row num
     assert.equal(prevented, true);
     hitCell = { closest: () => ({ dataset: { gridRow: 'a', gridColumn: 'column-0' } }) };
     listeners.get('pointermove')(event);
+    flushFrame();
     assert.deepEqual(grid.selectionRange.value, { fromRow: 0, toRow: 2, fromColumn: 0, toColumn: 2 });
     assert.equal(grid.isCellSelected(0, 'sn'), false);
     grid.selectContextCell('b', 'column-1');
@@ -75,6 +83,32 @@ test('dragging extends a rectangle in either direction and never selects row num
     assert.deepEqual(grid.selectionRange.value, { fromRow: 1, toRow: 2, fromColumn: 1, toColumn: 2 });
     listeners.get('blur')();
     assert.equal(listeners.size, 0);
+});
+
+test('pointer bursts are batched into one frame and stationary cells cause no reactive updates', t => {
+    const grid = setup(t);
+    const event = { button: 0, buttons: 1, pointerId: 4, clientX: 20, clientY: 20, preventDefault() {} };
+    grid.startCellDrag(event, 'a', 'column-0');
+    assert.equal(frames.size, 0, 'a click does not start an idle frame loop');
+    let updates = 0;
+    const stop = watch(grid.activeCell, () => updates++, { flush: 'sync' });
+    t.after(stop);
+    hitCell = { closest: () => ({ dataset: { gridRow: 'c', gridColumn: 'column-2' } }) };
+    const before = hitTests;
+    for (let i=0; i<200; i++) listeners.get('pointermove')({ ...event, clientX: i });
+    assert.equal(hitTests, before, 'pointer events do not force layout hit-tests');
+    assert.equal(frames.size, 1);
+    flushFrame();
+    assert.equal(hitTests - before, 1);
+    assert.equal(updates, 1);
+    assert.equal(frames.size, 0, 'no continuing work away from a scroll edge');
+    for (let i=0; i<10; i++) { listeners.get('pointermove')(event); flushFrame(); }
+    assert.equal(updates, 1, 'remaining in a cell does not rerender the table');
+    hitCell = { closest: () => ({ dataset: { gridRow: 'b', gridColumn: 'column-1' } }) };
+    listeners.get('pointermove')(event);
+    listeners.get('pointerup')(event);
+    assert.deepEqual(grid.selectionRange.value, { fromRow: 0, toRow: 1, fromColumn: 0, toColumn: 1 });
+    assert.equal(frames.size, 0, 'release flushes the final endpoint and cancels pending work');
 });
 
 test('drag cancellation and page replacement remove global pointer listeners', t => {

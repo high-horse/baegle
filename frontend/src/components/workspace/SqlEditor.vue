@@ -286,8 +286,8 @@ onMounted(() => {
                     minHeight: "0",
                     maxWidth: "100%",
             
-                    backgroundColor: "#343638",
-                    color: "#d1d5db",
+                    backgroundColor: "var(--surface-data)",
+                    color: "var(--text-primary)",
                 },
             
                 ".cm-scroller": {
@@ -316,13 +316,13 @@ onMounted(() => {
                 },
             
                 ".cm-gutters": {
-                    backgroundColor: "#303234",
-                    color: "#909090",
+                    backgroundColor: "var(--surface-panel)",
+                    color: "var(--text-muted)",
                     border: "none",
                 },
             
                 ".cm-activeLineGutter": {
-                    backgroundColor: "#404040",
+                    backgroundColor: "var(--surface-hover)",
                     color: "#f59e0b",
                 },
             
@@ -332,9 +332,9 @@ onMounted(() => {
             
                 ".cm-tooltip-autocomplete": {
                     zIndex: "1000",
-                    backgroundColor: "#353535",
-                    color: "#d1d5db",
-                    border: "1px solid #505050",
+                    backgroundColor: "var(--surface-panel)",
+                    color: "var(--text-primary)",
+                    border: "1px solid var(--border-default)",
                     borderRadius: "6px",
                 },
                 ".cm-tooltip-autocomplete ul li[aria-selected]": {

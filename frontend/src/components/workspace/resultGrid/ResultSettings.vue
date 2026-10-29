@@ -21,11 +21,12 @@
                         :rules="[value => Number.isInteger(value) && value >= 0 && value <= 86400 || 'Enter a whole number from 0 to 86400']"
                         hint="Maximum time per query, page load, or script. 0 disables the timeout. Applies to new executions." />
                     <q-select v-model="draft.fontSize" :options="[10, 11, 12, 13, 14, 16, 18]"
-                        label="Grid font size (px)" outlined dense class="q-mt-md" :disable="loading || saving" />
+                        label="Workspace and grid font size (px)" outlined dense class="q-mt-md" :disable="loading || saving"
+                        hint="Tables, row details, tabs, toolbars, menus, and dialogs. Updates immediately after saving." />
                     <q-select v-model="draft.sidebarFontSize" :options="[10, 11, 12, 13, 14, 16, 18, 20, 22, 24]"
-                        label="Sidebar table list font size (px)" outlined dense class="q-mt-md" :disable="loading || saving" />
+                        label="Sidebar font size (px)" outlined dense class="q-mt-md" :disable="loading || saving" />
                     <q-select v-model="draft.consoleFontSize" :options="[10, 11, 12, 13, 14, 16, 18, 20, 22, 24]"
-                        label="Query console font size (px)" outlined dense class="q-mt-md" :disable="loading || saving" />
+                        label="SQL editor and DDL font size (px)" outlined dense class="q-mt-md" :disable="loading || saving" />
                     <q-input v-model.number="draft.importLimitMiB" type="number" clearable label="Import file size limit (MiB)" outlined dense
                         class="q-mt-md" :min="0" :disable="loading || saving"
                         :rules="[value => value == null || value === '' || Number.isSafeInteger(value) && value >= 0 || 'Enter a nonnegative whole number']"
@@ -89,8 +90,8 @@ async function save() {
 .result-settings-card {
     width: 460px;
     max-width: calc(100vw - 32px);
-    background: #353535;
-    color: #d1d5db;
+    background: var(--surface-panel);
+    color: var(--text-primary);
 }
 
 .pagination-button {
@@ -98,13 +99,13 @@ async function save() {
     height: 24px;
     min-height: 24px;
     padding: 0;
-    border: 1px solid #484848;
-    background: #2d2d2d;
-    color: #a0a0a0;
+    border: 1px solid var(--border-default);
+    background: var(--surface-data);
+    color: var(--text-muted);
 }
 
 .pagination-button:hover {
     color: #fbbf24;
-    background: #484848;
+    background: var(--border-default);
 }
 </style>

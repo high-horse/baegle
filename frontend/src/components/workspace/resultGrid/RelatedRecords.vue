@@ -3,7 +3,7 @@
     <q-item-section>{{ loading ? 'Loading relations…' : 'Related records…' }}</q-item-section>
   </q-item>
   <q-dialog v-model="show">
-    <q-card dark class="bg-[#303234] text-gray-300" style="min-width: 380px; max-width: 90vw">
+    <q-card dark class="bg-[var(--surface-panel)] text-gray-300" style="min-width: 380px; max-width: 90vw">
       <q-card-section class="flex items-center"><strong>Related records · {{ column }}</strong><q-space /><q-btn flat dense icon="close" v-close-popup aria-label="Close related records" /></q-card-section>
       <q-card-section v-if="error" class="text-red-300" role="alert">{{ error }}</q-card-section>
       <q-list v-if="relations.length" style="max-height: 60vh; overflow: auto">
@@ -14,7 +14,7 @@
         </q-item>
       </q-list>
       <q-card-section v-else-if="!error">No declared foreign keys involve this column.</q-card-section>
-      <q-card-section class="text-xs text-gray-400">Opens a SELECT in a new console. NULL foreign keys have no related record.</q-card-section>
+      <q-card-section class="text-[length:var(--ui-font-size)] text-gray-400">Opens a SELECT in a new console. NULL foreign keys have no related record.</q-card-section>
     </q-card>
   </q-dialog>
 </template>

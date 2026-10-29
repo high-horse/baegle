@@ -90,13 +90,13 @@ onMounted(() => {
                 EditorView.theme({
                     // CodeMirror also applies theme classes to body-mounted tooltip
                     // hosts. Only the editor should occupy space in the layout.
-                    "&.cm-editor": { backgroundColor: "transparent", height: "23px", fontSize: "11px" },
+                    "&.cm-editor": { backgroundColor: "transparent", height: "23px", fontSize: "var(--ui-font-size)" },
                     "&.cm-focused": { outline: "none" },
                     ".cm-scroller": { overflow: "hidden", fontFamily: "monospace", lineHeight: "23px" },
                     ".cm-content": { padding: "0", minHeight: "23px" },
                     ".cm-line": { padding: "0" },
-                    ".cm-placeholder": { color: "#a0a0a0" },
-                    ".cm-tooltip-autocomplete": { fontSize: "11px" },
+                    ".cm-placeholder": { color: "var(--text-muted)" },
+                    ".cm-tooltip-autocomplete": { fontSize: "var(--ui-font-size)" },
                 }),
                 // Escape the result grid's overflow clipping.
                 EditorView.theme({ ".cm-tooltip": { zIndex: "1000" } }),

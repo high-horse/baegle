@@ -1,6 +1,6 @@
 <template>
     <header
-        class="h-12 bg-[#353535] border-b border-[#484848] flex items-center justify-between px-4 z-10"
+        class="h-12 bg-[var(--surface-panel)] border-b border-[var(--border-default)] flex items-center justify-between px-4 z-10"
     >
         <!-- Left -->
         <div class="flex items-center gap-3">
@@ -11,7 +11,7 @@
             />
 
             <span
-                class="font-bold text-white tracking-wide text-sm"
+                class="font-bold text-white tracking-wide text-[length:var(--ui-font-size)]"
             >
                 baegle
             </span>
@@ -19,7 +19,7 @@
             <q-badge
                 :color="connected ? 'green-10' : 'grey-9'"
                 :text-color="connected ? 'green-4' : 'grey-5'"
-                class="text-xs font-medium flex items-center gap-1.5"
+                class="text-[length:var(--ui-font-size)] font-medium flex items-center gap-1.5"
                 role="status"
                 aria-live="polite"
             >

@@ -1,33 +1,33 @@
 <template>
     <div
-        class="h-full w-full min-w-0 min-h-0 flex flex-col flex-nowrap bg-[#343638] overflow-hidden"
+        class="h-full w-full min-w-0 min-h-0 flex flex-col flex-nowrap bg-[var(--surface-data)] overflow-hidden"
     >
 
         <!-- Query info -->
         <div
-            class="h-7 shrink-0 bg-[#303234] border-b border-[#484848] flex flex-nowrap items-center justify-between gap-2 min-w-0 overflow-hidden px-3"
+            class="h-7 shrink-0 bg-[var(--surface-panel)] border-b border-[var(--border-default)] flex flex-nowrap items-center justify-between gap-2 min-w-0 overflow-hidden px-3"
         >
             <div class="flex flex-nowrap items-center gap-3 min-w-0">
                 <span
                     v-if="activeTab"
-                    class="text-[10px] font-mono text-[#a0a0a0] truncate"
+                    class="text-[length:var(--ui-font-size)] font-mono text-[var(--text-muted)] truncate"
                 >
                     {{ activeTab.title }}
                 </span>
 
                 <span
                     v-if="activeTab?.dirty"
-                    class="text-[10px] text-amber-500"
+                    class="text-[length:var(--ui-font-size)] text-amber-500"
                 >
                     Modified
                 </span>
-                <span v-else-if="activeTab?.savingConsole" class="text-[10px] text-[#a0a0a0]">Saving…</span>
-                <span v-else-if="activeTab?.savedSql !== undefined" class="text-[10px] text-teal-400">Autosaved</span>
+                <span v-else-if="activeTab?.savingConsole" class="text-[length:var(--ui-font-size)] text-[var(--text-muted)]">Saving…</span>
+                <span v-else-if="activeTab?.savedSql !== undefined" class="text-[length:var(--ui-font-size)] text-teal-400">Autosaved</span>
             </div>
 
             <div
                 v-if="activeTab"
-                class="flex flex-nowrap shrink-0 items-center gap-2 text-[10px] text-[#909090]"
+                class="flex flex-nowrap shrink-0 items-center gap-2 text-[length:var(--ui-font-size)] text-[var(--text-muted)]"
             >
                 <QueryHistory />
                 <span v-if="isNoSQL(dbDriver)">{{ dbDriver === 'cassandra' ? 'CQL' : dbDriver === 'redis' ? 'Redis command array' : dbDriver === 'couchdb' ? 'CouchDB JSON request' : 'MongoDB JSON command' }}</span>
@@ -59,19 +59,19 @@
             </div>
         </div>
 
-        <div v-if="dbDriver === 'mongodb'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#484848]">
+        <div v-if="dbDriver === 'mongodb'" class="shrink-0 px-3 py-2 text-[length:var(--ui-font-size)] font-mono text-[#94a3b8] border-b border-[var(--border-default)]">
             Example: {"find":"users","filter":{},"sort":{"_id":1}} · Double-click a result document to inspect it.
         </div>
-        <div v-if="dbDriver === 'couchdb'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#484848]">
+        <div v-if="dbDriver === 'couchdb'" class="shrink-0 px-3 py-2 text-[length:var(--ui-font-size)] font-mono text-[#94a3b8] border-b border-[var(--border-default)]">
             Example: {"method":"POST","path":"/_find","body":{"selector":{}}} · Paths are relative to the selected database.
         </div>
-        <div v-if="dbDriver === 'redis'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#484848]">
+        <div v-if="dbDriver === 'redis'" class="shrink-0 px-3 py-2 text-[length:var(--ui-font-size)] font-mono text-[#94a3b8] border-b border-[var(--border-default)]">
             Examples: ["SCAN","0","MATCH","*"] · ["GET","key"] · ["HGETALL","key"]
         </div>
-        <div v-if="dbDriver === 'cassandra'" class="shrink-0 px-3 py-2 text-[10px] font-mono text-[#94a3b8] border-b border-[#484848]">
+        <div v-if="dbDriver === 'cassandra'" class="shrink-0 px-3 py-2 text-[length:var(--ui-font-size)] font-mono text-[#94a3b8] border-b border-[var(--border-default)]">
             Run one CQL statement at a time. Results use native Cassandra paging.
         </div>
-        <div v-if="activeTab?.importedScript || activeTab?.scriptResult" class="script-info shrink-0 px-3 py-2 text-xs border-b border-[#484848]" role="status">
+        <div v-if="activeTab?.importedScript || activeTab?.scriptResult" class="script-info shrink-0 px-3 py-2 text-[length:var(--ui-font-size)] border-b border-[var(--border-default)]" role="status">
             <template v-if="activeTab.scriptResult">
                 <span :class="activeTab.scriptResult.error ? 'text-red-300' : 'text-teal-300'">
                     {{ activeTab.scriptResult.cancelled ? 'Script stopped' : activeTab.scriptResult.error ? 'Script failed' : 'Script finished' }}:
@@ -82,7 +82,7 @@
                 </div>
             </template>
             <template v-else>SQL file loaded for review. Edit it, then use <strong>Run script</strong> (Alt+X). Run / Ctrl+Enter executes the current statement or selection.</template>
-            <div class="text-[#a0a0a0]">Script execution stops on the first error. Earlier commits remain; use explicit transactions when needed. This console saves automatically.</div>
+            <div class="text-[var(--text-muted)]">Script execution stops on the first error. Earlier commits remain; use explicit transactions when needed. This console saves automatically.</div>
         </div>
         <!-- Query Editor -->
         <div
@@ -104,15 +104,15 @@
         <!-- No active query -->
         <div
             v-else
-            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap items-center justify-center gap-3 bg-[#343638]"
+            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap items-center justify-center gap-3 bg-[var(--surface-data)]"
         >
             <q-icon
                 name="code"
                 size="36px"
-                class="text-[#909090]"
+                class="text-[var(--text-muted)]"
             />
 
-            <div class="text-xs text-[#a0a0a0]">
+            <div class="text-[length:var(--ui-font-size)] text-[var(--text-muted)]">
                 No query tab open
             </div>
 

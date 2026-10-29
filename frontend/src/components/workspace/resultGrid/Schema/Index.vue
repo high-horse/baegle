@@ -1,8 +1,8 @@
 <template>
-  <div class="h-full w-full min-w-0 min-h-0 flex overflow-hidden bg-[#2d2d2d]">
+  <div class="h-full w-full min-w-0 min-h-0 flex overflow-hidden bg-[var(--surface-data)]">
 
     <!-- Sidebar -->
-    <div class="w-[150px] shrink-0 h-full border-r border-[#484848]">
+    <div class="w-[150px] shrink-0 h-full border-r border-[var(--border-default)]">
       <q-list>
         <q-item
           v-for="tab in tabs"

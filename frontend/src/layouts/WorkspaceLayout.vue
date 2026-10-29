@@ -1,6 +1,6 @@
 <template>
     <div
-        class="workspace-layout fixed inset-0 flex flex-col flex-nowrap bg-[#282828] text-[#94a3b8] overflow-hidden select-text"
+        class="workspace-layout fixed inset-0 flex flex-col flex-nowrap bg-[var(--surface-base)] text-[#94a3b8] overflow-hidden select-text"
     >
         <!-- select-none -->
         <WorkspaceHeader @disconnect="handleDisconnect(false)" />
@@ -59,10 +59,10 @@
                                     <q-icon
                                         name="tab"
                                         size="36px"
-                                        class="text-[#909090]"
+                                        class="text-[var(--text-muted)]"
                                     />
 
-                                    <span class="text-xs text-[#a0a0a0]">
+                                    <span class="text-[length:var(--ui-font-size)] text-[var(--text-muted)]">
                                         No tab selected
                                     </span>
 

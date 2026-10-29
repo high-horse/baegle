@@ -460,7 +460,7 @@ onMounted(async () => {
 .database-option {
     min-width: 0;
     min-height: 36px;
-    border: 1px solid #484848;
+    border: 1px solid var(--border-default);
     border-radius: 6px;
 }
 .database-option-selected {

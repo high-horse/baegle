@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, watchEffect } from 'vue'
 import App from './App.vue'
 import {createPinia} from 'pinia'
 import { Quasar, Dark, Notify, Dialog } from "quasar"
@@ -22,14 +22,17 @@ app.use(Quasar, {
 app.use(router)
 app.use(pinia)
 
-const savedPreference = localStorage.getItem("dark-mode")
-const isDark = savedPreference === null ? true : savedPreference === "true"
-
 Dark.set(true)
+document.documentElement.classList.add("dark")
+const resultSettings = useResultSettingsStore(pinia)
+watchEffect(() => {
+  const style = document.documentElement.style
+  style.setProperty('--ui-font-size', `${resultSettings.settings.fontSize}px`)
+  style.setProperty('--grid-font-size', `${resultSettings.settings.fontSize}px`)
+  style.setProperty('--sidebar-font-size', `${resultSettings.settings.sidebarFontSize}px`)
+  style.setProperty('--console-font-size', `${resultSettings.settings.consoleFontSize}px`)
+})
 
-// CRITICAL FOR TAILWIND: Sync the HTML element class on startup
-document.documentElement.classList.toggle("dark", isDark)
-
-useResultSettingsStore(pinia).load().catch(() => {
+resultSettings.load().catch(() => {
   Notify.create({ message: "Could not load result settings. Using defaults.", color: "negative" })
 }).finally(() => app.mount("#app"))

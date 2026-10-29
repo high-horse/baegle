@@ -1,7 +1,7 @@
 <template>
     <div
         ref="tabStrip"
-        class="h-9 shrink-0 bg-[#353535] border-b border-[#484848] flex items-center min-w-0"
+        class="h-9 shrink-0 bg-[var(--surface-panel)] border-b border-[var(--border-default)] flex items-center min-w-0"
     >
         <!-- Horizontally scrollable tabs -->
         <q-scroll-area
@@ -13,7 +13,7 @@
                 <div
                     v-for="(tab, index) in tabs"
                     :key="tab.id"
-                    class="workspace-tab h-full shrink-0 flex items-center border-r border-[#484848]"
+                    class="workspace-tab h-full shrink-0 flex items-center border-r border-[var(--border-default)]"
                     :data-tab-id="tab.id"
                     draggable="true"
                     @dragstart="startDrag($event, tab.id)"
@@ -23,11 +23,11 @@
                     :data-drop-side="dropTarget?.id === tab.id ? dropTarget.side : undefined"
                     :class="
                         tab.id === activeTabId
-                            ? 'bg-[#282828]'
-                            : 'bg-[#353535] hover:bg-[#404040]'
+                            ? 'bg-[var(--surface-base)]'
+                            : 'bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)]'
                     "
                 >
-                    <q-menu context-menu dark class="bg-[#353535] text-gray-300">
+                    <q-menu context-menu dark class="bg-[var(--surface-panel)] text-gray-300">
                         <q-list dense style="min-width: 210px">
                             <q-item clickable v-close-popup :disable="closingTabs || tab.closing" @click="closeTab(tab.id)"><q-item-section>Close Tab</q-item-section></q-item>
                             <q-item clickable v-close-popup :disable="closingTabs || tabs.length < 2" @click="closeTabs(tabs.filter(item => item.id !== tab.id))"><q-item-section>Close Other Tabs</q-item-section></q-item>
@@ -48,7 +48,7 @@
                         :class="
                             tab.id === activeTabId
                                 ? 'text-amber-400 active-tab'
-                                : 'text-[#a0a0a0] hover:text-[#d1d5db]'
+                                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                         "
                         @click="selectTab(tab.id)"
                     >
@@ -73,7 +73,7 @@
                             <!-- Dirty indicator -->
                             <span
                                 v-if="(tab.type === 'query' && tab.dirty) || edits.hasPending(tab.id)"
-                                class="text-amber-500 text-[9px]"
+                                class="text-amber-500 text-[length:var(--ui-font-size)]"
                             >
                                 ●
                             </span>
@@ -103,8 +103,8 @@
                         @dragstart.stop.prevent
                         :class="
                             tab.id === activeTabId
-                                ? 'text-[#a0a0a0]'
-                                : 'text-[#909090]'
+                                ? 'text-[var(--text-muted)]'
+                                : 'text-[var(--text-muted)]'
                         "
                         @click.stop="closeTab(tab.id)"
                     >
@@ -323,7 +323,7 @@ function closeTabs(tabs: QueryTab[]) {
 
     border-radius: 0 !important;
 
-    font-size: 11px;
+    font-size: var(--ui-font-size);
     font-family: monospace;
 
     position: relative;
@@ -365,7 +365,7 @@ function closeTabs(tabs: QueryTab[]) {
 
 .tab-close:hover {
     color: #ffffff !important;
-    background: #484848 !important;
+    background: var(--border-default) !important;
 }
 
 
@@ -379,6 +379,6 @@ function closeTabs(tabs: QueryTab[]) {
 
 .new-tab-button:hover {
     color: #f59e0b !important;
-    background: #404040 !important;
+    background: var(--surface-hover) !important;
 }
 </style>

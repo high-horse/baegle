@@ -98,21 +98,21 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.result-record { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #2d2d2d; color: #d1d5db; font-family: monospace; font-size: var(--grid-font-size, 11px); outline: none; }
-.record-header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px; background: #353535; border-bottom: 1px solid #484848; }
+.result-record { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface-data); color: var(--text-primary); font-family: monospace; font-size: var(--grid-font-size, 11px); outline: none; }
+.record-header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px; background: var(--surface-panel); border-bottom: 1px solid var(--border-default); }
 .record-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-width: 0; }
 .record-summary strong { color: #fbbf24; }
-.record-summary > span { color: #a0a0a0; }
+.record-summary > span { color: var(--text-muted); }
 .record-actions { display: flex; flex-shrink: 0; align-items: center; gap: 2px; }
 .record-fields { position: relative; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; }
 table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; }
-th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid #484848; overflow-wrap: anywhere; }
-thead th { position: sticky; top: 0; z-index: 1; background: #353535; color: #fbbf24; }
-th:first-child { width: 32%; border-right: 1px solid #484848; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--border-default); overflow-wrap: anywhere; }
+thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-panel); color: #fbbf24; }
+th:first-child { width: 32%; border-right: 1px solid var(--border-default); }
 tbody th { font-weight: 500; }
 td { white-space: pre-wrap; }
-.record-field-tooltip { font-family: monospace; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
-.record-empty { color: #a0a0a0; font-style: italic; }
-.selected-result-cell { background: #3d5066; color: #fff; }
-.active-result-cell { box-shadow: inset 0 0 0 2px #ffca28; }
+.record-field-tooltip { font-family: monospace; font-size: var(--ui-font-size); line-height: 1.5; overflow-wrap: anywhere; }
+.record-empty { color: var(--text-muted); font-style: italic; }
+.selected-result-cell { background: var(--selection-bg); color: #fff; }
+.active-result-cell { box-shadow: inset 0 0 0 2px var(--selection-border); }
 </style>

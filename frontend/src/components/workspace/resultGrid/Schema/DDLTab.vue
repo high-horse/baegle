@@ -1,13 +1,13 @@
 <template>
     <div class="h-full w-full min-w-0 min-h-0 flex flex-col overflow-hidden text-gray-300">
         <div class="flex shrink-0 min-w-0 items-center justify-between gap-2 mb-3">
-            <span class="min-w-0 truncate text-xs font-mono" :title="table ? [table.schema, table.name].filter(Boolean).join('.') : 'DDL'">{{ table ? [table.schema, table.name].filter(Boolean).join('.') : 'DDL' }}</span>
+            <span class="min-w-0 truncate text-[length:var(--ui-font-size)] font-mono" :title="table ? [table.schema, table.name].filter(Boolean).join('.') : 'DDL'">{{ table ? [table.schema, table.name].filter(Boolean).join('.') : 'DDL' }}</span>
             <q-btn v-if="table" flat dense no-caps icon="refresh" label="Refresh" size="sm" class="shrink-0" :disable="loading" @click="loadDDL" />
         </div>
-        <div v-if="loading" class="flex items-center gap-2 text-xs"><q-spinner color="amber" />Loading DDL…</div>
-        <div v-else-if="error" role="alert" class="text-xs text-red-300">{{ error }}</div>
+        <div v-if="loading" class="flex items-center gap-2 text-[length:var(--ui-font-size)]"><q-spinner color="amber" />Loading DDL…</div>
+        <div v-else-if="error" role="alert" class="text-[length:var(--ui-font-size)] text-red-300">{{ error }}</div>
         <SqlPreview v-else-if="ddl" :text="ddl" :driver="connectionStore.activeConnection?.driver" class="flex-1 min-w-0 min-h-0" />
-        <div v-else class="text-xs text-gray-500">Open a table from the sidebar to view its DDL.</div>
+        <div v-else class="text-[length:var(--ui-font-size)] text-gray-500">Open a table from the sidebar to view its DDL.</div>
     </div>
 </template>
 

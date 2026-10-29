@@ -2,6 +2,37 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+    color-scheme: dark;
+    --surface-base: #35383c;
+    --surface-data: #3b3e42;
+    --surface-panel: #44484d;
+    --surface-hover: #50555b;
+    --border-default: #5b6067;
+    --text-primary: #e0e3e7;
+    --text-muted: #b3bac3;
+    --selection-bg: #465f7b;
+    --selection-border: #8db9e8;
+    --ui-font-size: 11px;
+    --grid-font-size: 11px;
+    --sidebar-font-size: 12px;
+    --console-font-size: 12px;
+    --grid-row-height: max(28px, calc(var(--grid-font-size) + 16px));
+}
+
+body, body.body--dark { background: var(--surface-base); color: var(--text-primary); font-size: var(--ui-font-size); }
+body .q-table thead th, body .q-table tbody td, .q-field, .q-item, .q-btn, .q-tab__label,
+.q-tooltip, .q-checkbox__label, .q-toggle__label, .q-banner,
+.q-menu, .q-dialog__message, .q-field__bottom { font-size: var(--ui-font-size); }
+.q-btn .q-btn__content, .q-field__native, .q-field__input, .q-field__label,
+.q-item__label, .text-caption, .text-body2 { font-size: var(--ui-font-size); }
+.q-table th, .q-table td { height: var(--grid-row-height); }
+.schema-grid { --ui-font-size: var(--grid-font-size); }
+.schema-sidebar { --ui-font-size: var(--sidebar-font-size); font-size: var(--sidebar-font-size); }
+.schema-sidebar .q-tree, .schema-sidebar .q-tree__node-header { font-size: inherit; }
+.q-menu, .q-card--dark, .q-table--dark { background: var(--surface-panel); }
+.text-gray-500, .text-grey-6 { color: var(--text-muted); }
+
 /* Center compact toolbar contents within their fixed-height buttons. */
 .query-action > .q-btn__content,
 .table-edit-bar .q-btn > .q-btn__content,

@@ -1,8 +1,8 @@
 <template>
-    <div class="h-full w-full min-h-0 min-w-0 flex flex-col flex-nowrap overflow-hidden bg-[#2d2d2d]">
+    <div class="h-full w-full min-h-0 min-w-0 flex flex-col flex-nowrap overflow-hidden bg-[var(--surface-data)]">
         <!-- Result Header -->
         <div
-            class="h-8 shrink-0 bg-[#353535] border-b border-[#484848] flex items-center justify-between px-3 text-[11px] font-mono text-[#a0a0a0]"
+            class="h-8 shrink-0 bg-[var(--surface-panel)] border-b border-[var(--border-default)] flex items-center justify-between px-3 text-[length:var(--ui-font-size)] font-mono text-[var(--text-muted)]"
         >
             <div class="flex items-center gap-3">
                 <span>RESULT GRID</span>
@@ -26,14 +26,14 @@
             <div class="flex items-center gap-3">
                 <span
                     v-if="result && !loading"
-                    class="text-[#a0a0a0]"
+                    class="text-[var(--text-muted)]"
                 >
                     {{ formatDuration(result.Duration) }} execution latency
                 </span>
 
                  <!-- <q-btn flat dense no-caps
                     type="button"
-                    class="w-5 h-5 flex items-center justify-center rounded text-[#909090] hover:text-[#d1d5db] hover:bg-[#484848]"
+                    class="w-5 h-5 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-default)]"
                     title="Hide resultsssssss"
                     @click="emit('close')"
                 >
@@ -49,7 +49,7 @@
         >
             <q-spinner-dots color="amber" size="32px" />
 
-            <span class="text-xs text-[#a0a0a0] font-mono">
+            <span class="text-[length:var(--ui-font-size)] text-[var(--text-muted)] font-mono">
                 Executing query...
                 <QueryElapsedTime v-if="queryStartedAt != null" :started-at="queryStartedAt" />
             </span>
@@ -67,7 +67,7 @@
             />
 
             <div
-                class="result-error text-xs text-red-300 font-mono max-w-xl text-center px-6"
+                class="result-error text-[length:var(--ui-font-size)] text-red-300 font-mono max-w-xl text-center px-6"
             >
                 {{ error }}
             </div>
@@ -75,7 +75,7 @@
 
         <!-- Result Content -->
         <template v-else-if="result">
-            <div v-if="pageError" role="alert" class="px-3 py-2 text-xs text-red-300">{{ pageError }}</div>
+            <div v-if="pageError" role="alert" class="px-3 py-2 text-[length:var(--ui-font-size)] text-red-300">{{ pageError }}</div>
             <q-tabs
                 v-model="activeSubTab"
                 dense
@@ -140,7 +140,7 @@
         <!-- Empty -->
         <div
             v-else
-            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap justify-center items-center gap-3 text-[#909090]"
+            class="flex-1 min-h-0 min-w-0 flex flex-col flex-nowrap justify-center items-center gap-3 text-[var(--text-muted)]"
         >
             <q-icon
                 name="table_rows"
@@ -148,7 +148,7 @@
                 class="opacity-40"
             />
 
-            <span class="text-xs tracking-wider">
+            <span class="text-[length:var(--ui-font-size)] tracking-wider">
                 Execute a statement query to inspect structural rows
             </span>
         </div>
@@ -220,8 +220,8 @@ watch(
     height: 30px;
     min-height: 30px;
 
-    background: #353535;
-    border-bottom: 1px solid #484848;
+    background: var(--surface-panel);
+    border-bottom: 1px solid var(--border-default);
 }
 
 .result-sub-tabs :deep(.q-tab) {
@@ -231,17 +231,17 @@ watch(
     min-width: 70px;
     padding: 0 10px;
 
-    color: #a0a0a0;
+    color: var(--text-muted);
 
     font-family: monospace;
-    font-size: 10px;
+    font-size: var(--ui-font-size);
 
-    border-right: 1px solid #484848;
+    border-right: 1px solid var(--border-default);
 }
 
 .result-sub-tabs :deep(.q-tab--active) {
     color: #f59e0b;
-    background: #2d2d2d;
+    background: var(--surface-data);
 }
 
 /* Important: align icon + text */
@@ -264,7 +264,7 @@ watch(
 }
 
 .result-sub-tabs :deep(.q-tab__label) {
-    font-size: 10px;
+    font-size: var(--ui-font-size);
     line-height: 1;
 
     margin: 0;

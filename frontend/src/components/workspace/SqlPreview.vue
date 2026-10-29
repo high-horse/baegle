@@ -42,10 +42,10 @@ onMounted(() => {
                 EditorView.editable.of(false),
                 EditorView.contentAttributes.of({ tabindex: "0", "aria-label": "Table DDL", "aria-readonly": "true" }),
                 EditorView.theme({
-                    "&": { position: "absolute", inset: "0", height: "100%", width: "100%", minWidth: "0", minHeight: "0", backgroundColor: "#282828", color: "#d1d5db" },
-                    ".cm-scroller": { overflow: "auto", minWidth: "0", minHeight: "0", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "12px", lineHeight: "1.7" },
+                    "&": { position: "absolute", inset: "0", height: "100%", width: "100%", minWidth: "0", minHeight: "0", backgroundColor: "var(--surface-base)", color: "var(--text-primary)" },
+                    ".cm-scroller": { overflow: "auto", minWidth: "0", minHeight: "0", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "var(--console-font-size)", lineHeight: "1.7" },
                     ".cm-content": { padding: "12px 0" },
-                    ".cm-gutters": { backgroundColor: "#2d2d2d", color: "#909090", border: "none" },
+                    ".cm-gutters": { backgroundColor: "var(--surface-data)", color: "var(--text-muted)", border: "none" },
                 }),
             ],
         }),

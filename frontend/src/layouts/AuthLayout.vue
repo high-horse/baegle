@@ -308,14 +308,14 @@ watch(activeConnection, (newConnection) => {
 </script>
 
 <style>
-.connection-portal { background: #282828; color: #eeeae4; }
-.portal-header, .connection-card, .connection-menu { background: #353535; color: #eeeae4; }
-.portal-drawer { background: #2d2d2d; color: #eeeae4; container-type: inline-size; }
+.connection-portal { background: var(--surface-base); color: #eeeae4; }
+.portal-header, .connection-card, .connection-menu { background: var(--surface-panel); color: #eeeae4; }
+.portal-drawer { background: var(--surface-data); color: #eeeae4; container-type: inline-size; }
 .portal-drawer-resizing, .portal-drawer-resizing * { user-select: none; cursor: col-resize !important; }
 .connection-drawer-resizer { position: absolute; top: 0; right: 0; bottom: 0; width: 7px; z-index: 5; cursor: col-resize; touch-action: none; }
-.connection-drawer-resizer::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 2px; background: #505050; transition: background 120ms; }
-.connection-drawer-resizer:hover::after, .connection-drawer-resizer:focus-visible::after, .portal-drawer-resizing .connection-drawer-resizer::after { background: #ffca28; }
-.connection-drawer-resizer:focus-visible { outline: 2px solid #ffca28; outline-offset: -2px; }
+.connection-drawer-resizer::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 2px; background: var(--border-default); transition: background 120ms; }
+.connection-drawer-resizer:hover::after, .connection-drawer-resizer:focus-visible::after, .portal-drawer-resizing .connection-drawer-resizer::after { background: var(--selection-border); }
+.connection-drawer-resizer:focus-visible { outline: 2px solid var(--selection-border); outline-offset: -2px; }
 .connection-list { padding-right: 20px; }
 .connection-group > .q-expansion-item__container > .q-item > .q-item__section--main { min-width: 0; overflow-wrap: anywhere; }
 .connection-name, .connection-address { overflow-wrap: anywhere; white-space: normal; line-height: 1.4; }
@@ -328,16 +328,16 @@ watch(activeConnection, (newConnection) => {
     .connection-actions { padding-left: 4px; }
     .connection-address { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
-.connection-card { width: 100%; max-width: 600px; border-color: #505050; border-radius: 12px; }
+.connection-card { width: 100%; max-width: 600px; border-color: var(--border-default); border-radius: 12px; }
 .ssh-card { width: 560px; max-width: calc(100vw - 32px); }
-.connection-options, .saved-connection { border: 1px solid #505050; border-radius: 8px; }
-.saved-connection { background: #353535; width: 100%; min-width: 0; }
+.connection-options, .saved-connection { border: 1px solid var(--border-default); border-radius: 8px; }
+.saved-connection { background: var(--surface-panel); width: 100%; min-width: 0; }
 .saved-connection.q-item--active { border-color: #c99334; background: #423c32; }
 .saved-connection .q-item__section--avatar { min-width: 32px; }
 .saved-connection > .q-item__section--main { min-width: 0; overflow: hidden; }
 .connection-actions { flex-shrink: 0; padding-left: 8px; }
 .connection-error-message { white-space: pre-wrap; overflow-wrap: anywhere; }
-.connection-tooltip { white-space: normal; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
+.connection-tooltip { white-space: normal; overflow-wrap: anywhere; font-size: var(--ui-font-size); line-height: 1.5; }
 .connection-note { background: #3c3933; color: #d5cec3; }
 .connection-card .q-card__actions { gap: 8px; }
 .connection-card .q-card__actions > .q-btn { margin-left: 0; }

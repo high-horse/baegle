@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.table-picker { width: 600px; max-width: calc(100vw - 32px); margin-top: 10vh; background: #353535; color: #d1d5db; border: 1px solid #505050; }
+.table-picker { width: 600px; max-width: calc(100vw - 32px); margin-top: 10vh; background: var(--surface-panel); color: var(--text-primary); border: 1px solid var(--border-default); }
 .table-picker-results { height: 320px; max-height: 55vh; overflow-y: auto; }
 .table-picker-option { display: flex; align-items: center; gap: 12px; padding: 8px 16px; height: 56px; box-sizing: border-box; cursor: pointer; }
 .table-picker-selected { background: #494236; box-shadow: inset 3px 0 #f59e0b; }

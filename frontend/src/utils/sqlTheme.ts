@@ -5,14 +5,14 @@ import { tags } from "@lezer/highlight";
 // Shared DBeaver-inspired SQL colors for query editing and DDL previews.
 export const sqlTheme = [
     EditorView.theme({
-        "&": { backgroundColor: "#282828", color: "#d1d5db" },
-        ".cm-content": { caretColor: "#d1d5db" },
-        ".cm-cursor, .cm-dropCursor": { borderLeftColor: "#d1d5db" },
-        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": { backgroundColor: "#3d5066" },
+        "&": { backgroundColor: "var(--surface-base)", color: "var(--text-primary)" },
+        ".cm-content": { caretColor: "var(--text-primary)" },
+        ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--text-primary)" },
+        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": { backgroundColor: "var(--selection-bg)" },
         ".cm-activeLine": { backgroundColor: "#ffffff08" },
-        ".cm-gutters": { backgroundColor: "#2d2d2d", color: "#909090", border: "none" },
-        ".cm-activeLineGutter": { backgroundColor: "#353535" },
-        ".cm-panels, .cm-tooltip": { backgroundColor: "#353535", color: "#d1d5db", borderColor: "#505050" },
+        ".cm-gutters": { backgroundColor: "var(--surface-data)", color: "var(--text-muted)", border: "none" },
+        ".cm-activeLineGutter": { backgroundColor: "var(--surface-panel)" },
+        ".cm-panels, .cm-tooltip": { backgroundColor: "var(--surface-panel)", color: "var(--text-primary)", borderColor: "var(--border-default)" },
         ".cm-searchMatch": { backgroundColor: "#66552e", outline: "1px solid #a68a48" },
         ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: "#806d3f" },
         ".cm-matchingBracket": { backgroundColor: "#454545", outline: "1px solid #808080" },

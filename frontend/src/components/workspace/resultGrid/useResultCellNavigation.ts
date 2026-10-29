@@ -13,14 +13,15 @@ export function useResultCellNavigation(
     const gridId = `result-grid-${crypto.randomUUID()}`;
     const activeCell = ref<{ rowKey: string; column: number } | null>(null);
     const selectionAnchor = ref<{ rowKey: string; column: number } | null>(null);
-    const activeRow = computed(() => rows.value.findIndex(row => String(row.id) === activeCell.value?.rowKey));
+    const rowIndexes = computed(() => new Map(rows.value.map((row, index) => [String(row.id), index])));
+    const activeRow = computed(() => rowIndexes.value.get(activeCell.value?.rowKey ?? '') ?? -1);
     const cellId = (row: number, column: number) => `${gridId}-${row}-${column}`;
     const activeCellId = computed(() => activeCell.value && activeRow.value >= 0
         ? cellId(activeRow.value, activeCell.value.column) : undefined);
     const selectionRange = computed(() => {
         if (!activeCell.value || activeRow.value < 0) return null;
         const anchor = selectionAnchor.value ?? activeCell.value;
-        const anchorRow = rows.value.findIndex(row => String(row.id) === anchor.rowKey);
+        const anchorRow = rowIndexes.value.get(anchor.rowKey) ?? -1;
         if (anchorRow < 0) return null;
         return { fromRow: Math.min(anchorRow, activeRow.value), toRow: Math.max(anchorRow, activeRow.value),
             fromColumn: Math.min(anchor.column, activeCell.value.column), toColumn: Math.max(anchor.column, activeCell.value.column) };
@@ -70,11 +71,12 @@ export function useResultCellNavigation(
         const column = Number(columnName.slice(7));
         if (extend) selectionAnchor.value ??= activeCell.value ?? { rowKey, column };
         else selectionAnchor.value = { rowKey, column };
-        activeCell.value = { rowKey, column };
+        // Pointer events often repeat within one cell. Preserve reference identity
+        // so they don't rerender the grid and every cell's context menu.
+        if (activeCell.value?.rowKey !== rowKey || activeCell.value.column !== column) activeCell.value = { rowKey, column };
         selectedRowKey.value = rowKey;
         // Keep focus on a stable element when virtual rows are recycled.
         if (focus) (table.value?.$el as HTMLElement | undefined)?.focus({ preventScroll: true });
-        if (extend) window.getSelection()?.removeAllRanges();
     }
 
     let drag: { pointerId: number; x: number; y: number } | null = null;
@@ -95,6 +97,7 @@ export function useResultCellNavigation(
         selectCell(cell.dataset.gridRow, cell.dataset.gridColumn!, false, true);
     }
     function scrollCellDrag() {
+        scrollFrame = 0;
         if (!drag) return;
         const root = table.value?.$el as HTMLElement | undefined;
         const scroller = root?.querySelector<HTMLElement>(scrollerSelector);
@@ -105,12 +108,21 @@ export function useResultCellNavigation(
             const right = rect.left + scroller.clientWidth;
             const bottom = rect.top + scroller.clientHeight;
             const speed = (point: number, min: number, max: number) => point < min + 20 ? -14 : point > max - 20 ? 14 : 0;
-            scroller.scrollTop += speed(drag.y, top, bottom);
-            scroller.scrollLeft += speed(drag.x, left, right);
-            // Hit-test again as scrolling renders new (including virtual) rows.
+            const oldTop = scroller.scrollTop, oldLeft = scroller.scrollLeft;
+            const nextTop = Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, oldTop + speed(drag.y, top, bottom)));
+            const nextLeft = Math.max(0, Math.min(scroller.scrollWidth - scroller.clientWidth, oldLeft + speed(drag.x, left, right)));
+            // Finish layout reads and hit-testing before writing scroll offsets.
             extendDragAt(Math.max(left + 1, Math.min(right - 1, drag.x)), Math.max(top + 1, Math.min(bottom - 1, drag.y)));
+            if (nextTop !== oldTop) scroller.scrollTop = nextTop;
+            if (nextLeft !== oldLeft) scroller.scrollLeft = nextLeft;
+            // Only edge scrolling needs another frame without pointer movement.
+            if (nextTop !== oldTop || nextLeft !== oldLeft) scheduleDragFrame();
+        } else {
+            extendDragAt(drag.x, drag.y);
         }
-        scrollFrame = window.requestAnimationFrame(scrollCellDrag);
+    }
+    function scheduleDragFrame() {
+        if (!scrollFrame) scrollFrame = window.requestAnimationFrame(scrollCellDrag);
     }
     function moveCellDrag(event: PointerEvent) {
         if (!drag || event.pointerId !== drag.pointerId) return;
@@ -118,10 +130,17 @@ export function useResultCellNavigation(
         event.preventDefault();
         drag.x = event.clientX;
         drag.y = event.clientY;
-        extendDragAt(drag.x, drag.y);
+        scheduleDragFrame();
     }
     function endCellDrag(event: PointerEvent) {
-        if (event.pointerId === drag?.pointerId) stopCellDrag();
+        if (event.pointerId !== drag?.pointerId) return;
+        // A quick release can arrive before the next animation frame. Apply the
+        // final endpoint now so copying immediately after release is accurate.
+        if (event.type !== 'pointercancel' && scrollFrame) {
+            window.cancelAnimationFrame(scrollFrame);
+            scrollCellDrag();
+        }
+        stopCellDrag();
     }
     function startCellDrag(event: PointerEvent, rowKey: string, columnName: string) {
         if (event.button !== 0 || event.pointerType === 'touch' || !columnName.startsWith('column-')) return;
@@ -134,10 +153,9 @@ export function useResultCellNavigation(
         window.addEventListener('pointerup', endCellDrag);
         window.addEventListener('pointercancel', endCellDrag);
         window.addEventListener('blur', stopCellDrag);
-        scrollFrame = window.requestAnimationFrame(scrollCellDrag);
     }
     function selectContextCell(rowKey: string, columnName: string) {
-        const row = rows.value.findIndex(item => String(item.id) === rowKey);
+        const row = rowIndexes.value.get(rowKey) ?? -1;
         // Opening a menu within a range must not collapse that range before Copy.
         if (!isCellSelected(row, columnName)) selectCell(rowKey, columnName);
     }

@@ -1,5 +1,5 @@
 <template>
-    <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[#2d2d2d]" :class="{ 'striped-rows': resultSettings.settings.stripedRows }" :style="{ '--grid-font-size': `${resultSettings.settings.fontSize}px` }">
+    <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[var(--surface-data)]" :class="{ 'striped-rows': resultSettings.settings.stripedRows }" :style="{ '--grid-font-size': `${resultSettings.settings.fontSize}px` }">
         <q-form v-if="result.IsQuery" class="result-filter-bar" @submit.prevent="applyExpressions">
             <q-icon name="filter_alt" size="15px" :class="appliedFilter ? 'text-amber-400' : 'text-gray-500'" />
             <div class="result-filter-input" :class="{ 'has-error': filterError }">
@@ -17,8 +17,8 @@
             <q-btn flat dense no-caps type="button" class="filter-action" :disable="!filterDraft && !appliedFilter" title="Reset filter (Esc)" aria-label="Reset filter" @click="clearFilter"><q-icon name="close" size="15px" /></q-btn>
             <q-btn flat dense no-caps type="button" class="filter-action" title="Filter syntax" aria-label="Filter syntax">
                 <q-icon name="help_outline" size="15px" />
-                <q-menu class="border border-[#484848] bg-[#353535] text-gray-300">
-                    <div class="max-w-sm p-3 font-mono text-[11px] leading-6">
+                <q-menu class="border border-[var(--border-default)] bg-[var(--surface-panel)] text-gray-300">
+                    <div class="max-w-sm p-3 font-mono text-[length:var(--ui-font-size)] leading-6">
                         <div class="text-amber-400">Combine conditions with AND / OR</div>
                         <div>age &gt;= 18 AND status = 'active'</div>
                         <div>(name LIKE 'A%' OR name LIKE 'B%')</div>
@@ -31,11 +31,11 @@
                 </q-menu>
             </q-btn>
             <q-btn flat dense icon="view_column" size="sm" aria-label="Manage columns" title="Columns">
-                <q-menu dark class="bg-[#353535] text-gray-300" style="width: 360px; max-height: 70vh">
+                <q-menu dark class="bg-[var(--surface-panel)] text-gray-300" style="width: 360px; max-height: 70vh">
                     <div class="q-pa-sm">
                         <q-input v-model="columnLayout.search.value" dark dense outlined clearable placeholder="Find column" />
                         <div class="flex"><q-btn flat dense no-caps label="Reset layout" @click="columnLayout.reset()" /><q-btn flat dense no-caps label="Fit widths" @click="fitColumnWidths" /></div>
-                        <div class="text-xs text-gray-400">Hide, pin left, or reorder columns. Saved for this table.</div>
+                        <div class="text-[length:var(--ui-font-size)] text-gray-400">Hide, pin left, or reorder columns. Saved for this table.</div>
                     </div>
                     <div v-for="(index, position) in columnLayout.order.value" :key="index" v-show="result.Columns[index]?.Name.toLowerCase().includes((columnLayout.search.value || '').toLowerCase())" class="flex items-center px-2">
                         <q-checkbox dark dense :model-value="!columnLayout.hidden.value.includes(index)" :disable="columnLayout.visible.value.length === 1 && !columnLayout.hidden.value.includes(index)" :label="result.Columns[index]?.Name" class="flex-1 min-w-0" @update:model-value="columnLayout.toggleHidden(index)" />
@@ -79,8 +79,8 @@
                 rowsPerPage: 0,
             }"
             :virtual-scroll="mappedRows.length > 100"
-            :virtual-scroll-item-size="28"
-            :virtual-scroll-sticky-size-start="28"
+            :virtual-scroll-item-size="Math.max(28, resultSettings.settings.fontSize + 16)"
+            :virtual-scroll-sticky-size-start="Math.max(28, resultSettings.settings.fontSize + 16)"
             class="data-explorer-grid bg-transparent"
             :class="{ 'has-filter-toolbar': result.IsQuery, 'has-edit-toolbar': !!tableTabId }"
             table-class="table-fixed"
@@ -92,15 +92,15 @@
                  ===================================================== -->
 
             <template #header="props">
-                <q-tr :props="props" class="bg-[#353535]">
+                <q-tr :props="props" class="bg-[var(--surface-panel)]">
                     <q-th
                         v-for="col in props.cols"
                         :key="col.name"
                         :props="props"
-                        class="relative box-border h-[28px] overflow-hidden whitespace-nowrap border-b-2 border-[#484848] px-2 py-0 align-middle font-mono text-[11px] font-bold text-amber-400"
+                        class="relative box-border h-[28px] overflow-hidden whitespace-nowrap border-b-2 border-[var(--border-default)] px-2 py-0 align-middle font-mono text-[length:var(--ui-font-size)] font-bold text-amber-400"
                         :class="{
                             'cursor-pointer': col.name !== 'sn' && (result.CanSort ?? result.CanNavigate),
-                            'sticky-col-header pl-2 pr-1 text-left font-normal text-[#909090]':
+                            'sticky-col-header pl-2 pr-1 text-left font-normal text-[var(--text-muted)]':
                                 col.name === 'sn',
                         }"
                         :style="getColumnStyle(col.name)"
@@ -111,10 +111,10 @@
                         @keydown.enter.prevent="toggleSort(col.name)"
                     >
                         <div
-                            class="flex w-full min-w-0 items-center overflow-hidden whitespace-nowrap"
+                            class="flex flex-nowrap w-full min-w-0 items-center overflow-hidden whitespace-nowrap"
                         >
                             <div
-                                class="flex min-w-0 flex-1 items-center overflow-hidden pr-1 whitespace-nowrap"
+                                class="flex flex-nowrap min-w-0 flex-1 items-center overflow-hidden pr-1 whitespace-nowrap"
                             >
                                 <!-- Column name -->
                                 <span
@@ -126,7 +126,7 @@
                                 <!-- Column type -->
                                 <span
                                     v-if="col.name !== 'sn'"
-                                    class="ml-1 min-w-0 shrink overflow-hidden text-ellipsis whitespace-nowrap text-[8px] font-normal text-gray-500"
+                                    class="ml-1 min-w-0 shrink overflow-hidden text-ellipsis whitespace-nowrap text-[length:calc(var(--grid-font-size)*0.8)] font-normal text-gray-500"
                                 >
                                     {{ col.Type }}
                                 </span>
@@ -162,9 +162,9 @@
                             anchor="bottom middle"
                             self="top middle"
                             :offset="[0, 6]"
-                            class="bg-[#383838] text-gray-300 shadow-lg"
+                            class="bg-[var(--surface-panel)] text-gray-300 shadow-lg"
                         >
-                            <div class="font-mono text-[10px]">
+                            <div class="font-mono text-[length:var(--ui-font-size)]">
                                 {{ col.Type }}
 
                                 |
@@ -183,14 +183,14 @@
                         <q-menu
                             v-if="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate)"
                             context-menu
-                            class="min-w-[150px] border border-[#484848] bg-[#383838] text-gray-300 shadow-xl"
+                            class="min-w-[150px] border border-[var(--border-default)] bg-[var(--surface-panel)] text-gray-300 shadow-xl"
                         >
                             <!-- Sort Ascending -->
                             <q-item
                                 clickable
                                 v-close-popup
                                 dense
-                                class="min-h-[28px] px-2 hover:bg-[#484848]"
+                                class="min-h-[28px] px-2 hover:bg-[var(--border-default)]"
                                 :disable="loading"
                                 @click="sortColumn(col.name, 'asc')"
                             >
@@ -203,7 +203,7 @@
                                 </q-item-section>
 
                                 <q-item-section>
-                                    <q-item-label class="font-mono text-[11px]">
+                                    <q-item-label class="font-mono text-[length:var(--ui-font-size)]">
                                         Sort ascending
                                     </q-item-label>
                                 </q-item-section>
@@ -214,7 +214,7 @@
                                 clickable
                                 v-close-popup
                                 dense
-                                class="min-h-[28px] px-2 hover:bg-[#484848]"
+                                class="min-h-[28px] px-2 hover:bg-[var(--border-default)]"
                                 :disable="loading"
                                 @click="sortColumn(col.name, 'desc')"
                             >
@@ -227,13 +227,13 @@
                                 </q-item-section>
 
                                 <q-item-section>
-                                    <q-item-label class="font-mono text-[11px]">
+                                    <q-item-label class="font-mono text-[length:var(--ui-font-size)]">
                                         Sort descending
                                     </q-item-label>
                                 </q-item-section>
                             </q-item>
 
-                            <q-separator class="my-1 bg-[#484848]" />
+                            <q-separator class="my-1 bg-[var(--border-default)]" />
 
                             <!-- Clear Sort -->
                             <q-item
@@ -241,7 +241,7 @@
                                 clickable
                                 v-close-popup
                                 dense
-                                class="min-h-[28px] px-2 hover:bg-[#484848]"
+                                class="min-h-[28px] px-2 hover:bg-[var(--border-default)]"
                                 :disable="loading"
                                 @click="clearSort"
                             >
@@ -254,7 +254,7 @@
                                 </q-item-section>
 
                                 <q-item-section>
-                                    <q-item-label class="font-mono text-[11px]">
+                                    <q-item-label class="font-mono text-[length:var(--ui-font-size)]">
                                         Clear Sort
                                     </q-item-label>
                                 </q-item-section>
@@ -271,7 +271,7 @@
             <template #body="props">
                 <q-tr
                     :props="props"
-                    class="bg-[#2d2d2d] hover:!bg-[#404040]"
+                    class="bg-[var(--surface-data)] hover:!bg-[var(--surface-hover)]"
                     :class="{ 'striped-row': resultSettings.settings.stripedRows && props.rowIndex % 2 === 1, 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
                     @click="selectedRowKey = props.row._editKey || ''"
                 >
@@ -279,9 +279,9 @@
                         v-for="col in props.cols"
                         :key="col.name"
                         :props="props"
-                        class="box-border overflow-hidden whitespace-nowrap border-b border-[#484848] px-2 py-1.5 font-mono text-[11px] text-gray-300"
+                        class="box-border overflow-hidden whitespace-nowrap border-b border-[var(--border-default)] px-2 py-1.5 font-mono text-[length:var(--ui-font-size)] text-gray-300"
                         :class="{
-                            'sticky-col-body pl-2 pr-1 text-left text-[#909090]':
+                            'sticky-col-body pl-2 pr-1 text-left text-[var(--text-muted)]':
                                 col.name === 'sn',
                             'active-result-cell': activeCell?.rowKey === String(props.row.id) && col.name === `column-${activeCell.column}`,
                             'selected-result-cell': isCellSelected(props.rowIndex, col.name),
@@ -308,7 +308,7 @@
 
                         <!-- Cell -->
                         <template v-else>
-                            <q-menu context-menu dark class="bg-[#353535] text-gray-300">
+                            <q-menu context-menu dark class="bg-[var(--surface-panel)] text-gray-300">
                                 <q-list dense>
                                     <q-item-label header>Quick filter · {{ serverExpressions ? 'database result' : 'current page' }}</q-item-label>
                                     <q-item v-for="action in quickFilterActions" :key="action.operator" clickable v-close-popup :disable="loading || editState?.saving" @click="filterByCell(col.name, props.row[col.field], action.operator)"><q-item-section>{{ action.label }}</q-item-section></q-item>
@@ -336,13 +336,13 @@
             @select-column="column => selectCell(String(recordRow!.id), `column-${column}`, false)" />
 
         <q-dialog v-model="documentDialog">
-            <q-card class="bg-[#353535] text-gray-300" style="width: 800px; max-width: 90vw">
+            <q-card class="bg-[var(--surface-panel)] text-gray-300" style="width: 800px; max-width: 90vw">
                 <q-card-section class="flex items-center justify-between">
                     <span>{{ documentTitle }}</span>
                     <q-btn flat round dense icon="close" aria-label="Close JSON details" v-close-popup />
                 </q-card-section>
                 <q-card-section style="max-height: 70vh; overflow: auto">
-                    <pre class="text-xs font-mono whitespace-pre-wrap break-words select-text">{{ selectedDocument }}</pre>
+                    <pre class="text-[length:var(--ui-font-size)] font-mono whitespace-pre-wrap break-words select-text">{{ selectedDocument }}</pre>
                 </q-card-section>
             </q-card>
         </q-dialog>
@@ -352,7 +352,7 @@
              ========================================================= -->
 
         <div
-            class="data-grid-footer absolute bottom-0 left-0 right-0 z-[100] flex h-[36px] items-center justify-between border-t border-[#484848] bg-[#353535] px-2"
+            class="data-grid-footer absolute bottom-0 left-0 right-0 z-[100] flex h-[36px] items-center justify-between border-t border-[var(--border-default)] bg-[var(--surface-panel)] px-2"
         >
             <!-- Left side -->
             <div class="flex items-center gap-2">
@@ -368,7 +368,7 @@
                 </q-btn>
                 <DataTransfer v-if="result.IsQuery" action="export" :result="result" :table-tab-id="tableTabId"
                     :disabled="loading || navigationBlocked" />
-                <span class="font-mono text-[10px] text-gray-500">
+                <span class="font-mono text-[length:var(--ui-font-size)] text-gray-500">
                     <template v-if="result.Rows.length">Rows {{ result.StartRow }}–{{ result.StartRow + result.Rows.length - 1 }}</template>
                     <template v-else>{{ result.IsQuery ? 'No rows' : 'Statement completed' }}</template>
                     <span v-if="result.IsQuery && !result.CanSort && totalRows != null"> · {{ totalRows.toLocaleString() }} rows total</span>
@@ -384,7 +384,7 @@
                         :label="totalRows == null ? 'Count rows' : `${totalRows.toLocaleString()} rows total`"
                         :title="totalRows == null ? 'Calculate total rows' : 'Recalculate total rows'"
                         aria-label="Count total rows" @click="emit('count')" />
-                    <span v-if="countError" class="text-red-300 text-xs max-w-40 truncate" :title="countError" role="alert">{{ countError }}</span>
+                    <span v-if="countError" class="text-red-300 text-[length:var(--ui-font-size)] max-w-40 truncate" :title="countError" role="alert">{{ countError }}</span>
                 </template>
             </div>
             <div v-if="result.IsQuery" class="flex items-center gap-1">
@@ -405,7 +405,7 @@
 
                 <!-- Page -->
                 <div
-                    class="mx-1 flex h-[24px] min-w-[80px] items-center justify-center border border-[#484848] bg-[#2d2d2d] px-2 font-mono text-[10px] text-gray-400"
+                    class="mx-1 flex h-[24px] min-w-[80px] items-center justify-center border border-[var(--border-default)] bg-[var(--surface-data)] px-2 font-mono text-[length:var(--ui-font-size)] text-gray-400"
                 >
                     Page {{ currentPage }}
                 </div>
@@ -426,9 +426,9 @@
                     :title="result.CanNavigate ? (totalRows == null ? 'Count rows and go to last page' : 'Go directly to last page') : 'Go to last page (fetches remaining rows)'" aria-label="Go to last page" @click="emit('last')">
                     <q-icon name="last_page" size="16px" />
                 </q-btn>
-                <q-btn flat dense no-caps v-if="fetchingLast" type="button" class="text-xs text-amber-400 px-2"
+                <q-btn flat dense no-caps v-if="fetchingLast" type="button" class="text-[length:var(--ui-font-size)] text-amber-400 px-2"
                     @click="emit('stop')">Stop fetching</q-btn>
-                <span class="ml-2 font-mono text-[10px] text-gray-500">{{ result.PageSize }} rows/page</span>
+                <span class="ml-2 font-mono text-[length:var(--ui-font-size)] text-gray-500">{{ result.PageSize }} rows/page</span>
             </div>
         </div>
     </div>
@@ -495,7 +495,7 @@ const selectedRowKey = ref("");
 const rowEditor = ref<InstanceType<typeof TableDataEditor> | null>(null);
 
 const MIN_COLUMN_WIDTH = 60;
-const snColumnWidth = computed(() => Math.max(56, String(props.totalRows ?? (props.result.StartRow + props.result.Rows.length - 1)).length * 8 + 24));
+const snColumnWidth = computed(() => Math.max(56, String(props.totalRows ?? (props.result.StartRow + props.result.Rows.length - 1)).length * resultSettings.settings.fontSize * 0.65 + 24));
 const HEADER_EXTRA_WIDTH = 24;
 
 const props = defineProps<{
@@ -535,6 +535,9 @@ const emit = defineEmits<{
    ========================================================= */
 
 const columnWidths = reactive<Record<string, number>>({});
+watch(() => resultSettings.settings.fontSize, (size, previous) => {
+    for (const key of Object.keys(columnWidths)) columnWidths[key] = Math.max(MIN_COLUMN_WIDTH, Math.ceil(columnWidths[key] * size / previous));
+});
 const queryTabs = useQueryTabsStore();
 const columnLayout = useColumnLayout(computed(() => props.result.Columns), computed(() => {
     const tab = queryTabs.tabs.find(tab => tab.id === props.tableTabId);
@@ -546,7 +549,7 @@ function fitColumnWidths() {
     displayedColumns.value.forEach((column, i) => {
         const original = columnLayout.visible.value[i];
         const length = Math.max(column.Name.length + (column.Type?.length ?? 0) / 2, ...props.result.Rows.slice(0, 500).map(row => String(row[original] ?? 'NULL').split('\n').reduce((n, line) => Math.max(n, line.length), 0)));
-        columnWidths[`column-${i}`] = Math.min(500, Math.max(MIN_COLUMN_WIDTH, length * 7 + 30));
+        columnWidths[`column-${i}`] = Math.min(500, Math.max(MIN_COLUMN_WIDTH, length * resultSettings.settings.fontSize * 0.65 + 30));
     });
 }
 watch(() => JSON.stringify(columnLayout.visible.value), () => { Object.keys(columnWidths).forEach(key => delete columnWidths[key]); void measureHeaderWidths(); });
@@ -567,7 +570,7 @@ const getColumnStyle = (columnName: string) => {
     const width = getColumnWidth(columnName);
 
     return {
-        ...(isPinned(columnName) ? { position: 'sticky' as const, left: `${snColumnWidth.value + displayedColumns.value.slice(0, Number(columnName.slice(7))).reduce((sum, _, i) => sum + getColumnWidth(`column-${i}`), 0)}px`, zIndex: 25, background: '#2d2d2d' } : {}),
+        ...(isPinned(columnName) ? { position: 'sticky' as const, left: `${snColumnWidth.value + displayedColumns.value.slice(0, Number(columnName.slice(7))).reduce((sum, _, i) => sum + getColumnWidth(`column-${i}`), 0)}px`, zIndex: 25, background: 'var(--surface-data)' } : {}),
         width: `${width}px`,
         minWidth: `${width}px`,
         maxWidth: `${width}px`,
@@ -1160,10 +1163,10 @@ const mappedColumns =
     align-items: center;
     gap: 6px;
     padding: 0 8px;
-    background: #353535;
-    border-bottom: 1px solid #484848;
+    background: var(--surface-panel);
+    border-bottom: 1px solid var(--border-default);
     font-family: monospace;
-    font-size: 11px;
+    font-size: var(--ui-font-size);
 }
 .result-filter-input {
     display: flex;
@@ -1173,19 +1176,19 @@ const mappedColumns =
     min-width: 0;
     height: 25px;
     padding: 0 8px;
-    border: 1px solid #484848;
-    background: #2d2d2d;
+    border: 1px solid var(--border-default);
+    background: var(--surface-data);
 }
 .result-filter-input:focus-within { border-color: #a97724; }
 .result-filter-input.has-error { border-color: #b45353; }
 .filter-expression { flex: 1; min-width: 0; }
 .filter-expression :deep(.q-field__control), .filter-expression :deep(.q-field__marginal) { min-height: 23px; height: 23px; }
-.filter-expression :deep(.q-field__native) { padding: 0; color: #d1d5db; }
-.filter-expression :deep(input::placeholder) { color: #a0a0a0; }
+.filter-expression :deep(.q-field__native) { padding: 0; color: var(--text-primary); }
+.filter-expression :deep(input::placeholder) { color: var(--text-muted); }
 .filter-action { min-height: 25px; padding: 0; display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; color: #9ca3af; border: 1px solid transparent; }
-.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: #fbbf24; background: #484848; border-color: #555555; }
+.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: #fbbf24; background: var(--border-default); border-color: #555555; }
 .filter-action.disabled { opacity: .3; cursor: default; }
-.filter-count { color: #a0a0a0; white-space: nowrap; padding-left: 6px; }
+.filter-count { color: var(--text-muted); white-space: nowrap; padding-left: 6px; }
 @media (max-width: 600px) { .filter-scope { display: none; } }
 
 .row-number {
@@ -1286,7 +1289,7 @@ const mappedColumns =
 }
 
 .data-explorer-grid :deep(.q-table__middle) {
-    background: #2d2d2d;
+    background: var(--surface-data);
 
     min-width: 0;
     min-height: 0;
@@ -1297,8 +1300,8 @@ const mappedColumns =
     scrollbar-width: thin;
 
     scrollbar-color:
-        #484848
-        #2d2d2d;
+        var(--border-default)
+        var(--surface-data);
 }
 
 /* =========================================================
@@ -1347,13 +1350,14 @@ const mappedColumns =
 }
 
 .data-explorer-grid :deep(thead th) {
+    height: var(--grid-row-height);
     position: sticky;
 
     top: 0;
 
     z-index: 40;
 
-    background: #353535;
+    background: var(--surface-panel);
 
     overflow: hidden;
 
@@ -1383,9 +1387,9 @@ const mappedColumns =
 
     max-width: var(--row-number-width);
 
-    background: #353535;
+    background: var(--surface-panel);
 
-    border-right: 1px solid #505050;
+    border-right: 1px solid var(--border-default);
 }
 
 /* =========================================================
@@ -1410,9 +1414,9 @@ const mappedColumns =
     overflow: visible;
     text-overflow: clip;
 
-    background: #2d2d2d;
+    background: var(--surface-data);
 
-    border-right: 1px solid #484848;
+    border-right: 1px solid var(--border-default);
 }
 
 /* =========================================================
@@ -1421,7 +1425,7 @@ const mappedColumns =
 
 .striped-rows .data-explorer-grid
     :deep(tbody tr.striped-row:not(:hover):not(.pending-insert):not(.pending-update):not(.pending-delete) td) {
-    background: #353535;
+    background: var(--surface-panel);
 }
 
 /* =========================================================
@@ -1430,7 +1434,7 @@ const mappedColumns =
 
 .data-explorer-grid
     :deep(tbody tr:hover td:first-child) {
-    background: #404040;
+    background: var(--surface-hover);
 }
 
 /* =========================================================
@@ -1438,6 +1442,7 @@ const mappedColumns =
    ========================================================= */
 
 .data-explorer-grid :deep(tbody td) {
+    height: var(--grid-row-height);
     overflow: hidden;
 
     white-space: nowrap;
@@ -1468,12 +1473,12 @@ const mappedColumns =
 
 .data-explorer-grid :deep(th + th),
 .data-explorer-grid :deep(td + td) {
-    border-left: 1px solid #484848;
+    border-left: 1px solid var(--border-default);
 }
 
 .data-explorer-grid
     :deep(thead th + th) {
-    border-left-color: #505050;
+    border-left-color: var(--border-default);
 }
 
 /* =========================================================
@@ -1502,12 +1507,12 @@ const mappedColumns =
 
 .data-explorer-grid
     :deep(.q-table__middle::-webkit-scrollbar-track) {
-    background: #2d2d2d;
+    background: var(--surface-data);
 }
 
 .data-explorer-grid
     :deep(.q-table__middle::-webkit-scrollbar-thumb) {
-    background: #484848;
+    background: var(--border-default);
 
     border-radius: 4px;
 }
@@ -1542,11 +1547,11 @@ const mappedColumns =
     align-items: center;
     justify-content: center;
 
-    border: 1px solid #484848;
+    border: 1px solid var(--border-default);
 
-    background: #2d2d2d;
+    background: var(--surface-data);
 
-    color: #a0a0a0;
+    color: var(--text-muted);
 
     cursor: pointer;
 
@@ -1559,7 +1564,7 @@ const mappedColumns =
 .pagination-button:hover:not(
         .disabled
     ) {
-    background: #484848;
+    background: var(--border-default);
 
     border-color: #5a5a5a;
 
@@ -1616,13 +1621,13 @@ const mappedColumns =
 .result-record-view.has-filter-toolbar { top: 36px; }
 .result-record-view.has-edit-toolbar { top: 70px; }
 .data-explorer-grid :deep(td.active-result-cell) {
-    background: #3d5066 !important;
+    background: var(--selection-bg) !important;
     color: #fff;
-    box-shadow: inset 0 0 0 2px #ffca28 !important;
+    box-shadow: inset 0 0 0 2px var(--selection-border) !important;
 }
 .data-explorer-grid :deep(td.selected-result-cell) {
-    background: #3d5066 !important;
+    background: var(--selection-bg) !important;
     color: #fff;
 }
-.data-explorer-grid :deep(thead th[data-pinned]) { z-index: 55 !important; background: #353535 !important; }
+.data-explorer-grid :deep(thead th[data-pinned]) { z-index: 55 !important; background: var(--surface-panel) !important; }
 </style>

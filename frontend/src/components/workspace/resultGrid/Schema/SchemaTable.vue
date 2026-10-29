@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full relative overflow-hidden bg-[#2d2d2d]">
+    <div class="h-full relative overflow-hidden bg-[var(--surface-data)]">
         <div class="q-ma-lg">
             <q-table
                 ref="dataTable"
@@ -104,7 +104,7 @@
     
                                 <span
                                     v-else
-                                    class="text-[#909090]"
+                                    class="text-[var(--text-muted)]"
                                 >
                                     —
                                 </span>
@@ -202,7 +202,7 @@ const { activeCell, activeCellId, cellId, selectContextCell, startCellDrag, hand
 .schema-grid:focus { outline: none; }
 .schema-grid :deep(.q-table__middle) { overflow: auto; max-height: 100%; }
 .schema-grid :deep(th), .schema-grid :deep(td) { user-select: none; -webkit-user-select: none; }
-.schema-grid :deep(thead th) { position: sticky; top: 0; z-index: 1; background: #353535; }
-.schema-grid :deep(td.selected-result-cell) { background: #3d5066 !important; color: #fff; }
-.schema-grid :deep(td.active-result-cell) { box-shadow: inset 0 0 0 2px #ffca28; }
+.schema-grid :deep(thead th) { position: sticky; top: 0; z-index: 1; background: var(--surface-panel); }
+.schema-grid :deep(td.selected-result-cell) { background: var(--selection-bg) !important; color: #fff; }
+.schema-grid :deep(td.active-result-cell) { box-shadow: inset 0 0 0 2px var(--selection-border); }
 </style>

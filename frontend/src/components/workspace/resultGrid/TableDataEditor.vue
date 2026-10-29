@@ -223,7 +223,7 @@
                                 emit-value
                                 map-options
                                 :options="valueModes(field)"
-                                popup-content-class="bg-[#353535] text-gray-300 font-mono text-xs"
+                                popup-content-class="bg-[var(--surface-panel)] text-gray-300 font-mono text-[length:var(--ui-font-size)]"
                             />
                         </div>
                     </div>
@@ -558,10 +558,10 @@ defineExpose({ openRow });
     align-items: center;
     gap: 5px;
     padding: 0 8px;
-    background: #353535;
-    border-bottom: 1px solid #484848;
+    background: var(--surface-panel);
+    border-bottom: 1px solid var(--border-default);
     font-family: monospace;
-    font-size: 11px;
+    font-size: var(--ui-font-size);
 }
 .table-edit-bar .q-btn {
     min-height: 24px;
@@ -572,7 +572,7 @@ defineExpose({ openRow });
     white-space: nowrap;
 }
 .table-edit-bar .q-btn:hover:not(.disabled) {
-    background: #484848;
+    background: var(--border-default);
     color: #fbbf24;
 }
 .table-edit-bar .q-btn.disabled {
@@ -590,12 +590,12 @@ defineExpose({ openRow });
 .row-editor-card {
     width: 720px;
     max-width: 95vw;
-    background: #353535;
-    color: #d1d5db;
+    background: var(--surface-panel);
+    color: var(--text-primary);
     border: 1px solid #555555;
     border-radius: 4px;
     font-family: monospace;
-    font-size: 11px;
+    font-size: var(--ui-font-size);
 }
 .row-editor-header,
 .row-editor-footer {
@@ -603,11 +603,11 @@ defineExpose({ openRow });
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
-    background: #353535;
+    background: var(--surface-panel);
 }
 .row-editor-header {
     justify-content: space-between;
-    border-bottom: 1px solid #484848;
+    border-bottom: 1px solid var(--border-default);
 }
 .row-editor-heading {
     display: flex;
@@ -632,14 +632,14 @@ defineExpose({ openRow });
     color: #9ca3af;
 }
 .editor-icon-button:hover {
-    background: #484848;
+    background: var(--border-default);
     color: #fbbf24;
 }
 .row-editor-body {
     max-height: 65vh;
     overflow: auto;
     padding: 12px;
-    background: #2d2d2d;
+    background: var(--surface-data);
 }
 .row-editor-fields {
     display: flex;
@@ -654,12 +654,12 @@ defineExpose({ openRow });
 }
 .row-editor-field label {
     overflow-wrap: anywhere;
-    color: #d1d5db;
+    color: var(--text-primary);
 }
 .field-type {
     display: block;
-    font-size: 10px;
-    color: #a0a0a0;
+    font-size: var(--ui-font-size);
+    color: var(--text-muted);
     margin-top: 2px;
     font-weight: 400;
 }
@@ -674,7 +674,7 @@ defineExpose({ openRow });
     min-height: 28px;
     height: 28px;
     border-radius: 2px;
-    background: #353535;
+    background: var(--surface-panel);
 }
 .editor-input :deep(.q-field__control::before),
 .value-mode :deep(.q-field__control::before) {
@@ -690,7 +690,7 @@ defineExpose({ openRow });
     height: 28px;
 }
 .locked-input :deep(.q-field__native) {
-    color: #a0a0a0;
+    color: var(--text-muted);
 }
 .locked-input :deep(.q-field__control) {
     background: #303030;
@@ -699,8 +699,8 @@ defineExpose({ openRow });
     display: flex;
     align-items: center;
     gap: 5px;
-    color: #a0a0a0;
-    font-size: 10px;
+    color: var(--text-muted);
+    font-size: var(--ui-font-size);
     white-space: nowrap;
 }
 .document-label {
@@ -721,12 +721,12 @@ defineExpose({ openRow });
     margin-top: 12px;
 }
 .row-editor-footer {
-    border-top: 1px solid #484848;
+    border-top: 1px solid var(--border-default);
 }
 .row-editor-footer > span {
     flex: 1;
-    color: #a0a0a0;
-    font-size: 10px;
+    color: var(--text-muted);
+    font-size: var(--ui-font-size);
 }
 .editor-button {
     min-height: 28px;
@@ -735,11 +735,11 @@ defineExpose({ openRow });
     border: 1px solid #555555;
     border-radius: 2px;
     color: #9ca3af;
-    background: #353535;
+    background: var(--surface-panel);
     white-space: nowrap;
 }
 .editor-button:hover {
-    background: #484848;
+    background: var(--border-default);
     color: #fbbf24;
 }
 .editor-button-primary {
@@ -763,6 +763,6 @@ defineExpose({ openRow });
     padding: 8px 12px;
     background: #351c1c;
     color: #fca5a5;
-    font-size: 12px;
+    font-size: var(--ui-font-size);
 }
 </style>
