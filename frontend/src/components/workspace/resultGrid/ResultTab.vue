@@ -25,7 +25,7 @@
                         <div>status IN ('active', 'pending')</div>
                         <div>deleted_at IS NULL</div>
                         <div class="mt-2 text-amber-400">ORDER BY: name ASC, created_at DESC</div>
-                        <div class="mt-2 text-gray-500">Use double quotes for column names with spaces, or column numbers in ORDER BY.<br />Enter to apply · Esc to reset the focused field<br />WHERE and ORDER BY apply to the current page.</div>
+                        <div class="mt-2 text-gray-500">Use your database's identifier quoting for WHERE, or column numbers in ORDER BY.<br />Enter to apply · Esc to reset the focused field<br />{{ serverExpressions ? 'WHERE and ORDER BY apply to the database result before pagination.' : 'WHERE and ORDER BY apply to the current page for this result.' }}</div>
                         <div class="mt-2 text-gray-500">Columns: {{ result.Columns.map(column => column.Name).join(', ') }}</div>
                     </div>
                 </q-menu>
@@ -45,7 +45,7 @@
                     </div>
                 </q-menu>
             </q-btn>
-            <span class="filter-count">{{ filteredRows.length }}/{{ workingRows.length }} <span class="filter-scope">on this page</span></span>
+            <span class="filter-count">{{ serverExpressions ? workingRows.length : `${filteredRows.length}/${workingRows.length}` }} <span class="filter-scope">on this page</span></span>
         </q-form>
 
         <TableDataEditor v-if="tableTabId" ref="rowEditor" :tab-id="tableTabId" :result="result" :selected-key="selectedRowKey" :loading="loading" />
@@ -307,7 +307,7 @@
                         <template v-else>
                             <q-menu context-menu dark class="bg-[#353535] text-gray-300">
                                 <q-list dense>
-                                    <q-item-label header>Quick filter · current page</q-item-label>
+                                    <q-item-label header>Quick filter · {{ serverExpressions ? 'database result' : 'current page' }}</q-item-label>
                                     <q-item v-for="action in quickFilterActions" :key="action.operator" clickable v-close-popup :disable="loading || editState?.saving" @click="filterByCell(col.name, props.row[col.field], action.operator)"><q-item-section>{{ action.label }}</q-item-section></q-item>
                                     <q-item clickable v-close-popup @click="clearFilter"><q-item-section>Clear filter</q-item-section></q-item>
                                     <RelatedRecords v-if="tableTabId" :tab-id="tableTabId" :column="col.label" :row="originalNamedRow(props.row)" :disabled="!!editState?.drafts.length" />
@@ -457,6 +457,7 @@ import { compileResultFilter } from "@/utils/resultFilter";
 import { sortResultRows, orderResultRows, parseResultOrder } from "@/utils/resultSort";
 import { encodeGridText, parseGridText, validateGridCells, prepareGridPaste, GRID_CLIPBOARD_TYPE, type ClipboardCell } from "@/utils/resultClipboard";
 import { quickFilter } from '@/utils/quickFilter';
+import { useConnectionStore } from '@/stores/connectionStore';
 import { useColumnLayout } from './useColumnLayout';
 import { useQueryTabsStore } from '@/stores/queryTabsStore';
 import RelatedRecords from './RelatedRecords.vue';
@@ -508,6 +509,8 @@ const props = defineProps<{
     countError?: string;
     fetchingLast?: boolean;
     sortColumn?: number;
+    resultWhere?: string;
+    resultOrder?: string;
     sortDirection?: "asc" | "desc";
 }>();
 
@@ -521,6 +524,7 @@ const emit = defineEmits<{
     count: [];
     cancelCount: [];
     sort: [column: number, direction?: "asc" | "desc"];
+    expressions: [where: string, order: string, sql: string];
 }>();
 
 /* =========================================================
@@ -788,6 +792,10 @@ const sortDirection = computed(() => effectiveSort.value.direction ?? null);
 const sortColumn = (columnName: string, direction: "asc" | "desc") => {
     if (props.loading || !(props.result.CanSort ?? props.result.CanNavigate) || columnName === "sn") return;
     const column = columnLayout.visible.value[Number(columnName.slice(7))] + 1;
+    if (serverExpressions.value) {
+        if (!navigationBlocked.value) emit('sort', column, direction);
+        return;
+    }
     clearOrder();
     if (appliedFilter.value || navigationBlocked.value) {
         pageSort.value = { column, direction };
@@ -797,6 +805,10 @@ const sortColumn = (columnName: string, direction: "asc" | "desc") => {
 };
 const clearSort = () => {
     if (props.loading || !(props.result.CanSort ?? props.result.CanNavigate)) return;
+    if (serverExpressions.value) {
+        if (!navigationBlocked.value) emit('sort', 0);
+        return;
+    }
     clearOrder();
     if (appliedFilter.value || navigationBlocked.value) pageSort.value = { column: 0 };
     else emit("sort", 0);
@@ -808,7 +820,8 @@ const toggleSort = (columnName: string) => {
     else clearSort();
 };
 
-const filterDraft = ref("");
+const serverExpressions = computed(() => props.result.CanSort ?? props.result.CanNavigate);
+const filterDraft = ref(props.resultWhere ?? "");
 const quickFilterActions = [
     { operator: '=' as const, label: 'Equals this value' }, { operator: '<>' as const, label: 'Exclude this value' },
     { operator: 'LIKE' as const, label: 'Contains this value (% and _ are wildcards)' },
@@ -817,7 +830,7 @@ const quickFilterActions = [
 function filterByCell(name: string, value: unknown, operator: Parameters<typeof quickFilter>[2]) {
     const column = displayedColumns.value[Number(name.slice(7))];
     if (!column) return;
-    const expression = quickFilter(column.Name, value, operator);
+    const expression = quickFilter(column.Name, value, operator, serverExpressions.value ? useConnectionStore().activeConnection?.driver : undefined);
     filterDraft.value = appliedFilter.value ? `(${appliedFilter.value}) AND (${expression})` : expression;
     applyExpressions();
 }
@@ -825,16 +838,28 @@ function originalNamedRow(row: Record<string, unknown>) {
     const source = filteredRows.value.find(item => item.key === row.id)?.row;
     return Object.fromEntries(props.result.Columns.map((column, i) => [column.Name, source?.[i]]));
 }
-const appliedFilter = ref("");
+const appliedFilter = ref(props.resultWhere ?? "");
 const filterError = ref("");
-const orderDraft = ref("");
-const appliedOrder = ref("");
+const orderDraft = ref(props.resultOrder ?? "");
+const appliedOrder = ref(props.resultOrder ?? "");
+watch(() => [props.resultWhere, props.resultOrder], () => {
+    if (!serverExpressions.value) return;
+    filterDraft.value = appliedFilter.value = props.resultWhere ?? '';
+    orderDraft.value = appliedOrder.value = props.resultOrder ?? '';
+});
 const orderError = ref("");
 const orderTerms = computed(() => {
     try { return parseResultOrder(appliedOrder.value, props.result.Columns.map(column => column.Name)); }
     catch { return []; }
 });
 function clearOrder() {
+    if (serverExpressions.value) {
+        if (props.loading || navigationBlocked.value) return;
+        orderDraft.value = '';
+        filterDraft.value = appliedFilter.value;
+        applyExpressions();
+        return;
+    }
     orderDraft.value = "";
     appliedOrder.value = "";
     orderError.value = "";
@@ -847,6 +872,16 @@ function applyExpressions() {
     if (props.loading || editState.value?.saving) return;
     filterError.value = "";
     orderError.value = "";
+    if (serverExpressions.value) {
+        if (navigationBlocked.value) return;
+        try {
+            const terms = parseResultOrder(orderDraft.value, props.result.Columns.map(column => column.Name));
+            emit('expressions', filterDraft.value.trim(), orderDraft.value.trim(), terms.map(term => `${term.column} ${term.direction.toUpperCase()}`).join(', '));
+        } catch (error) {
+            orderError.value = error instanceof Error ? error.message : String(error);
+        }
+        return;
+    }
     try {
         const predicate = compileResultFilter(filterDraft.value, props.result.Columns.map(column => column.Name));
         props.result.Rows.forEach(row => predicate(row));
@@ -864,12 +899,20 @@ function applyExpressions() {
     if (!appliedFilter.value) pageSort.value = null;
 }
 function clearFilter() {
+    if (serverExpressions.value) {
+        if (props.loading || navigationBlocked.value) return;
+        filterDraft.value = '';
+        orderDraft.value = appliedOrder.value;
+        applyExpressions();
+        return;
+    }
     filterDraft.value = "";
     appliedFilter.value = "";
     pageSort.value = null;
     filterError.value = "";
 }
 watch(() => props.result, () => {
+    if (serverExpressions.value) return;
     try {
         parseResultOrder(appliedOrder.value, props.result.Columns.map(column => column.Name));
         orderError.value = "";
@@ -904,6 +947,7 @@ const workingRows = computed(() => {
     return rows;
 });
 const filteredRows = computed(() => {
+    if (serverExpressions.value) return workingRows.value;
     const rows = workingRows.value.filter(({ row, status }) => {
         // Pending changes remain visible until saved or canceled.
         if (status) return true;

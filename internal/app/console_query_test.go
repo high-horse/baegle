@@ -31,6 +31,20 @@ func TestOnDemandCountAndLastPage(t *testing.T) {
 	}
 }
 
+func TestResultWhereCountMatchesPage(t *testing.T) {
+	service, _, _ := editService(t)
+	input := entities.QueryInput{Query: "WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<250) SELECT x FROM n", Where: "x > 200", OrderBy: "1 DESC", PageSize: 10, Type: entities.QueryExecutionNavigate}
+	page, err := service.ExecuteQuery(context.Background(), input)
+	if err != nil || page.Rows[0][0] != int64(250) {
+		t.Fatalf("bad filtered page: %+v %v", page, err)
+	}
+	input.Type = entities.QueryExecutionCount
+	count, err := service.ExecuteQuery(context.Background(), input)
+	if err != nil || count.TotalRows == nil || *count.TotalRows != 50 {
+		t.Fatalf("bad filtered count: %+v %v", count, err)
+	}
+}
+
 func TestConsoleQueryCancellationAndExclusiveExecution(t *testing.T) {
 	service, _, conn := editService(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

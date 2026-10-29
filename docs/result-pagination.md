@@ -14,6 +14,12 @@ final page using its offset. Count operations obey the saved query timeout.
 Refresh, tab close, and disconnect cancel pending counts and discard late results. Opening a table never scans to the end
 just to populate the footer. Explicit limits, filters, grouping, and ordering
 remain inside the original query; global sorting uses an outer ORDER BY ordinal.
+The result toolbar's WHERE and multi-column ORDER BY run in the database before
+pagination. Applying or clearing them returns to page one and invalidates cached
+pages and totals. Counts use the same WHERE expression. WHERE uses the database's
+SQL syntax and references output column names; ORDER BY accepts output names or
+column positions. Non-pageable results and MongoDB retain explicitly labeled
+current-page filtering and ordering.
 Deep offsets and unindexed sorts can still be expensive. Use selective filters
 and indexed ordering for large datasets. Pages are separate statements, not a
 transaction snapshot; use unique ordering for stable navigation.

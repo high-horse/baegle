@@ -115,6 +115,9 @@
                     @cancel-count="emit('cancelCount')"
                     :fetching-last="fetchingLast"
                     :sort-column="sortColumn"
+                    :result-where="resultWhere"
+                    :result-order="resultOrder"
+                    @expressions="(where, order, sql) => emit('expressions', where, order, sql)"
                     :sort-direction="sortDirection"
                     @sort="(column, direction) => emit('sort', column, direction)"
                     @first="emit('first')"
@@ -175,6 +178,8 @@ const props = defineProps<{
     countError?: string;
     fetchingLast?: boolean;
     sortColumn?: number;
+    resultWhere?: string;
+    resultOrder?: string;
     sortDirection?: "asc" | "desc";
     pageError?: string;
     error?: string | null;
@@ -191,6 +196,7 @@ const emit = defineEmits<{
     count: [];
     cancelCount: [];
     sort: [column: number, direction?: "asc" | "desc"];
+    expressions: [where: string, order: string, sql: string];
 }>();
 
 const activeSubTab = ref<"data" | "schema">("data");

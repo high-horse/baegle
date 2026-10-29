@@ -8,6 +8,78 @@ import (
 	"db-lens/internal/engine/entities"
 )
 
+func TestResultExpressionsApplyBeforePagination(t *testing.T) {
+	p, db := testPager(t)
+	ctx := context.Background()
+	_, err := db.Exec(`CREATE TABLE filtered_items (id INTEGER PRIMARY KEY, score INTEGER);
+	WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<250)
+	INSERT INTO filtered_items SELECT x, x % 3 FROM n`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := entities.QueryInput{Query: "SELECT id, score FROM filtered_items ORDER BY id; -- original", PageSize: 10, Where: "id > 200", OrderBy: "2 ASC, 1 DESC"}
+	first, err := p.OpenRead(ctx, db, "test", "sqlite", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Rows) != 10 || first.Rows[0][0] != int64(249) || first.Rows[9][0] != int64(222) || !first.HasMore {
+		t.Fatalf("filter/order must include rows beyond original first page: %+v", first)
+	}
+	input.Page = 2
+	second, err := p.OpenRead(ctx, db, "test", "sqlite", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Rows[0][0] != int64(219) || second.StartRow != 11 {
+		t.Fatalf("wrong second page: %+v", second)
+	}
+	filtered, err := FilterReadSQL(input.Query, input.Where, "sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	total, err := CountRead(ctx, db, filtered)
+	if err != nil || total != 50 {
+		t.Fatalf("filtered count = %d, %v", total, err)
+	}
+	input.Page = 5
+	last, err := p.OpenRead(ctx, db, "test", "sqlite", input)
+	if err != nil || last.HasMore || last.TotalRows == nil || *last.TotalRows != 50 {
+		t.Fatalf("wrong last page: %+v, %v", last, err)
+	}
+	input.Page = 1
+	input.Where = "id > 999"
+	empty, err := p.OpenRead(ctx, db, "test", "sqlite", input)
+	if err != nil || len(empty.Rows) != 0 || *empty.TotalRows != 0 {
+		t.Fatalf("wrong empty page: %+v, %v", empty, err)
+	}
+	input.Where = ""
+	input.OrderBy = "1 DESC"
+	sorted, err := p.OpenRead(ctx, db, "test", "sqlite", input)
+	if err != nil || sorted.Rows[0][0] != int64(250) {
+		t.Fatalf("ORDER BY alone is not global: %+v, %v", sorted, err)
+	}
+	input.OrderBy = ""
+	reset, err := p.OpenRead(ctx, db, "test", "sqlite", input)
+	if err != nil || reset.Rows[0][0] != int64(1) {
+		t.Fatalf("reset failed: %+v, %v", reset, err)
+	}
+	input.Query = "SELECT id, score FROM filtered_items ORDER BY id LIMIT 205"
+	input.Where = "id > 200"
+	limited, err := p.OpenRead(ctx, db, "test", "sqlite", input)
+	if err != nil || len(limited.Rows) != 5 {
+		t.Fatalf("original limit lost: %+v, %v", limited, err)
+	}
+	input.Where = "id > 1); DELETE FROM filtered_items; --"
+	if _, err := p.OpenRead(ctx, db, "test", "sqlite", input); err == nil {
+		t.Fatal("accepted multiple statements in WHERE")
+	}
+	input.Where = ""
+	input.OrderBy = "1 DESC; DELETE FROM filtered_items"
+	if _, err := p.OpenRead(ctx, db, "test", "sqlite", input); err == nil {
+		t.Fatal("accepted invalid ORDER BY")
+	}
+}
+
 func TestReadPagesBoundedJumpAndGlobalSort(t *testing.T) {
 	p, db := testPager(t)
 	ctx := context.Background()

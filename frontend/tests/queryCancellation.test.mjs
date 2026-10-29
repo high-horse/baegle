@@ -220,6 +220,48 @@ function countableTab(store) {
     return tab;
 }
 
+test('result expressions reach database paging, counts, sorting and resets; failures preserve applied state', async () => {
+    const { store, calls, backend } = setup();
+    const tab = countableTab(store);
+    tab.totalRows = 999;
+    const requests = [];
+    backend.ExecuteQuery = async input => {
+        requests.push(input);
+        if (input.where === 'invalid') throw new Error('invalid WHERE');
+        return { columns: [{ name: 'id' }], rows: [[201]], startRow: (input.page - 1) * 100 + 1,
+            pageSize: 100, hasMore: true, canNavigate: true, cursor: '', isQuery: true };
+    };
+    await store.applyResultExpressions(tab.id, 'id > 200', 'id DESC', '1 DESC');
+    assert.equal(requests[0].where, 'id > 200');
+    assert.equal(requests[0].orderBy, '1 DESC');
+    assert.equal(requests[0].page, 1);
+    assert.equal(tab.totalRows, undefined);
+    assert.equal(tab.pages.length, 1);
+    await store.navigate(tab.id, 'next');
+    assert.equal(requests[1].where, 'id > 200');
+    assert.equal(requests[1].orderBy, '1 DESC');
+    assert.equal(requests[1].page, 2);
+    const count = store.countRows(tab.id);
+    assert.equal(calls[0].input.where, 'id > 200');
+    calls[0].resolve({ totalRows: 150 });
+    await count;
+    const previous = tab.result;
+    await store.applyResultExpressions(tab.id, 'invalid', '', '');
+    assert.equal(tab.result, previous);
+    assert.equal(tab.resultWhere, 'id > 200');
+    assert.equal(tab.resultOrder, 'id DESC');
+    assert.equal(tab.totalRows, 150);
+    assert.match(tab.pageError, /invalid WHERE/);
+    await store.sortResult(tab.id, 1, 'asc');
+    assert.equal(requests.at(-1).where, 'id > 200');
+    assert.equal(requests.at(-1).sortDirection, 'asc');
+    assert.equal(requests.at(-1).orderBy, '');
+    await store.applyResultExpressions(tab.id, '', '', '');
+    assert.equal(requests.at(-1).where, '');
+    assert.equal(tab.resultWhere, '');
+    assert.equal(tab.pages.length, 1);
+});
+
 test('on-demand count retains visible data and Last jumps directly after counting', async () => {
     const { store, calls, backend } = setup();
     const tab = countableTab(store);

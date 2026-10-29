@@ -60,4 +60,7 @@ export interface QueryTab {
   streamNextPage?: number;
   sortColumn?: number;
   sortDirection?: "asc" | "desc";
+  resultWhere?: string;
+  resultOrder?: string;
+  resultOrderSQL?: string;
 }

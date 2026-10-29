@@ -28,6 +28,8 @@ type QueryInput struct {
 	Page          int                `json:"page"`
 	SortColumn    int                `json:"sortColumn,omitempty"`
 	SortDirection string             `json:"sortDirection,omitempty"`
+	Where         string             `json:"where,omitempty"`
+	OrderBy       string             `json:"orderBy,omitempty"`
 }
 
 type QueryResult struct {

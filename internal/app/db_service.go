@@ -268,7 +268,11 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 	}
 	start := time.Now()
 	if queryInput.Type == entities.QueryExecutionCount {
-		total, err := sqlExecutor.CountReadDialect(ctx, sqlConn.DB(), parsed.RawSQL, conn.Type())
+		filtered, err := sqlExecutor.FilterReadSQL(parsed.RawSQL, queryInput.Where, conn.Type())
+		if err != nil {
+			return nil, err
+		}
+		total, err := sqlExecutor.CountReadDialect(ctx, sqlConn.DB(), filtered, conn.Type())
 		if err != nil {
 			return nil, fmt.Errorf("count result rows: %w", err)
 		}
@@ -282,7 +286,7 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 	if _, pageable := sqlExecutor.PageableDialectSQL(parsed.RawSQL, conn.Type()); pageable {
 		queryInput.Query = parsed.RawSQL
 		result, err = s.pager.OpenRead(ctx, sqlConn.DB(), conn.ID(), conn.Type(), queryInput)
-	} else if queryInput.Type == entities.QueryExecutionNavigate || queryInput.SortColumn != 0 {
+	} else if queryInput.Type == entities.QueryExecutionNavigate || queryInput.SortColumn != 0 || queryInput.Where != "" || queryInput.OrderBy != "" {
 		return nil, fmt.Errorf("this statement does not support counted page navigation or sorting")
 	} else if command {
 		var execution sql.Result

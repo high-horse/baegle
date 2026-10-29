@@ -397,6 +397,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tab.fetchingLast = false;
     tab.sortColumn = refreshSortColumn;
     tab.sortDirection = refreshSortDirection;
+    if (!afterSave) { tab.resultWhere = ''; tab.resultOrder = ''; tab.resultOrderSQL = ''; }
     tab.streamNextPage = 2;
     if (!afterSave) tab.result = null;
     tab.pages = [];
@@ -417,6 +418,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       const response = await DbService.ExecuteConsoleQuery(id, operation.requestID, { query: sql, cursor: previousCursor,
         type: afterSave && tab.result?.CanNavigate ? QueryExecutionType.QueryExecutionNavigate : QueryExecutionType.QueryExecutionExecute,
         pageSize, page: refreshPage, sortColumn: refreshSortColumn, sortDirection: refreshSortDirection ?? "",
+        where: tab.resultWhere, orderBy: tab.resultOrderSQL,
       });
       if (!response) throw new Error("Query returned no response");
       if (operation.stopping) { releaseCursor(response.cursor); throw new Error("Query cancelled"); }
@@ -492,7 +494,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tab.countError = undefined;
     try {
       const response = await DbService.ExecuteConsoleQuery(`${id}:count`, operation.requestID, {
-        query, cursor: "", type: QueryExecutionType.QueryExecutionCount, pageSize: 0, page: 0, sortColumn: 0, sortDirection: "",
+        query, where: tab.resultWhere, cursor: "", type: QueryExecutionType.QueryExecutionCount, pageSize: 0, page: 0, sortColumn: 0, sortDirection: "",
       });
       if (operation.cancelled || !tabs.value.includes(tab) || tab.executedSql !== query) return false;
       if (response?.totalRows == null) throw new Error("No row count returned");
@@ -584,7 +586,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     } finally { tab.loading = false; tab.fetchingLast = false; }
   }
 
-  async function fetchReadPage(tab: QueryTab, page: number, sort?: { column: number; direction?: "asc" | "desc" }) {
+  async function fetchReadPage(tab: QueryTab, page: number, sort?: { column: number; direction?: "asc" | "desc"; where?: string; order?: string; orderSQL?: string }) {
     if (!tab.result || tab.loading) return;
     const size = tab.result.PageSize;
     if (!sort) {
@@ -606,6 +608,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
         pageSize: size, page,
         sortColumn: sort?.column ?? tab.sortColumn ?? 0,
         sortDirection: sort ? sort.direction ?? "" : tab.sortDirection ?? "",
+        where: sort?.where ?? tab.resultWhere,
+        orderBy: sort ? sort.orderSQL ?? '' : tab.resultOrderSQL,
       });
       if (!response) throw new Error("No result page returned");
       if (!tabs.value.includes(tab)) { releaseCursor(response.cursor); return; }
@@ -617,6 +621,9 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       if (sort) {
         tab.sortColumn = sort.column;
         tab.sortDirection = sort.direction;
+        tab.resultWhere = sort.where ?? tab.resultWhere;
+        tab.resultOrder = sort.order ?? '';
+        tab.resultOrderSQL = sort.orderSQL ?? '';
         tab.pages = [];
       }
       tab.pages ??= [];
@@ -635,7 +642,16 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
   async function sortResult(id: string, column: number, direction?: "asc" | "desc") {
     const tab = tabs.value.find(tab => tab.id === id);
     if (!tab?.result?.CanNavigate || tab.loading || useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id)) return;
+    void cancelRowCount(id);
     await fetchReadPage(tab, 1, { column, direction });
+  }
+
+  async function applyResultExpressions(id: string, where: string, order: string, orderSQL: string) {
+    const tab = tabs.value.find(tab => tab.id === id);
+    if (!tab?.result?.CanSort || tab.loading || useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id)) return;
+    void cancelRowCount(id);
+    tab.countError = undefined;
+    await fetchReadPage(tab, 1, { column: 0, where, order, orderSQL });
   }
 
   function stopFetching(id: string) {
@@ -684,6 +700,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     navigate,
     stopFetching,
     sortResult,
+    applyResultExpressions,
     clearResults,
   };
 });

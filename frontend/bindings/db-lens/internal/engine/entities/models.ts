@@ -82,6 +82,8 @@ export interface QueryInput {
     "page": number;
     "sortColumn"?: number;
     "sortDirection"?: string;
+    "where"?: string;
+    "orderBy"?: string;
 }
 
 export interface QueryResult {

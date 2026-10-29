@@ -1,5 +1,7 @@
-export function quickFilter(column: string, value: unknown, operator: '=' | '<>' | 'LIKE' | 'IS NULL' | 'IS NOT NULL') {
-  const name = `"${column.replaceAll('"', '""')}"`;
+export function quickFilter(column: string, value: unknown, operator: '=' | '<>' | 'LIKE' | 'IS NULL' | 'IS NOT NULL', driver?: string) {
+  const name = driver === 'mysql' ? '`' + column.replaceAll('`', '``') + '`'
+    : driver === 'sqlserver' ? '[' + column.replaceAll(']', ']]') + ']'
+    : `"${column.replaceAll('"', '""')}"`;
   if (operator === 'IS NULL' || operator === 'IS NOT NULL') return `${name} ${operator}`;
   if (value == null) return `${name} IS ${operator === '<>' ? 'NOT ' : ''}NULL`;
   const literal = typeof value === 'number' && Number.isFinite(value) ? String(value)

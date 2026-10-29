@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"regexp"
 
 	"fmt"
 	"github.com/go-sql-driver/mysql"
@@ -192,13 +193,24 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 	}
 	offset := (page - 1) * int64(size)
 	query := "SELECT * FROM " + wrapped
-	if input.SortColumn > 0 {
+	if strings.TrimSpace(input.Where) != "" {
+		query += " WHERE (\n" + input.Where + "\n)"
+		if validated, ok := PageableSQL(query); !ok || validated != query {
+			return nil, fmt.Errorf("invalid result WHERE expression")
+		}
+	}
+	if input.OrderBy != "" {
+		if !resultOrderPattern.MatchString(input.OrderBy) {
+			return nil, fmt.Errorf("invalid result ORDER BY expression")
+		}
+		query += " ORDER BY " + input.OrderBy
+	} else if input.SortColumn > 0 {
 		// Ordinals support duplicate output labels and cannot inject identifiers.
 		query += fmt.Sprintf(" ORDER BY %d %s", input.SortColumn, direction)
 	}
 	switch dialect {
 	case "sqlserver":
-		if input.SortColumn == 0 {
+		if input.SortColumn == 0 && input.OrderBy == "" {
 			query += " ORDER BY (SELECT NULL)"
 		}
 		query += fmt.Sprintf("\nOFFSET %d ROWS FETCH NEXT %d ROWS ONLY", offset, size+1)
@@ -210,7 +222,7 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 	start := time.Now()
 	rows, err := db.QueryContext(ctx, query)
 	if isDuplicateColumnError(err) {
-		if input.SortColumn > 0 || page > 1 {
+		if input.SortColumn > 0 || input.OrderBy != "" || input.Where != "" || page > 1 {
 			return nil, fmt.Errorf("this result has duplicate column names; use Next to fetch more rows, or give columns unique aliases to enable sorting and page jumps")
 		}
 		return p.Open(ctx, db, connection, base, size)
@@ -251,6 +263,29 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 	}
 	result.Duration = time.Since(start)
 	return result, nil
+}
+
+var resultOrderPattern = regexp.MustCompile(`(?i)^[1-9][0-9]* (ASC|DESC)(, [1-9][0-9]* (ASC|DESC))*$`)
+
+// FilterReadSQL keeps the original query's limits and grouping inside the result
+// filter. Counts and pages therefore describe the same result set.
+func FilterReadSQL(query, where, dialect string) (string, error) {
+	base, ok := PageableDialectSQL(query, dialect)
+	if !ok {
+		return "", fmt.Errorf("this statement does not support result filtering")
+	}
+	if strings.TrimSpace(where) == "" {
+		return base, nil
+	}
+	alias := " AS dbv_filter"
+	if dialect == "oracle" {
+		alias = " dbv_filter"
+	}
+	filtered := "SELECT * FROM (\n" + base + "\n)" + alias + " WHERE (\n" + where + "\n)"
+	if validated, ok := PageableSQL(filtered); !ok || validated != filtered {
+		return "", fmt.Errorf("invalid result WHERE expression")
+	}
+	return filtered, nil
 }
 
 // MySQL rejects repeated output labels only when the SELECT is a derived table.
