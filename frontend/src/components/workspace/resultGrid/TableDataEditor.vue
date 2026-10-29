@@ -133,7 +133,7 @@
                                 dense
                                 dark
                                 hide-bottom-space
-                                color="amber"
+                                color="primary"
                                 readonly
                             />
                             <span class="field-lock"
@@ -154,7 +154,7 @@
                             dense
                             dark
                             hide-bottom-space
-                            color="amber"
+                            color="primary"
                             spellcheck="false"
                             aria-label="MongoDB document fields"
                         />
@@ -178,7 +178,7 @@
                                 dense
                                 dark
                                 hide-bottom-space
-                                color="amber"
+                                color="primary"
                                 class="editor-input"
                                 :class="{
                                     'locked-input':
@@ -219,7 +219,7 @@
                                 dense
                                 dark
                                 hide-bottom-space
-                                color="amber"
+                                color="primary"
                                 emit-value
                                 map-options
                                 :options="valueModes(field)"
@@ -573,14 +573,14 @@ defineExpose({ openRow });
 }
 .table-edit-bar .q-btn:hover:not(.disabled) {
     background: var(--border-default);
-    color: #fbbf24;
+    color: var(--accent-color);
 }
 .table-edit-bar .q-btn.disabled {
     opacity: 0.35;
     cursor: default;
 }
 .table-edit-bar .q-btn.save {
-    color: #fbbf24;
+    color: var(--accent-color);
 }
 .divider {
     height: 16px;
@@ -613,7 +613,7 @@ defineExpose({ openRow });
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #fbbf24;
+    color: var(--accent-color);
     font-weight: 600;
 }
 .row-editor-table {
@@ -633,7 +633,7 @@ defineExpose({ openRow });
 }
 .editor-icon-button:hover {
     background: var(--border-default);
-    color: #fbbf24;
+    color: var(--accent-color);
 }
 .row-editor-body {
     max-height: 65vh;
@@ -740,11 +740,11 @@ defineExpose({ openRow });
 }
 .editor-button:hover {
     background: var(--border-default);
-    color: #fbbf24;
+    color: var(--accent-color);
 }
 .editor-button-primary {
-    border-color: #a97724;
-    color: #fbbf24;
+    border-color: var(--accent-color);
+    color: var(--accent-color);
 }
 @media (max-width: 520px) {
     .row-editor-field {

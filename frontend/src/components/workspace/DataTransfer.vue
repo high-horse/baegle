@@ -97,26 +97,26 @@
                             </table>
                         </div>
                         <p class="text-caption text-grey-5">Preview shows the first five source rows.</p>
-                        <p v-if="isMongo" class="text-caption text-amber-4">MongoDB imports stop at the first error; preceding documents remain inserted. Review the reported count before retrying.</p>
+                        <p v-if="isMongo" class="text-caption text-primary">MongoDB imports stop at the first error; preceding documents remain inserted. Review the reported count before retrying.</p>
                         <p v-else class="text-caption text-grey-5">SQL table imports run in a transaction and roll back if a row fails. MySQL tables must use a transactional engine (such as InnoDB).</p>
                     </template>
                 </template>
                 </template>
                 <div v-if="busy" class="row items-center q-gutter-sm q-mt-md" role="status">
-                    <q-spinner color="amber" /><span>{{ operation }} <QueryElapsedTime v-if="startedAt !== null" :started-at="startedAt" /></span>
+                    <q-spinner color="primary" /><span>{{ operation }} <QueryElapsedTime v-if="startedAt !== null" :started-at="startedAt" /></span>
                 </div>
             </q-card-section>
             <q-card-actions align="right" class="q-pa-md">
                 <q-btn flat no-caps :label="success ? 'Close' : 'Cancel'" :disable="busy" v-close-popup />
-                <q-btn v-if="mode === 'import' && format === 'sql'" unelevated no-caps color="amber" text-color="black" label="Open SQL in editor"
+                <q-btn v-if="mode === 'import' && format === 'sql'" unelevated no-caps color="primary" text-color="black" label="Open SQL in editor"
                     :disable="busy || !path" @click="openSQLFile" />
-                <q-btn v-else-if="mode === 'import'" unelevated no-caps color="amber" text-color="black" :label="`Import ${preview?.total ?? 0} rows`"
+                <q-btn v-else-if="mode === 'import'" unelevated no-caps color="primary" text-color="black" :label="`Import ${preview?.total ?? 0} rows`"
                     :disable="busy || !preview?.total || !hasMapping || !!success" @click="importData" />
                 <template v-else-if="!success">
                     <q-btn v-if="exportStep > 0" flat no-caps label="Back" :disable="busy" @click="exportStep--" />
-                    <q-btn v-if="exportStep < 2" unelevated no-caps color="amber" text-color="black" label="Next"
+                    <q-btn v-if="exportStep < 2" unelevated no-caps color="primary" text-color="black" label="Next"
                         :disable="busy || !canExport" @click="exportStep++" />
-                    <q-btn v-else unelevated no-caps color="amber" text-color="black" label="Finish"
+                    <q-btn v-else unelevated no-caps color="primary" text-color="black" label="Finish"
                         :disable="busy || !canExport" @click="exportData" />
                 </template>
             </q-card-actions>
@@ -308,18 +308,18 @@ async function exportData() {
 .transfer-body { max-height: 72vh; overflow: auto; }
 .export-button { height: 24px; min-height: 24px; padding: 0 6px; border: 1px solid var(--border-default); background: var(--surface-data); color: var(--text-muted); font-size: var(--ui-font-size); line-height: 1.2; }
 .export-button :deep(.q-btn__content) { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 4px; }
-.export-button:hover:not(.disabled) { background: var(--border-default); color: #fbbf24; }
+.export-button:hover:not(.disabled) { background: var(--border-default); color: var(--accent-color); }
 .export-steps { display: flex; list-style: none; padding: 0; margin: 0 0 20px; gap: 20px; border-bottom: 1px solid var(--border-default); }
 .export-steps li { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; color: var(--text-muted); }
-.export-steps li.active { color: #fbbf24; border-bottom: 2px solid #fbbf24; }
+.export-steps li.active { color: var(--accent-color); border-bottom: 2px solid var(--accent-color); }
 .export-steps li.complete { color: #c9d2c7; }
 .export-steps li > span { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid currentColor; border-radius: 50%; font-size: var(--ui-font-size); }
 .export-panel { min-height: 260px; }
 .export-panel h3 { font-size: 14px; font-weight: 600; line-height: 1.5; margin: 0 0 14px; }
 .format-list { display: grid; gap: 8px; }
 .format-option { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border-default); border-radius: 4px; background: #303030; cursor: pointer; }
-.format-option.selected { border-color: #bc913f; background: #403b30; }
-.format-option input { accent-color: #fbbf24; }
+.format-option.selected { border-color: var(--accent-color); background: var(--accent-surface); }
+.format-option input { accent-color: var(--accent-color); }
 .format-option strong, .format-option small { display: block; }
 .format-option small { margin-top: 3px; color: #aeb1b5; }
 .export-summary { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; font-size: 13px; }

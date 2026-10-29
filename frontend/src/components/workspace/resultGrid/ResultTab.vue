@@ -1,7 +1,7 @@
 <template>
     <div ref="gridElement" class="relative h-full w-full overflow-hidden bg-[var(--surface-data)]" :class="{ 'striped-rows': resultSettings.settings.stripedRows }" :style="{ '--grid-font-size': `${resultSettings.settings.fontSize}px` }">
         <q-form v-if="result.IsQuery" class="result-filter-bar" @submit.prevent="applyExpressions">
-            <q-icon name="filter_alt" size="15px" :class="appliedFilter ? 'text-amber-400' : 'text-gray-500'" />
+            <q-icon name="filter_alt" size="15px" :class="appliedFilter ? 'text-primary' : 'text-gray-500'" />
             <div class="result-filter-input" :class="{ 'has-error': filterError }">
                 <span class="text-gray-500 select-none">WHERE</span>
                 <ResultFilterInput v-model="filterDraft" :columns="result.Columns" :error="filterError" :applied="appliedFilter" @apply="applyExpressions" @clear="clearFilter" />
@@ -19,12 +19,12 @@
                 <q-icon name="help_outline" size="15px" />
                 <q-menu class="border border-[var(--border-default)] bg-[var(--surface-panel)] text-gray-300">
                     <div class="max-w-sm p-3 font-mono text-[length:var(--ui-font-size)] leading-6">
-                        <div class="text-amber-400">Combine conditions with AND / OR</div>
+                        <div class="text-primary">Combine conditions with AND / OR</div>
                         <div>age &gt;= 18 AND status = 'active'</div>
                         <div>(name LIKE 'A%' OR name LIKE 'B%')</div>
                         <div>status IN ('active', 'pending')</div>
                         <div>deleted_at IS NULL</div>
-                        <div class="mt-2 text-amber-400">ORDER BY: name ASC, created_at DESC</div>
+                        <div class="mt-2 text-primary">ORDER BY: name ASC, created_at DESC</div>
                         <div class="mt-2 text-gray-500">Use your database's identifier quoting for WHERE, or column numbers in ORDER BY.<br />Enter to apply · Esc to reset the focused field<br />{{ serverExpressions ? 'WHERE and ORDER BY apply to the database result before pagination.' : 'WHERE and ORDER BY apply to the current page for this result.' }}</div>
                         <div class="mt-2 text-gray-500">Columns: {{ result.Columns.map(column => column.Name).join(', ') }}</div>
                     </div>
@@ -39,7 +39,7 @@
                     </div>
                     <div v-for="(index, position) in columnLayout.order.value" :key="index" v-show="result.Columns[index]?.Name.toLowerCase().includes((columnLayout.search.value || '').toLowerCase())" class="flex items-center px-2">
                         <q-checkbox dark dense :model-value="!columnLayout.hidden.value.includes(index)" :disable="columnLayout.visible.value.length === 1 && !columnLayout.hidden.value.includes(index)" :label="result.Columns[index]?.Name" class="flex-1 min-w-0" @update:model-value="columnLayout.toggleHidden(index)" />
-                        <q-btn flat dense size="sm" icon="push_pin" :color="columnLayout.pinned.value.includes(index) ? 'amber' : 'grey'" :aria-label="`Pin ${result.Columns[index]?.Name}`" @click="columnLayout.togglePinned(index)" />
+                        <q-btn flat dense size="sm" icon="push_pin" :color="columnLayout.pinned.value.includes(index) ? 'primary' : 'grey'" :aria-label="`Pin ${result.Columns[index]?.Name}`" @click="columnLayout.togglePinned(index)" />
                         <q-btn flat dense size="sm" icon="arrow_upward" :disable="position === 0" aria-label="Move column earlier" @click="columnLayout.move(index, -1)" />
                         <q-btn flat dense size="sm" icon="arrow_downward" :disable="position === columnLayout.order.value.length - 1" aria-label="Move column later" @click="columnLayout.move(index, 1)" />
                     </div>
@@ -97,7 +97,7 @@
                         v-for="col in props.cols"
                         :key="col.name"
                         :props="props"
-                        class="relative box-border h-[28px] overflow-hidden whitespace-nowrap border-b-2 border-[var(--border-default)] px-2 py-0 align-middle font-mono text-[length:var(--ui-font-size)] font-bold text-amber-400"
+                        class="relative box-border h-[28px] overflow-hidden whitespace-nowrap border-b-2 border-[var(--border-default)] px-2 py-0 align-middle font-mono text-[length:var(--ui-font-size)] font-bold text-primary"
                         :class="{
                             'cursor-pointer': col.name !== 'sn' && (result.CanSort ?? result.CanNavigate),
                             'sticky-col-header pl-2 pr-1 text-left font-normal text-[var(--text-muted)]':
@@ -141,7 +141,7 @@
                                         : 'arrow_downward'
                                 "
                                 size="12px"
-                                class="ml-0.5 shrink-0 text-amber-400"
+                                class="ml-0.5 shrink-0 text-primary"
                             />
                         </div>
 
@@ -374,7 +374,7 @@
                     <span v-if="result.IsQuery && !result.CanSort && totalRows != null"> · {{ totalRows.toLocaleString() }} rows total</span>
                 </span>
                 <template v-if="result.IsQuery && result.CanSort">
-                    <q-btn v-if="countingRows" flat dense no-caps type="button" size="sm" color="amber"
+                    <q-btn v-if="countingRows" flat dense no-caps type="button" size="sm" color="primary"
                         :disable="stoppingCount" :label="stoppingCount ? 'Cancelling…' : 'Counting… Cancel'"
                         aria-label="Cancel row count" @click="emit('cancelCount')">
                         <q-spinner class="q-ml-xs" size="12px" />
@@ -426,7 +426,7 @@
                     :title="result.CanNavigate ? (totalRows == null ? 'Count rows and go to last page' : 'Go directly to last page') : 'Go to last page (fetches remaining rows)'" aria-label="Go to last page" @click="emit('last')">
                     <q-icon name="last_page" size="16px" />
                 </q-btn>
-                <q-btn flat dense no-caps v-if="fetchingLast" type="button" class="text-[length:var(--ui-font-size)] text-amber-400 px-2"
+                <q-btn flat dense no-caps v-if="fetchingLast" type="button" class="text-[length:var(--ui-font-size)] text-primary px-2"
                     @click="emit('stop')">Stop fetching</q-btn>
                 <span class="ml-2 font-mono text-[length:var(--ui-font-size)] text-gray-500">{{ result.PageSize }} rows/page</span>
             </div>
@@ -1179,14 +1179,14 @@ const mappedColumns =
     border: 1px solid var(--border-default);
     background: var(--surface-data);
 }
-.result-filter-input:focus-within { border-color: #a97724; }
+.result-filter-input:focus-within { border-color: var(--accent-color); }
 .result-filter-input.has-error { border-color: #b45353; }
 .filter-expression { flex: 1; min-width: 0; }
 .filter-expression :deep(.q-field__control), .filter-expression :deep(.q-field__marginal) { min-height: 23px; height: 23px; }
 .filter-expression :deep(.q-field__native) { padding: 0; color: var(--text-primary); }
 .filter-expression :deep(input::placeholder) { color: var(--text-muted); }
 .filter-action { min-height: 25px; padding: 0; display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; color: #9ca3af; border: 1px solid transparent; }
-.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: #fbbf24; background: var(--border-default); border-color: #555555; }
+.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: var(--accent-color); background: var(--border-default); border-color: #555555; }
 .filter-action.disabled { opacity: .3; cursor: default; }
 .filter-count { color: var(--text-muted); white-space: nowrap; padding-left: 6px; }
 @media (max-width: 600px) { .filter-scope { display: none; } }
@@ -1241,7 +1241,7 @@ const mappedColumns =
 .column-resizer:hover::after {
     width: 2px;
 
-    background: #f59e0b;
+    background: var(--accent-color);
 }
 
 /* =========================================================
@@ -1272,9 +1272,9 @@ const mappedColumns =
 }
 
 .data-explorer-grid.has-edit-toolbar { top: 70px !important; }
-.selected-edit-row :deep(td) { box-shadow: inset 0 1px #70572d, inset 0 -1px #70572d; }
+.selected-edit-row :deep(td) { box-shadow: inset 0 1px var(--selection-border), inset 0 -1px var(--selection-border); }
 .pending-insert :deep(td) { background: #12281f !important; }
-.pending-update :deep(td) { background: #2b2415 !important; }
+.pending-update :deep(td) { background: var(--accent-surface) !important; }
 .pending-delete :deep(td) { background: #321c1c !important; text-decoration: line-through; opacity: .65; }
 
 .data-explorer-grid.has-filter-toolbar {
@@ -1568,7 +1568,7 @@ const mappedColumns =
 
     border-color: #5a5a5a;
 
-    color: #f59e0b;
+    color: var(--accent-color);
 }
 
 .pagination-button.disabled {
@@ -1586,7 +1586,7 @@ const mappedColumns =
 }
 
 .data-grid-footer select:focus {
-    border-color: #92400e;
+    border-color: var(--accent-color);
 }
 
 /* =========================================================

@@ -1,21 +1,21 @@
 <template>
     <section class="border-b border-[var(--border-default)] bg-[var(--surface-panel)] px-2 py-1 text-[length:var(--ui-font-size)] text-[var(--text-primary)]" aria-label="Find and replace">
         <div class="flex flex-nowrap! items-center gap-2">
-            <div class="flex flex-nowrap! h-7 w-[360px] max-w-full min-w-0 items-center rounded border bg-[var(--surface-data)] pl-2 pr-0.5 focus-within:border-amber-500"
+            <div class="flex flex-nowrap! h-7 w-[360px] max-w-full min-w-0 items-center rounded border bg-[var(--surface-data)] pl-2 pr-0.5 focus-within:border-[var(--accent-color)]"
                 :class="invalidPattern ? 'border-red-400' : 'border-[var(--border-default)]'">
                 <q-input v-model="findText" borderless dense dark hide-bottom-space placeholder="Search…" aria-label="Find"
                     class="h-7 w-0! min-w-0! flex-1! [&_.q-field\_\_control]:h-7! [&_.q-field\_\_control]:min-h-0! [&_.q-field\_\_control-container]:h-full!"
                     input-class="text-[length:var(--ui-font-size)]! leading-normal! h-full! min-h-0! py-0!" @keydown.enter.prevent.stop="find($event.shiftKey)" />
-                <q-btn flat dense no-caps size="12px" label="Aa" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" :color="matchCase ? 'amber' : undefined"
-                    :class="matchCase ? 'bg-amber-500/15' : 'text-[var(--text-muted)]'" :aria-pressed="matchCase" title="Match case" aria-label="Match case" @click="matchCase = !matchCase" />
-                <q-btn flat dense no-caps size="12px" label="ab" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0! underline underline-offset-2" :color="wholeWord ? 'amber' : undefined"
-                    :class="wholeWord ? 'bg-amber-500/15' : 'text-[var(--text-muted)]'" :aria-pressed="wholeWord" title="Match whole word" aria-label="Match whole word" @click="wholeWord = !wholeWord" />
-                <q-btn flat dense no-caps size="12px" label=".*" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0! font-mono" :color="regexp ? 'amber' : undefined"
-                    :class="regexp ? 'bg-amber-500/15' : 'text-[var(--text-muted)]'" :aria-pressed="regexp" title="Regular expression" aria-label="Regular expression" @click="regexp = !regexp" />
+                <q-btn flat dense no-caps size="12px" label="Aa" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" :color="matchCase ? 'primary' : undefined"
+                    :class="matchCase ? 'bg-[var(--accent-tint)]' : 'text-[var(--text-muted)]'" :aria-pressed="matchCase" title="Match case" aria-label="Match case" @click="matchCase = !matchCase" />
+                <q-btn flat dense no-caps size="12px" label="ab" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0! underline underline-offset-2" :color="wholeWord ? 'primary' : undefined"
+                    :class="wholeWord ? 'bg-[var(--accent-tint)]' : 'text-[var(--text-muted)]'" :aria-pressed="wholeWord" title="Match whole word" aria-label="Match whole word" @click="wholeWord = !wholeWord" />
+                <q-btn flat dense no-caps size="12px" label=".*" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0! font-mono" :color="regexp ? 'primary' : undefined"
+                    :class="regexp ? 'bg-[var(--accent-tint)]' : 'text-[var(--text-muted)]'" :aria-pressed="regexp" title="Regular expression" aria-label="Regular expression" @click="regexp = !regexp" />
             </div>
             <div class="flex flex-nowrap! h-7 shrink-0 items-center gap-1 text-[var(--text-muted)]">
-                <q-btn v-if="!readOnly.value" flat dense size="12px" icon="find_replace" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" :color="replaceExpanded ? 'amber' : undefined"
-                    :class="replaceExpanded ? 'bg-amber-500/15' : ''" :aria-expanded="replaceExpanded" title="Toggle replace" aria-label="Toggle replace" @click="replaceExpanded = !replaceExpanded" />
+                <q-btn v-if="!readOnly.value" flat dense size="12px" icon="find_replace" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" :color="replaceExpanded ? 'primary' : undefined"
+                    :class="replaceExpanded ? 'bg-[var(--accent-tint)]' : ''" :aria-expanded="replaceExpanded" title="Toggle replace" aria-label="Toggle replace" @click="replaceExpanded = !replaceExpanded" />
                 <q-btn flat dense size="12px" icon="select_all" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" title="Select all matches" aria-label="Select all matches" :disable="!hasMatches" @click="selectMatches(view)" />
                 <span class="mx-1 h-4 border-l border-[var(--border-default)]" aria-hidden="true" />
                 <q-btn flat dense size="12px" icon="chevron_left" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" title="Previous match (Shift+Enter)" aria-label="Previous match" :disable="!hasMatches" @click="find(true)" />
@@ -26,7 +26,7 @@
         </div>
         <div v-if="replaceExpanded && !readOnly.value" class="mt-1 flex flex-wrap items-center gap-2">
             <q-input v-model="replaceText" borderless dense dark hide-bottom-space placeholder="Replace with…" aria-label="Replace with"
-                class="h-7 w-[360px] max-w-full min-w-0 rounded border border-[var(--border-default)] bg-[var(--surface-data)] px-2 focus-within:border-amber-500 [&_.q-field\_\_control]:h-7! [&_.q-field\_\_control]:min-h-0! [&_.q-field\_\_control-container]:h-full!"
+                class="h-7 w-[360px] max-w-full min-w-0 rounded border border-[var(--border-default)] bg-[var(--surface-data)] px-2 focus-within:border-[var(--accent-color)] [&_.q-field\_\_control]:h-7! [&_.q-field\_\_control]:min-h-0! [&_.q-field\_\_control-container]:h-full!"
                 input-class="text-[length:var(--ui-font-size)]! leading-normal! h-full! min-h-0! py-0!" @keydown.enter.prevent.stop="replaceNext(view)" />
             <div class="flex items-center gap-1 text-[var(--text-muted)]">
                 <q-btn flat dense size="12px" icon="find_replace" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" title="Replace next match" aria-label="Replace next match" :disable="!hasMatches" @click="replaceNext(view)" />

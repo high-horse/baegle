@@ -1,16 +1,16 @@
 <template>
     <div>
-        <q-select :model-value="modelValue" :options="options" :label="label" clearable outlined dense color="amber"
+        <q-select :model-value="modelValue" :options="options" :label="label" clearable outlined dense color="primary"
             :disable="disable" hint="Clear the selection to leave this connection ungrouped."
             @update:model-value="$emit('update:modelValue', $event)" />
-        <q-btn v-if="!creating" flat dense no-caps color="amber" icon="create_new_folder" label="Create group"
+        <q-btn v-if="!creating" flat dense no-caps color="primary" icon="create_new_folder" label="Create group"
             class="q-mt-sm" :disable="disable" @click="startCreating" />
         <div v-else class="q-mt-sm">
-            <q-input ref="nameInput" v-model="newName" label="New group name" outlined dense color="amber" :disable="disable"
+            <q-input ref="nameInput" v-model="newName" label="New group name" outlined dense color="primary" :disable="disable"
                 @keydown.enter.stop.prevent="createGroup" @keydown.esc.stop.prevent="creating = false" />
             <div class="row justify-end q-gutter-sm q-mt-sm">
                 <q-btn flat dense no-caps label="Cancel" :disable="disable" @click="creating = false" />
-                <q-btn unelevated dense no-caps color="amber" text-color="black" label="Create group"
+                <q-btn unelevated dense no-caps color="primary" text-color="black" label="Create group"
                     :disable="disable || !newName.trim()" @click="createGroup" />
             </div>
         </div>

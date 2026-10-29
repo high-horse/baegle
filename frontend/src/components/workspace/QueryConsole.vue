@@ -17,7 +17,7 @@
 
                 <span
                     v-if="activeTab?.dirty"
-                    class="text-[length:var(--ui-font-size)] text-amber-500"
+                    class="text-[length:var(--ui-font-size)] text-secondary"
                 >
                     Modified
                 </span>
@@ -31,7 +31,7 @@
             >
                 <QueryHistory />
                 <span v-if="isNoSQL(dbDriver)">{{ dbDriver === 'cassandra' ? 'CQL' : dbDriver === 'redis' ? 'Redis command array' : dbDriver === 'couchdb' ? 'CouchDB JSON request' : 'MongoDB JSON command' }}</span>
-                <q-btn flat dense no-caps size="sm" class="query-action" icon="save" label="Save" color="amber" :loading="activeTab.savingConsole" :disable="activeTab.closing" title="Save console (Ctrl+S)" aria-label="Save console" @click="queryTabsStore.saveConsole(activeTab.id)" />
+                <q-btn flat dense no-caps size="sm" class="query-action" icon="save" label="Save" color="primary" :loading="activeTab.savingConsole" :disable="activeTab.closing" title="Save console (Ctrl+S)" aria-label="Save console" @click="queryTabsStore.saveConsole(activeTab.id)" />
                 <span>{{ activeTab.stopping ? 'Stopping…' : activeTab.runningScript ? 'Script running…' : activeTab.runningQuery ? 'Query running…' : 'Ctrl + Enter' }}</span>
                 <QueryElapsedTime v-if="activeTab.runningQuery && activeTab.queryStartedAt != null" :started-at="activeTab.queryStartedAt" />
 
@@ -46,7 +46,7 @@
                     unelevated
                     dense
                     no-caps
-                    color="amber"
+                    color="primary"
                     text-color="black"
                     size="sm"
                     class="query-action"
@@ -118,7 +118,7 @@
 
             <q-btn
                 unelevated
-                color="amber"
+                color="primary"
                 text-color="black"
                 size="sm"
                 dense

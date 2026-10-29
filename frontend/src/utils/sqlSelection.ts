@@ -10,13 +10,13 @@ export const sqlSelection = [
     )),
     EditorView.theme({
         "&.cm-focused .cm-selectionLayer .cm-selectionBackground": {
-            backgroundColor: "#316ac5 !important",
+            backgroundColor: "var(--selection-bg) !important",
         },
         "&:not(.cm-focused) .cm-selectionLayer .cm-selectionBackground": {
-            backgroundColor: "#3d5570",
+            backgroundColor: "var(--accent-surface)",
         },
         "&.cm-focused .cm-consoleSelectedText": {
-            backgroundColor: "#316ac5 !important",
+            backgroundColor: "var(--selection-bg) !important",
         },
         "&.cm-focused .cm-consoleSelectedText, &.cm-focused .cm-consoleSelectedText *": {
             color: "#ffffff !important",

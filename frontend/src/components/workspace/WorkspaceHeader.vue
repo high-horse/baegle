@@ -7,7 +7,7 @@
             <q-icon
                 name="dns"
                 size="20px"
-                class="text-amber-400"
+                class="text-primary"
             />
 
             <span
@@ -39,7 +39,7 @@
                 round
                 icon="logout"
                 size="sm"
-                class="text-amber-400 hover:bg-amber-500/10"
+                class="text-primary hover:bg-[var(--accent-tint)]"
                 @click="handleDisconnect"
             />
         </div>

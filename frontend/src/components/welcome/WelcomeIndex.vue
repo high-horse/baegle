@@ -1,53 +1,58 @@
 <template>
     <q-card flat bordered class="connection-card">
         <q-card-section class="row items-center no-wrap q-pa-lg">
-            <q-avatar rounded color="amber" text-color="black" icon="storage" size="44px" />
+            <q-avatar rounded color="primary" text-color="black" icon="storage" size="44px" />
             <div class="q-ml-md col">
                 <div class="text-h6">{{ editingId ? 'Edit connection' : 'Database connection' }}</div>
                 <div class="text-caption text-grey-5">{{ editingId ? 'Update your saved connection settings.' : 'Choose a database and enter your connection details.' }}</div>
             </div>
             <q-btn v-if="editingId" flat round dense icon="close" aria-label="Cancel editing" color="grey-5" @click="cancelEdit" />
         </q-card-section>
-        <q-tabs v-model="databaseGroup" dense active-color="amber" indicator-color="amber" align="justify" no-caps class="q-px-md" aria-label="Database category">
+        <q-tabs v-model="databaseGroup" dense active-color="primary" indicator-color="primary" align="justify" no-caps class="q-px-md" aria-label="Database category">
             <q-tab name="sql" label="SQL" />
             <q-tab name="nosql" label="NoSQL" />
         </q-tabs>
         <div class="database-options q-pa-md" role="group" :aria-label="databaseGroup === 'sql' ? 'SQL databases' : 'NoSQL databases'">
             <q-btn v-for="database in availableDatabases" :key="database.value" flat no-caps
-                :label="database.label" :aria-pressed="form.type === database.value"
-                :color="form.type === database.value ? 'amber' : 'grey-5'"
+                :aria-label="database.label" :aria-pressed="form.type === database.value"
+                :color="form.type === database.value ? 'primary' : 'grey-5'"
                 :class="{ 'database-option-selected': form.type === database.value }"
                 class="database-option" :disable="saving || loadingSavedConnection"
-                @click="form.type = database.value" />
+                @click="form.type = database.value">
+                <span class="database-option-content">
+                    <span class="database-option-icon" aria-hidden="true">{{ database.emoji }}</span>
+                    <span class="database-option-name">{{ database.label }}</span>
+                </span>
+            </q-btn>
         </div>
         <q-separator dark />
         <q-form ref="formRef" @submit="editingId ? saveConnection() : connect()">
             <q-card-section class="q-pa-lg">
                 <div class="row q-col-gutter-md">
                     <div class="col-12">
-                        <q-input v-model="form.connection_name" label="Connection name" :rules="[required]" outlined dense color="amber" hide-bottom-space />
+                        <q-input v-model="form.connection_name" label="Connection name" :rules="[required]" outlined dense color="primary" hide-bottom-space />
                     </div>
                     <div class="col-12">
                         <ConnectionGroupSelect v-model="form.group" :groups="store.connectionGroups" :disable="saving || loadingSavedConnection" />
                     </div>
                     <template v-if="form.type !== 'sqlite'">
                         <div class="col-12 col-sm-8">
-                            <q-input v-model="form.host" :label="form.type === 'mongodb' ? 'Host or MongoDB URI' : 'Database host'" :rules="[required]" outlined dense color="amber" hide-bottom-space />
+                            <q-input v-model="form.host" :label="form.type === 'mongodb' ? 'Host or MongoDB URI' : 'Database host'" :rules="[required]" outlined dense color="primary" hide-bottom-space />
                         </div>
                         <div class="col-12 col-sm-4">
-                            <q-input v-model.number="form.port" label="Port" type="number" :disable="isMongoURI" :rules="isMongoURI ? [] : [validPort]" outlined dense color="amber" hide-bottom-space />
+                            <q-input v-model.number="form.port" label="Port" type="number" :disable="isMongoURI" :rules="isMongoURI ? [] : [validPort]" outlined dense color="primary" hide-bottom-space />
                         </div>
                         <div v-if="form.use_ssh || form.type === 'mongodb'" class="col-12 text-caption text-grey-5">
                             {{ form.use_ssh ? 'Use the database host reachable from your SSH server.' : 'Enter a host or mongodb:// / mongodb+srv:// URI.' }}
                         </div>
                         <div class="col-12 col-sm-6">
-                            <q-input v-model="form.user" :label="isNoSQL(form.type) ? 'User (optional)' : 'User'" :disable="isMongoURI" :rules="isNoSQL(form.type) ? [] : [required]" outlined dense color="amber" hide-bottom-space />
+                            <q-input v-model="form.user" :label="isNoSQL(form.type) ? 'User (optional)' : 'User'" :disable="isMongoURI" :rules="isNoSQL(form.type) ? [] : [required]" outlined dense color="primary" hide-bottom-space />
                         </div>
                         <div class="col-12 col-sm-6">
-                            <q-input v-model="form.password" label="Password" type="password" :disable="isMongoURI" outlined dense color="amber" hide-bottom-space />
+                            <q-input v-model="form.password" label="Password" type="password" :disable="isMongoURI" outlined dense color="primary" hide-bottom-space />
                         </div>
                         <div class="col-12">
-                            <q-input v-model="form.database" :label="form.type === 'oracle' ? 'Service name' : form.type === 'cassandra' ? 'Keyspace' : form.type === 'redis' ? 'Database index' : 'Database'" :rules="form.type === 'redis' ? [validRedisDatabase] : [required]" outlined dense color="amber" hide-bottom-space />
+                            <q-input v-model="form.database" :label="form.type === 'oracle' ? 'Service name' : form.type === 'cassandra' ? 'Keyspace' : form.type === 'redis' ? 'Database index' : 'Database'" :rules="form.type === 'redis' ? [validRedisDatabase] : [required]" outlined dense color="primary" hide-bottom-space />
                         </div>
                         <div v-if="form.type === 'oracle'" class="col-12 text-caption text-grey-5">Enter the Oracle service name, for example FREEPDB1. Connects using a database username and password.</div>
                         <div v-if="form.type === 'sqlserver'" class="col-12 text-caption text-grey-5">Use SQL Server authentication and the instance’s TCP port (usually 1433).</div>
@@ -57,34 +62,34 @@
                         <div v-if="form.type === 'redis'" class="col-12 text-caption text-grey-5">Standalone Redis. Database 0 is the default. Leave User empty for password-only authentication.</div>
                     </template>
                     <div v-else class="col-12">
-                        <q-input v-model="form.database" label="Database file" hint="/path/to/database.db" :rules="[required]" outlined dense color="amber">
+                        <q-input v-model="form.database" label="Database file" hint="/path/to/database.db" :rules="[required]" outlined dense color="primary">
                             <template #append><q-icon name="folder_open" /></template>
                         </q-input>
                     </div>
                 </div>
                 <div class="row items-center q-gutter-x-lg q-mt-lg">
-                    <q-checkbox v-if="!editingId" v-model="form.save_connection" label="Save connection" dense color="amber" />
-                    <q-checkbox v-model="form.readonly" label="Read only" dense color="amber" />
-                    <q-checkbox v-if="['oracle', 'sqlserver', 'db2'].includes(form.type) || isNoSQL(form.type)" v-model="form.ssl" label="Require TLS encryption" dense color="amber" />
+                    <q-checkbox v-if="!editingId" v-model="form.save_connection" label="Save connection" dense color="primary" />
+                    <q-checkbox v-model="form.readonly" label="Read only" dense color="primary" />
+                    <q-checkbox v-if="['oracle', 'sqlserver', 'db2'].includes(form.type) || isNoSQL(form.type)" v-model="form.ssl" label="Require TLS encryption" dense color="primary" />
                 </div>
                 <q-list v-if="form.type !== 'sqlite'" bordered class="connection-options q-mt-lg">
                     <q-item>
-                        <q-item-section avatar><q-icon name="vpn_key" color="amber" /></q-item-section>
+                        <q-item-section avatar><q-icon name="vpn_key" color="primary" /></q-item-section>
                         <q-item-section>
                             <q-item-label>SSH tunnel</q-item-label>
                             <q-item-label caption>{{ form.use_ssh && sshForm.host ? `${sshForm.username}@${sshForm.host}:${sshForm.port}` : 'Connect through an SSH server' }}</q-item-label>
                         </q-item-section>
-                        <q-item-section side><q-toggle v-model="form.use_ssh" :disable="isMongoURI" color="amber" aria-label="Connect through SSH tunnel" /></q-item-section>
+                        <q-item-section side><q-toggle v-model="form.use_ssh" :disable="isMongoURI" color="primary" aria-label="Connect through SSH tunnel" /></q-item-section>
                     </q-item>
                     <q-item v-if="form.use_ssh" dense>
-                        <q-item-section><q-btn flat no-caps color="amber" label="Configure SSH" icon="settings" @click="sshDialog = true" /></q-item-section>
+                        <q-item-section><q-btn flat no-caps color="primary" label="Configure SSH" icon="settings" @click="sshDialog = true" /></q-item-section>
                     </q-item>
                 </q-list>
             </q-card-section>
             <q-separator dark />
             <q-card-actions align="right" class="q-pa-lg">
                 <q-btn v-if="editingId" flat no-caps label="Cancel" color="grey-5" :disable="saving" @click="cancelEdit" />
-                <q-btn unelevated no-caps color="amber" text-color="black" :label="editingId ? 'Save changes' : 'Test connection'" :icon="editingId ? 'save' : 'network_check'" type="submit" :loading="saving" :disable="loadingSavedConnection" />
+                <q-btn unelevated no-caps color="primary" text-color="black" :label="editingId ? 'Save changes' : 'Test connection'" :icon="editingId ? 'save' : 'network_check'" type="submit" :loading="saving" :disable="loadingSavedConnection" />
             </q-card-actions>
         </q-form>
     </q-card>
@@ -92,7 +97,7 @@
     <q-dialog v-model="sshDialog" persistent>
         <q-card flat bordered class="connection-card ssh-card">
             <q-card-section class="row items-center no-wrap q-pa-lg">
-                <q-avatar rounded color="amber-10" text-color="amber-3" icon="vpn_key" size="44px" />
+                <q-avatar rounded color="dark" text-color="primary" icon="vpn_key" size="44px" />
                 <div class="col q-ml-md">
                     <div class="text-h6">SSH configuration</div>
                     <div class="text-caption text-grey-5">Set up the tunnel for this database connection.</div>
@@ -103,23 +108,23 @@
             <q-form ref="sshFormRef" @submit="saveSshConfig">
                 <q-card-section class="q-pa-lg">
                     <div class="row q-col-gutter-md">
-                        <div class="col-12"><q-input v-model="sshForm.name" label="Configuration name" :rules="[required]" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
-                        <div class="col-12 col-sm-8"><q-input v-model="sshForm.host" label="SSH host" :rules="[required]" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
-                        <div class="col-12 col-sm-4"><q-input v-model.number="sshForm.port" label="Port" type="number" :rules="[validPort]" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
-                        <div class="col-12"><q-input v-model="sshForm.username" label="Username" :rules="[required]" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
+                        <div class="col-12"><q-input v-model="sshForm.name" label="Configuration name" :rules="[required]" outlined dense color="primary" hide-bottom-space :disable="testingSsh" /></div>
+                        <div class="col-12 col-sm-8"><q-input v-model="sshForm.host" label="SSH host" :rules="[required]" outlined dense color="primary" hide-bottom-space :disable="testingSsh" /></div>
+                        <div class="col-12 col-sm-4"><q-input v-model.number="sshForm.port" label="Port" type="number" :rules="[validPort]" outlined dense color="primary" hide-bottom-space :disable="testingSsh" /></div>
+                        <div class="col-12"><q-input v-model="sshForm.username" label="Username" :rules="[required]" outlined dense color="primary" hide-bottom-space :disable="testingSsh" /></div>
                         <div class="col-12">
-                            <q-select v-model="sshForm.auth_method" label="Authentication method" outlined dense color="amber" emit-value map-options :disable="testingSsh" :options="[{ label: 'Local keys / agent', value: 'password' }, { label: 'Private key', value: 'private_key' }]" />
+                            <q-select v-model="sshForm.auth_method" label="Authentication method" outlined dense color="primary" emit-value map-options :disable="testingSsh" :options="[{ label: 'Local keys / agent', value: 'password' }, { label: 'Private key', value: 'private_key' }]" />
                         </div>
                         <div v-if="sshForm.auth_method === 'password'" class="col-12">
-                            <q-input v-model="sshForm.password" label="SSH password (optional)" hint="Leave blank to use your SSH agent or local keys." type="password" outlined dense color="amber" :disable="testingSsh" />
+                            <q-input v-model="sshForm.password" label="SSH password (optional)" hint="Leave blank to use your SSH agent or local keys." type="password" outlined dense color="primary" :disable="testingSsh" />
                         </div>
                         <template v-if="sshForm.auth_method === 'private_key'">
-                            <div class="col-12"><q-input v-model="sshForm.private_key" label="Private key or file path" :rules="[required]" type="textarea" outlined dense color="amber" autogrow hint="Paste your key or enter a path such as ~/.ssh/id_ed25519" :disable="testingSsh" /></div>
-                            <div class="col-12"><q-input v-model="sshForm.passphrase" label="Key passphrase (optional)" type="password" outlined dense color="amber" hide-bottom-space :disable="testingSsh" /></div>
+                            <div class="col-12"><q-input v-model="sshForm.private_key" label="Private key or file path" :rules="[required]" type="textarea" outlined dense color="primary" autogrow hint="Paste your key or enter a path such as ~/.ssh/id_ed25519" :disable="testingSsh" /></div>
+                            <div class="col-12"><q-input v-model="sshForm.passphrase" label="Key passphrase (optional)" type="password" outlined dense color="primary" hide-bottom-space :disable="testingSsh" /></div>
                         </template>
                     </div>
                     <q-banner dense rounded class="connection-note q-mt-lg">
-                        <template #avatar><q-icon name="info_outline" color="amber" /></template>
+                        <template #avatar><q-icon name="info_outline" color="primary" /></template>
                         Test SSH checks your SSH login. Test connection checks database access through the tunnel.
                     </q-banner>
                     <div class="text-caption text-grey-5 q-mt-md">Connect with OpenSSH first to trust the server in ~/.ssh/known_hosts.</div>
@@ -127,8 +132,8 @@
                 <q-separator dark />
                 <q-card-actions align="right" class="q-pa-lg">
                     <q-btn flat no-caps label="Cancel" color="grey-5" :disable="testingSsh" @click="cancelSsh" />
-                    <q-btn outline no-caps label="Test SSH" icon="network_check" color="amber" :loading="testingSsh" @click="testSshConnection" />
-                    <q-btn unelevated no-caps label="Save SSH" icon="save" color="amber" text-color="black" :disable="testingSsh" type="submit" />
+                    <q-btn outline no-caps label="Test SSH" icon="network_check" color="primary" :loading="testingSsh" @click="testSshConnection" />
+                    <q-btn unelevated no-caps label="Save SSH" icon="save" color="primary" text-color="black" :disable="testingSsh" type="submit" />
                 </q-card-actions>
             </q-form>
         </q-card>
@@ -174,20 +179,20 @@ const form = ref({
     use_ssh: false,
 });
 const sqlDatabases = [
-    { value: 'pgx', label: 'PostgreSQL' },
-    { value: 'mysql', label: 'MySQL' },
-    { value: 'sqlite', label: 'SQLite' },
-    { value: 'oracle', label: 'Oracle' },
-    { value: 'sqlserver', label: 'SQL Server' },
-    { value: 'db2', label: 'IBM Db2' },
+    { value: 'pgx', label: 'PostgreSQL', emoji: '🐘' },
+    { value: 'mysql', label: 'MySQL', emoji: '🐬' },
+    { value: 'sqlite', label: 'SQLite', emoji: '🪶' },
+    { value: 'oracle', label: 'Oracle', emoji: '🔴' },
+    { value: 'sqlserver', label: 'SQL Server', emoji: '🗄️' },
+    { value: 'db2', label: 'IBM Db2', emoji: '🟦' },
 ];
 const lastSQLDriver = ref('pgx');
 const lastNoSQLDriver = ref('mongodb');
 const nosqlDatabases = [
-    { value: 'mongodb', label: 'MongoDB' },
-    { value: 'cassandra', label: 'Cassandra' },
-    { value: 'couchdb', label: 'CouchDB' },
-    { value: 'redis', label: 'Redis' },
+    { value: 'mongodb', label: 'MongoDB', emoji: '🍃' },
+    { value: 'cassandra', label: 'Cassandra', emoji: '👁️' },
+    { value: 'couchdb', label: 'CouchDB', emoji: '🛋️' },
+    { value: 'redis', label: 'Redis', emoji: '⚡' },
 ];
 const databaseGroup = computed({
     get: () => isNoSQL(form.value.type) ? 'nosql' : 'sql',
@@ -459,14 +464,18 @@ onMounted(async () => {
 }
 .database-option {
     min-width: 0;
-    min-height: 36px;
+    min-height: 44px;
     border: 1px solid var(--border-default);
     border-radius: 6px;
 }
 .database-option-selected {
-    border-color: #b88626;
-    background: rgba(255, 193, 7, 0.08);
+    border-color: var(--accent-color);
+    background: var(--accent-tint);
 }
+.database-option-content { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; text-align: left; }
+.database-option-icon { flex: 0 0 26px; text-align: center; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 21px; line-height: 1; }
+.database-option-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.database-option:focus-visible { outline: 2px solid var(--selection-border); outline-offset: 2px; }
 @media (max-width: 480px) {
     .database-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

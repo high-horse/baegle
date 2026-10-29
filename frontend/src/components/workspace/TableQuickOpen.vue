@@ -33,7 +33,7 @@
                     @mousedown.prevent
                     @click="openItem(index)"
                 >
-                    <q-icon :name="item.type === 'VIEW' ? 'visibility' : item.type === 'COLLECTION' ? 'data_object' : 'table_chart'" color="amber-5" size="18px" />
+                    <q-icon :name="item.type === 'VIEW' ? 'visibility' : item.type === 'COLLECTION' ? 'data_object' : 'table_chart'" color="primary" size="18px" />
                     <div class="col min-w-0">
                         <div class="table-picker-name">{{ item.name }}</div>
                         <div class="text-caption text-grey-5 table-picker-name">{{ [item.database, item.schema].filter(Boolean).join(' · ') }}</div>
@@ -169,6 +169,6 @@ onBeforeUnmount(() => {
 .table-picker { width: 600px; max-width: calc(100vw - 32px); margin-top: 10vh; background: var(--surface-panel); color: var(--text-primary); border: 1px solid var(--border-default); }
 .table-picker-results { height: 320px; max-height: 55vh; overflow-y: auto; }
 .table-picker-option { display: flex; align-items: center; gap: 12px; padding: 8px 16px; height: 56px; box-sizing: border-box; cursor: pointer; }
-.table-picker-selected { background: #494236; box-shadow: inset 3px 0 #f59e0b; }
+.table-picker-selected { background: var(--accent-surface); box-shadow: inset 3px 0 var(--accent-color); }
 .table-picker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

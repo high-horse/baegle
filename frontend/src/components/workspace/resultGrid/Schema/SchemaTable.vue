@@ -33,7 +33,7 @@
                             :class="{
                                 'sn-header': col.name === 'sn',
                             }"
-                            class="schema-header text-amber-400"
+                            class="schema-header text-primary"
                         >
                             {{ col.label }}
                         </q-th>
@@ -69,7 +69,7 @@
                                     <q-icon
                                         name="view_column"
                                         size="14px"
-                                        class="text-amber-500"
+                                        class="text-primary"
                                     />
     
                                     <span class="text-white font-medium">
@@ -83,7 +83,7 @@
                                     :class="
                                         props.row.nullable
                                             ? 'text-teal-400'
-                                            : 'text-amber-400'
+                                            : 'text-primary'
                                     "
                                 >
                                     {{

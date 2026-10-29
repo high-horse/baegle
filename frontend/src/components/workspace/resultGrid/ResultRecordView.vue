@@ -4,7 +4,7 @@
             <div class="record-summary" role="status">
                 <strong>Row {{ row._rowNumber }}</strong>
                 <span>{{ position + 1 }} of {{ total }} shown · {{ columns.length }} columns</span>
-                <span v-if="row._status" class="text-amber-400">Pending {{ row._status }}</span>
+                <span v-if="row._status" class="text-primary">Pending {{ row._status }}</span>
             </div>
             <div class="record-actions">
                 <q-btn flat dense round icon="chevron_left" aria-label="Previous row" title="Previous row" :disable="position <= 0" @click="emit('move', -1)" />
@@ -101,13 +101,13 @@ onMounted(async () => {
 .result-record { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface-data); color: var(--text-primary); font-family: monospace; font-size: var(--grid-font-size, 11px); outline: none; }
 .record-header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px; background: var(--surface-panel); border-bottom: 1px solid var(--border-default); }
 .record-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-width: 0; }
-.record-summary strong { color: #fbbf24; }
+.record-summary strong { color: var(--accent-color); }
 .record-summary > span { color: var(--text-muted); }
 .record-actions { display: flex; flex-shrink: 0; align-items: center; gap: 2px; }
 .record-fields { position: relative; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; }
 table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; }
 th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--border-default); overflow-wrap: anywhere; }
-thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-panel); color: #fbbf24; }
+thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-panel); color: var(--accent-color); }
 th:first-child { width: 32%; border-right: 1px solid var(--border-default); }
 tbody th { font-weight: 500; }
 td { white-space: pre-wrap; }

@@ -11,8 +11,12 @@
     --border-default: #5b6067;
     --text-primary: #e0e3e7;
     --text-muted: #b3bac3;
-    --selection-bg: #465f7b;
-    --selection-border: #8db9e8;
+    --selection-bg: #365c59;
+    --selection-border: #73decb;
+    --accent-color: #59cbb7;
+    --accent-secondary: #b7a5e8;
+    --accent-surface: #36514f;
+    --accent-tint: rgba(89, 203, 183, 0.14);
     --ui-font-size: 11px;
     --grid-font-size: 11px;
     --sidebar-font-size: 12px;

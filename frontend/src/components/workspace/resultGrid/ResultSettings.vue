@@ -31,9 +31,9 @@
                         class="q-mt-md" :min="0" :disable="loading || saving"
                         :rules="[value => value == null || value === '' || Number.isSafeInteger(value) && value >= 0 || 'Enter a nonnegative whole number']"
                         hint="Empty or 0 means unlimited. Applies to SQL scripts and data imports." />
-                    <q-toggle v-model="draft.stripedRows" label="Alternating row colors" color="amber"
+                    <q-toggle v-model="draft.stripedRows" label="Alternating row colors" color="primary"
                         class="block q-mt-sm" :disable="loading || saving" />
-                    <q-toggle v-model="draft.showNulls" label="Show NULL values explicitly" color="amber" class="block"
+                    <q-toggle v-model="draft.showNulls" label="Show NULL values explicitly" color="primary" class="block"
                         :disable="loading || saving" />
                 </q-card-section>
                 <q-card-actions align="right" class="q-pa-md">
@@ -41,10 +41,10 @@
                         @click="draft = { ...defaultResultSettings }" />
                     <q-space />
                     <q-btn flat no-caps label="Cancel" :disable="saving" v-close-popup />
-                    <q-btn unelevated no-caps type="submit" color="amber" text-color="black" label="Save"
+                    <q-btn unelevated no-caps type="submit" color="primary" text-color="black" label="Save"
                         :loading="saving" :disable="loading" />
                 </q-card-actions>
-                <q-inner-loading :showing="loading" color="amber" />
+                <q-inner-loading :showing="loading" color="primary" />
             </q-form>
         </q-card>
     </q-dialog>
@@ -105,7 +105,7 @@ async function save() {
 }
 
 .pagination-button:hover {
-    color: #fbbf24;
+    color: var(--accent-color);
     background: var(--border-default);
 }
 </style>

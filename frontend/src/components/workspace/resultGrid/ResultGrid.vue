@@ -16,7 +16,7 @@
 
                 <span
                     v-if="loading"
-                    class="text-amber-400 font-bold"
+                    class="text-primary font-bold"
                 >
                     • {{ fetchingLast ? 'Fetching remaining pages…' : result ? 'Fetching page…' : 'Executing…' }}
                     <template v-if="queryStartedAt != null"> · <QueryElapsedTime :started-at="queryStartedAt" /></template>
@@ -47,7 +47,7 @@
             v-if="loading && !result"
             class="flex-1 min-h-0 min-w-0 overflow-auto flex flex-col flex-nowrap items-center justify-center gap-3"
         >
-            <q-spinner-dots color="amber" size="32px" />
+            <q-spinner-dots color="primary" size="32px" />
 
             <span class="text-[length:var(--ui-font-size)] text-[var(--text-muted)] font-mono">
                 Executing query...
@@ -81,8 +81,8 @@
                 dense
                 no-caps
                 align="left"
-                active-color="amber"
-                indicator-color="amber"
+                active-color="primary"
+                indicator-color="primary"
                 class="result-sub-tabs shrink-0"
             >
                 <q-tab
@@ -240,7 +240,7 @@ watch(
 }
 
 .result-sub-tabs :deep(.q-tab--active) {
-    color: #f59e0b;
+    color: var(--accent-color);
     background: var(--surface-data);
 }
 

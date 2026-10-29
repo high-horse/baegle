@@ -66,7 +66,7 @@
                             <!-- Dirty indicator -->
                             <span
                                 v-if="(tab.type === 'query' && tab.dirty) || edits.hasPending(tab.id)"
-                                class="text-amber-500 text-[length:var(--ui-font-size)]"
+                                class="text-secondary text-[length:var(--ui-font-size)]"
                             >
                                 ●
                             </span>
@@ -74,7 +74,7 @@
                             <!-- Loading -->
                             <q-spinner
                                 v-if="tab.loading"
-                                color="amber"
+                                color="primary"
                                 size="11px"
                             />
                         </div>
@@ -243,10 +243,10 @@ function closeTabs(tabs: QueryTab[]) {
 }
 .workspace-tab:hover { background: var(--surface-hover); color: var(--text-primary); }
 .workspace-tab.workspace-tab-active {
-    background: #4a596a;
-    border-color: #71879f;
+    background: var(--accent-surface);
+    border-color: #568b83;
     color: #f1f6fc;
-    box-shadow: 0 1px 0 #4a596a;
+    box-shadow: 0 1px 0 var(--accent-surface);
 }
 .workspace-tab-active::before {
     content: "";
@@ -258,7 +258,7 @@ function closeTabs(tabs: QueryTab[]) {
     pointer-events: none;
 }
 .workspace-tab-active .tab-button { font-weight: 600; }
-.workspace-tab-active .tab-button :deep(.q-icon) { color: #b6d7fb; }
+.workspace-tab-active .tab-button :deep(.q-icon) { color: var(--selection-border); }
 .workspace-tab:focus-within { outline: 1px solid var(--selection-border); outline-offset: -2px; }
 .workspace-tab[data-drop-side]::after {
     content: "";
@@ -266,7 +266,7 @@ function closeTabs(tabs: QueryTab[]) {
     top: 3px;
     bottom: 3px;
     width: 2px;
-    background: #f59e0b;
+    background: var(--accent-color);
     z-index: 1;
     pointer-events: none;
 }
@@ -380,7 +380,7 @@ function closeTabs(tabs: QueryTab[]) {
 }
 
 .new-tab-button:hover {
-    color: #f59e0b !important;
+    color: var(--accent-color) !important;
     background: var(--surface-hover) !important;
 }
 </style>

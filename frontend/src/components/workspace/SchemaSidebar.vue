@@ -7,7 +7,7 @@
             class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-panel)]"
         >
             <div class="flex items-center gap-2 min-w-0">
-                <q-icon name="storage" size="15px" class="text-amber-400" />
+                <q-icon name="storage" size="15px" class="text-primary" />
 
                 <div class="min-w-0">
                     <div class="text-[length:var(--ui-font-size)] font-semibold text-white truncate">
@@ -29,7 +29,7 @@
                 round
                 icon="refresh"
                 size="xs"
-                class="text-[var(--text-muted)] hover:text-amber-400"
+                class="text-[var(--text-muted)] hover:text-primary"
                 :loading="loading"
                 @click="refreshSchema"
             />
@@ -77,8 +77,8 @@
                                 prop.node.type === 'table'
                                     ? 'text-white font-medium'
                                     : prop.node.type === 'view'
-                                      ? 'text-blue-300'
-                                      : 'text-amber-300'
+                                      ? 'text-secondary'
+                                      : 'text-primary'
                             "
                         >
                             {{ prop.node.label }}
@@ -220,7 +220,7 @@ const loading = ref(false);
          id: `schema-${schema}`,
          label: schema,
          icon: "schema",
-         iconColor: "amber-5",
+         iconColor: "primary",
          type: "schema",
  
          children: objects.map((item) => {
@@ -232,7 +232,7 @@ const loading = ref(false);
                  database: item.database,
                  label: item.name,
                  icon: item.type === "COLLECTION" ? "data_object" : isView ? "view_list" : "table_chart",
-                 iconColor: isView ? "blue-4" : "amber-4",
+                 iconColor: isView ? "secondary" : "primary",
                  type: item.type === "COLLECTION" ? "collection" : isView ? "view" : "table",
              };
          }),

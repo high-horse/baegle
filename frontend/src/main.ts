@@ -12,6 +12,9 @@ const app = createApp(App)
 const pinia = createPinia()
 
 app.use(Quasar, {
+  config: {
+    notify: { position: 'top-right' },
+  },
   plugins: {
     Dark,
     Notify,

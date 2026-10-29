@@ -3,18 +3,18 @@
         <q-header bordered class="portal-header">
             <q-toolbar class="q-px-lg" style="min-height: 64px">
                 <q-btn flat round dense icon="menu" aria-label="Toggle saved connections" :aria-expanded="drawerOpen" color="grey-4" class="q-mr-sm" @click="drawerOpen = !drawerOpen" />
-                <q-icon name="storage" size="24px" color="amber" />
+                <q-icon name="storage" size="24px" color="primary" />
                 <q-toolbar-title>
                     <div class="text-subtitle1 text-weight-medium">baegle</div>
                     <div class="text-caption text-grey-5">Database workspace</div>
                 </q-toolbar-title>
-                <q-btn unelevated no-caps color="amber" text-color="black" icon="add" label="New connection" @click="$router.push({ name: 'Welcome', query: {} })" />
+                <q-btn unelevated no-caps color="primary" text-color="black" icon="add" label="New connection" @click="$router.push({ name: 'Welcome', query: {} })" />
             </q-toolbar>
         </q-header>
         <q-drawer v-model="drawerOpen" show-if-above :breakpoint="1023" :width="drawerWidth" bordered class="portal-drawer" :class="{ 'portal-drawer-resizing': resizingDrawer }">
             <q-scroll-area class="fit" :content-style="{ width: '100%' }">
                 <q-list padding class="connection-list q-pa-md">
-                    <q-input ref="connectionSearchInput" v-model="connectionSearch" outlined dense clearable color="amber" label="Search saved connections" aria-keyshortcuts="Control+Shift+F" class="q-mb-md">
+                    <q-input ref="connectionSearchInput" v-model="connectionSearch" outlined dense clearable color="primary" label="Search saved connections" aria-keyshortcuts="Control+Shift+F" class="q-mb-md">
                         <template #prepend><q-icon name="search" /></template>
                     </q-input>
                     <q-item dense class="q-mb-sm">
@@ -36,14 +36,14 @@
                         </q-item-section>
                     </q-item>
                     <q-expansion-item v-for="group in groupedConnections" :key="group.name" default-opened icon="folder_open" :label="group.name || 'Ungrouped'" :caption="`${group.connections.length} connection${group.connections.length === 1 ? '' : 's'}`" header-class="text-grey-4" class="connection-group">
-                    <q-item v-for="connection in group.connections" :key="connection.id" clickable :active="String(connection.id) === $route.query.edit" active-class="text-amber" class="saved-connection q-mb-sm" @click="selectConnection(connection)" @keydown.enter.prevent="selectConnection(connection)" @contextmenu.prevent.stop="actionMenuId = connection.id">
+                    <q-item v-for="connection in group.connections" :key="connection.id" clickable :active="String(connection.id) === $route.query.edit" active-class="text-primary" class="saved-connection q-mb-sm" @click="selectConnection(connection)" @keydown.enter.prevent="selectConnection(connection)" @contextmenu.prevent.stop="actionMenuId = connection.id">
                         <q-item-section avatar>
-                            <q-spinner v-if="connectingConnectionId === connection.id" color="amber" size="20px" />
-                            <q-icon v-else name="lan" color="amber" size="20px" />
+                            <q-spinner v-if="connectingConnectionId === connection.id" color="primary" size="20px" />
+                            <q-icon v-else name="lan" color="primary" size="20px" />
                         </q-item-section>
                         <q-item-section>
                             <q-item-label class="connection-name">{{ connection.name }}</q-item-label>
-                            <q-item-label v-if="connectingConnectionId === connection.id" caption class="text-amber" role="status">{{ connectionStage }}</q-item-label>
+                            <q-item-label v-if="connectingConnectionId === connection.id" caption class="text-primary" role="status">{{ connectionStage }}</q-item-label>
                             <q-item-label caption class="connection-address">{{ connection.driver }} · {{ connection.host ? `${connection.host}:${connection.port.Int64}` : connection.dbname?.split('/').pop() }}</q-item-label>
                             <q-tooltip :delay="350" max-width="420px" class="connection-tooltip">
                                 <div class="text-weight-medium">{{ connection.name }}</div>
@@ -54,7 +54,7 @@
                             </q-tooltip>
                         </q-item-section>
                         <q-item-section side class="connection-actions">
-                            <q-btn flat round dense icon="more_vert" color="amber" :aria-label="`Actions for ${connection.name}`" @click.stop="actionMenuId = actionMenuId === connection.id ? null : connection.id" @dblclick.stop @keydown.enter.stop @keydown.space.stop>
+                            <q-btn flat round dense icon="more_vert" color="primary" :aria-label="`Actions for ${connection.name}`" @click.stop="actionMenuId = actionMenuId === connection.id ? null : connection.id" @dblclick.stop @keydown.enter.stop @keydown.space.stop>
                                 <q-menu :model-value="actionMenuId === connection.id" no-parent-event class="connection-menu" anchor="bottom right" self="top right" :offset="[0, 4]" @update:model-value="open => { if (!open && actionMenuId === connection.id) actionMenuId = null; }">
                                     <q-list dense style="min-width: 180px">
                                         <q-item clickable v-close-popup @click="actionMenuId = null; editConnection(connection.id)">
@@ -92,7 +92,7 @@
                     </q-card-section>
                     <q-card-actions align="right">
                         <q-btn flat label="Cancel" :disable="savingGroup" @click="groupConnection = null" />
-                        <q-btn type="submit" label="Save" color="amber" text-color="black" :loading="savingGroup" />
+                        <q-btn type="submit" label="Save" color="primary" text-color="black" :loading="savingGroup" />
                     </q-card-actions>
                 </q-form>
             </q-card>
@@ -114,8 +114,8 @@
                 <q-separator dark />
                 <q-card-actions align="right" class="q-pa-lg">
                     <q-btn flat no-caps label="Close" color="grey-5" @click="store.connectionError = null" />
-                    <q-btn outline no-caps label="Edit connection" color="amber" icon="edit" @click="editFailedConnection" />
-                    <q-btn unelevated no-caps label="Try again" color="amber" text-color="black" icon="refresh" @click="retryConnection" />
+                    <q-btn outline no-caps label="Edit connection" color="primary" icon="edit" @click="editFailedConnection" />
+                    <q-btn unelevated no-caps label="Try again" color="primary" text-color="black" icon="refresh" @click="retryConnection" />
                 </q-card-actions>
             </q-card>
         </q-dialog>

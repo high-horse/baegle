@@ -68,7 +68,7 @@
 
                                     <q-btn
                                         unelevated
-                                        color="amber"
+                                        color="primary"
                                         text-color="black"
                                         size="sm"
                                         label="New Query"

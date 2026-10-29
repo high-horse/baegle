@@ -306,7 +306,7 @@ onMounted(() => {
                         "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             
                     lineHeight: "1.7",
-                    caretColor: "#f59e0b",
+                    caretColor: "var(--accent-color)",
             
                     minWidth: "0",
                 },
@@ -323,11 +323,11 @@ onMounted(() => {
             
                 ".cm-activeLineGutter": {
                     backgroundColor: "var(--surface-hover)",
-                    color: "#f59e0b",
+                    color: "var(--accent-color)",
                 },
             
                 ".cm-activeLine": {
-                    backgroundColor: "rgba(245, 158, 11, 0.04)",
+                    backgroundColor: "rgba(89, 203, 183, 0.06)",
                 },
             
                 ".cm-tooltip-autocomplete": {
@@ -338,8 +338,8 @@ onMounted(() => {
                     borderRadius: "6px",
                 },
                 ".cm-tooltip-autocomplete ul li[aria-selected]": {
-                    backgroundColor: "#494236",
-                    color: "#f59e0b",
+                    backgroundColor: "var(--accent-surface)",
+                    color: "var(--accent-color)",
                 },
                 ".cm-completionDetail": {
                     color: "#94a3b8",
