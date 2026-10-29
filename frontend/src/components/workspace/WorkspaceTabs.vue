@@ -13,7 +13,7 @@
                 <div
                     v-for="(tab, index) in tabs"
                     :key="tab.id"
-                    class="workspace-tab h-full shrink-0 flex items-center border-r border-[var(--border-default)]"
+                    class="workspace-tab shrink-0 flex items-center"
                     :data-tab-id="tab.id"
                     draggable="true"
                     @dragstart="startDrag($event, tab.id)"
@@ -21,11 +21,7 @@
                     @dragover.prevent="dragOverTab($event, tab.id)"
                     :style="{ opacity: draggedTabId === tab.id ? 0.45 : undefined }"
                     :data-drop-side="dropTarget?.id === tab.id ? dropTarget.side : undefined"
-                    :class="
-                        tab.id === activeTabId
-                            ? 'bg-[var(--surface-base)]'
-                            : 'bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)]'
-                    "
+                    :class="{ 'workspace-tab-active': tab.id === activeTabId }"
                 >
                     <q-menu context-menu dark class="bg-[var(--surface-panel)] text-gray-300">
                         <q-list dense style="min-width: 210px">
@@ -45,15 +41,12 @@
                         no-caps
                         unelevated
                         class="tab-button"
-                        :class="
-                            tab.id === activeTabId
-                                ? 'text-amber-400 active-tab'
-                                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                        "
+                        :class="{ 'active-tab': tab.id === activeTabId }"
+                        :aria-current="tab.id === activeTabId ? 'page' : undefined"
                         @click="selectTab(tab.id)"
                     >
                         <div
-                            class="flex items-center gap-2 min-w-0 whitespace-nowrap"
+                            class="flex flex-nowrap items-center gap-2 min-w-0 whitespace-nowrap"
                         >
                             <!-- Query / Result icon -->
                             <q-icon
@@ -101,11 +94,6 @@
                         :disable="tab.closing"
                         @pointerdown.stop
                         @dragstart.stop.prevent
-                        :class="
-                            tab.id === activeTabId
-                                ? 'text-[var(--text-muted)]'
-                                : 'text-[var(--text-muted)]'
-                        "
                         @click.stop="closeTab(tab.id)"
                     >
                         <q-tooltip>
@@ -246,7 +234,32 @@ function closeTabs(tabs: QueryTab[]) {
     position: relative;
     cursor: grab;
     user-select: none;
+    height: 100%;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 6px 6px 0 0;
+    color: var(--text-muted);
+    transition: background-color 120ms ease, color 120ms ease;
 }
+.workspace-tab:hover { background: var(--surface-hover); color: var(--text-primary); }
+.workspace-tab.workspace-tab-active {
+    background: #4a596a;
+    border-color: #71879f;
+    color: #f1f6fc;
+    box-shadow: 0 1px 0 #4a596a;
+}
+.workspace-tab-active::before {
+    content: "";
+    position: absolute;
+    inset: -1px -1px auto;
+    height: 3px;
+    border-radius: 6px 6px 0 0;
+    background: var(--selection-border);
+    pointer-events: none;
+}
+.workspace-tab-active .tab-button { font-weight: 600; }
+.workspace-tab-active .tab-button :deep(.q-icon) { color: #b6d7fb; }
+.workspace-tab:focus-within { outline: 1px solid var(--selection-border); outline-offset: -2px; }
 .workspace-tab[data-drop-side]::after {
     content: "";
     position: absolute;
@@ -312,12 +325,14 @@ function closeTabs(tabs: QueryTab[]) {
      * Never allow tabs to wrap onto another line.
      */
     flex-wrap: nowrap !important;
+    gap: 3px;
+    padding: 4px 4px 0;
 }
 
 
 .tab-button {
-    height: 36px !important;
-    min-height: 36px !important;
+    height: 100% !important;
+    min-height: 0 !important;
 
     padding: 0 10px !important;
 
@@ -327,23 +342,7 @@ function closeTabs(tabs: QueryTab[]) {
     font-family: monospace;
 
     position: relative;
-}
-
-/*
- * Active tab bottom border
- */
-.tab-button.active-tab::after {
-    content: "";
-
-    position: absolute;
-
-    left: 0;
-    right: 0;
-    bottom: 0;
-
-    height: 2px;
-
-    background: #f59e0b;
+    color: inherit;
 }
 
 /*
@@ -361,7 +360,10 @@ function closeTabs(tabs: QueryTab[]) {
     margin-right: 2px;
 
     border-radius: 3px !important;
+    color: inherit;
+    opacity: .65;
 }
+.workspace-tab-active .tab-close, .workspace-tab:hover .tab-close, .tab-close:focus-visible { opacity: 1; }
 
 .tab-close:hover {
     color: #ffffff !important;
