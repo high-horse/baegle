@@ -8,6 +8,7 @@ import "@quasar/extras/material-icons/material-icons.css"
 import "./style.css"
 import router from './router'
 import { useResultSettingsStore } from './stores/resultSettingsStore'
+import { accentTheme } from './utils/accentTheme'
 const app = createApp(App)
 const pinia = createPinia()
 
@@ -30,6 +31,7 @@ document.documentElement.classList.add("dark")
 const resultSettings = useResultSettingsStore(pinia)
 watchEffect(() => {
   const style = document.documentElement.style
+  for (const [name, value] of Object.entries(accentTheme(resultSettings.accentPreview ?? resultSettings.settings.accentColor))) style.setProperty(name, value)
   style.setProperty('--ui-font-size', `${resultSettings.settings.fontSize}px`)
   style.setProperty('--grid-font-size', `${resultSettings.settings.fontSize}px`)
   style.setProperty('--sidebar-font-size', `${resultSettings.settings.sidebarFontSize}px`)

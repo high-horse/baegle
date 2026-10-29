@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 )
 
 func GetResultSettings(ctx context.Context) (types.ResultSettings, error) {
@@ -26,6 +27,9 @@ func GetResultSettings(ctx context.Context) (types.ResultSettings, error) {
 }
 
 func SaveResultSettings(ctx context.Context, settings types.ResultSettings) error {
+	if settings.AccentColor == "" {
+		settings.AccentColor = types.DefaultResultSettings().AccentColor
+	}
 	if err := validateResultSettings(settings); err != nil {
 		return err
 	}
@@ -39,6 +43,9 @@ func SaveResultSettings(ctx context.Context, settings types.ResultSettings) erro
 }
 
 func validateResultSettings(settings types.ResultSettings) error {
+	if !accentColorPattern.MatchString(settings.AccentColor) {
+		return fmt.Errorf("theme color must be a six-digit hex color, such as #59cbb7")
+	}
 	if settings.QueryTimeoutSeconds < 0 || settings.QueryTimeoutSeconds > 86400 {
 		return fmt.Errorf("query timeout must be between 0 and 86400 seconds; use 0 for unlimited")
 	}
@@ -59,3 +66,5 @@ func validateResultSettings(settings types.ResultSettings) error {
 	}
 	return nil
 }
+
+var accentColorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)

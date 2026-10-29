@@ -12,6 +12,21 @@
                 </q-card-section>
                 <q-card-section class="q-pt-none">
                     <q-banner v-if="error" class="bg-red-10 text-red-2 q-mb-md" role="alert">{{ error }}</q-banner>
+                    <div class="theme-preference q-mb-lg">
+                        <div class="q-mb-sm">Theme accent</div>
+                        <div class="theme-color-inputs">
+                            <input type="color" aria-label="Pick theme accent color" :value="isAccentColor(draft.accentColor) ? draft.accentColor : defaultResultSettings.accentColor"
+                                :disabled="loading || saving" @input="draft.accentColor = ($event.target as HTMLInputElement).value" />
+                            <q-input v-model="draft.accentColor" label="Accent color (hex)" outlined dense :disable="loading || saving"
+                                :rules="[value => isAccentColor(value) || 'Use a six-digit hex color, such as #59cbb7']" />
+                        </div>
+                        <div class="theme-presets q-mt-sm">
+                            <button v-for="preset in accentPresets" :key="preset.color" type="button" :title="preset.name"
+                                :aria-label="`Use ${preset.name} theme`" :aria-pressed="draft.accentColor.toLowerCase() === preset.color"
+                                :style="{ backgroundColor: preset.color }" :disabled="loading || saving" @click="draft.accentColor = preset.color" />
+                        </div>
+                        <div class="text-caption text-grey-5 q-mt-sm">Preview changes here. Save to keep them; Cancel restores your previous color.</div>
+                    </div>
                     <q-input v-model.number="draft.rowsPerPage" type="number" label="Rows per page" outlined dense
                         :min="1" :max="500" :disable="loading || saving"
                         :rules="[value => Number.isInteger(value) && value >= 1 && value <= 500 || 'Enter a whole number from 1 to 500']"
@@ -51,8 +66,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch, onBeforeUnmount } from "vue";
 import { defaultResultSettings, useResultSettingsStore } from "@/stores/resultSettingsStore";
+import { isAccentColor } from '@/utils/accentTheme';
 
 const store = useResultSettingsStore();
 const visible = ref(false);
@@ -60,6 +76,15 @@ const loading = ref(false);
 const saving = ref(false);
 const error = ref("");
 const draft = ref({ ...store.settings });
+const accentPresets = [
+    { name: 'Teal', color: '#59cbb7' }, { name: 'Blue', color: '#7cb7f0' },
+    { name: 'Lavender', color: '#b7a5e8' }, { name: 'Rose', color: '#e59bb0' },
+    { name: 'Amber', color: '#e5b769' }, { name: 'Sage', color: '#a8c68d' },
+];
+watch(() => [visible.value, draft.value.accentColor] as const, ([open, color]) => {
+    store.accentPreview = open && isAccentColor(color) ? color : null;
+});
+onBeforeUnmount(() => { if (visible.value) store.accentPreview = null; });
 async function openSettings() {
     visible.value = true;
     loading.value = true;
@@ -93,6 +118,14 @@ async function save() {
     background: var(--surface-panel);
     color: var(--text-primary);
 }
+.theme-color-inputs { display: flex; align-items: flex-start; gap: 12px; }
+.theme-color-inputs input[type="color"] { width: 44px; height: 40px; flex-shrink: 0; padding: 3px; border: 1px solid var(--border-default); border-radius: 5px; background: var(--surface-data); cursor: pointer; }
+.theme-color-inputs .q-field { flex: 1; min-width: 0; }
+.theme-presets { display: flex; gap: 10px; }
+.theme-presets button { width: 26px; height: 26px; border: 2px solid transparent; border-radius: 50%; cursor: pointer; }
+.theme-presets button[aria-pressed="true"] { border-color: var(--surface-base); outline: 2px solid var(--text-primary); }
+.theme-presets button:focus-visible, .theme-color-inputs input:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 3px; }
+.theme-presets button:disabled { opacity: .5; cursor: default; }
 
 .pagination-button {
     width: 24px;

@@ -244,7 +244,7 @@ function closeTabs(tabs: QueryTab[]) {
 .workspace-tab:hover { background: var(--surface-hover); color: var(--text-primary); }
 .workspace-tab.workspace-tab-active {
     background: var(--accent-surface);
-    border-color: #568b83;
+    border-color: var(--accent-color);
     color: #f1f6fc;
     box-shadow: 0 1px 0 var(--accent-surface);
 }

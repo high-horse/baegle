@@ -327,7 +327,7 @@ onMounted(() => {
                 },
             
                 ".cm-activeLine": {
-                    backgroundColor: "rgba(89, 203, 183, 0.06)",
+                    backgroundColor: "var(--accent-tint)",
                 },
             
                 ".cm-tooltip-autocomplete": {

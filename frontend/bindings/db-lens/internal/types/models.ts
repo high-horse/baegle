@@ -24,6 +24,7 @@ export interface Connection {
 }
 
 export interface ResultSettings {
+    "accentColor": string;
     "queryTimeoutSeconds": number;
     "rowsPerPage": number;
     "fontSize": number;
