@@ -32,6 +32,7 @@ type DbService struct {
 	historyRepo    *db.HistoryRepository
 	consoleMu      sync.Mutex
 	consoleQueries map[string]*consoleQuery
+	scriptProgress map[string]ScriptProgress
 	transferMu     sync.Mutex
 	importing      bool
 }

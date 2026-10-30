@@ -10,8 +10,8 @@
                                     horizontal
                                     :limits="[20, 80]"
                                     class="h-full min-w-0 min-h-0"
-                                    :class="{ 'results-collapsed': !showResults }"
-                                    :disable="!showResults"
+                                    :class="{ 'results-collapsed': !showResults && !tab.runningScript && !tab.scriptResult }"
+                                    :disable="!showResults && !tab.runningScript && !tab.scriptResult"
                                 >
                                     <!-- QUERY EDITOR -->
                                     <template #before>
@@ -19,6 +19,7 @@
                                             class="h-full min-w-0 min-h-0 overflow-hidden"
                                         >
                                             <QueryConsole
+                                                ref="queryConsoleRef"
                                                 :active-tab="
                                                     tab
                                                 "
@@ -39,7 +40,8 @@
                                         <div
                                             class="h-full min-w-0 min-h-0 overflow-hidden"
                                         >
-                                            <ResultGrid
+                                            <ScriptResults v-if="tab.scriptResult?.statements?.length" :result="tab.scriptResult" @focus-line="line => queryConsoleRef?.focusLine(line)" />
+                                            <ResultGrid v-else
                                         :query-started-at="tab.queryStartedAt"
                                         :key="tab.id"
                                         :can-first="!!tab.result && tab.result.StartRow > 1 && (tab.result.CanNavigate || !!tab.pages?.some(page => page.StartRow === 1))"
@@ -148,6 +150,7 @@ import type { QueryTab } from "@/types/queryTab";
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
 import QueryConsole from "./QueryConsole.vue";
 import ResultGrid from "./resultGrid/ResultGrid.vue";
+import ScriptResults from "./ScriptResults.vue";
 
 defineProps<{ tab: QueryTab; showResults: boolean }>();
 const emit = defineEmits<{
@@ -156,6 +159,7 @@ const emit = defineEmits<{
     openTable: [node: { id: string; label: string; type: string; schema: string; database: string }];
 }>();
 const queryTabsStore = useQueryTabsStore();
+const queryConsoleRef = ref<InstanceType<typeof QueryConsole> | null>(null);
 const editorHeight = ref(45);
 function executeQuery(id: string, sql: string) { emit("execute", id, sql); }
 function hideResults() { emit("hideResults"); }

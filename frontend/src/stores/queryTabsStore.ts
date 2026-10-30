@@ -1,4 +1,4 @@
-import { consoleExtension } from "@/utils/databaseDialect";
+import { consoleExtension, hasMultipleSQLStatements } from "@/utils/databaseDialect";
 import { Dialog, Notify } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { defineStore } from "pinia";
@@ -392,6 +392,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     if (!afterSave && (useTableEditsStore().hasPending(id) || useTableEditsStore().isSaving(id))) return;
     const tab = tabs.value.find(tab => tab.id === id);
     if (!tab || tab.loading || runningQueries.has(id) || !sql.trim()) return;
+    script ||= !afterSave && hasMultipleSQLStatements(sql, useConnectionStore().activeConnection?.driver);
     void cancelRowCount(id);
     tab.countError = undefined;
     const operation = { requestID: crypto.randomUUID(), stopping: false };
@@ -399,6 +400,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tab.runningQuery = true;
     tab.runningScript = script;
     tab.scriptResult = undefined;
+    tab.scriptProgress = undefined;
     tab.queryStartedAt = performance.now();
     tab.stopping = false;
     const previousCursor = tab.cursor ?? "";
@@ -422,14 +424,38 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tab.pageIndex = 0;
     tab.cursor = "";
     tab.executedSql = script ? undefined : sql;
+    let progressTimer: ReturnType<typeof setInterval> | undefined;
     try {
       if (script) {
         releaseCursor(previousCursor);
+        let polling = false;
+        const pollProgress = async () => {
+          if (polling) return;
+          polling = true;
+          try {
+            const progress = await DbService.GetConsoleScriptProgress(id, operation.requestID);
+            if (runningQueries.get(id) === operation && tab.runningScript && tabs.value.includes(tab) && progress?.requestID === operation.requestID) {
+              tab.scriptProgress = progress;
+            }
+          } catch { /* Progress reporting must not interrupt script execution. */ }
+          finally { polling = false; }
+        };
+        progressTimer = setInterval(() => { void pollProgress(); }, 250);
         const response = await DbService.ExecuteConsoleScript(id, operation.requestID,
           tab.connectionId ?? String(useConnectionStore().activeConnection?.id ?? ''), sql);
         if (!response) throw new Error('Script returned no response');
         if (!tabs.value.includes(tab)) return;
-        tab.scriptResult = response;
+        tab.scriptResult = {
+          ...response,
+          statements: (response.statements ?? []).map(statement => ({
+            ...statement,
+            results: (statement.results ?? []).map(result => ({
+              ...result,
+              columns: result.columns ?? [],
+              rows: (result.rows ?? []).map(row => row ?? []),
+            })),
+          })),
+        };
         tab.error = response.error || null;
         return;
       }
@@ -455,6 +481,8 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       if (afterSave && tab.result) tab.pageError = message;
       else setError(id, message);
     } finally {
+      if (progressTimer !== undefined) clearInterval(progressTimer);
+      tab.scriptProgress = undefined;
       runningQueries.delete(id);
       tab.loading = false;
       tab.runningQuery = false;

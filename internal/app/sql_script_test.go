@@ -9,10 +9,84 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
+
 	"db-lens/internal/db"
 	"db-lens/internal/engine/entities"
 	"db-lens/internal/types"
 )
+
+func TestScriptStatementResultsAndPreviewLimits(t *testing.T) {
+	s, table, conn := editService(t)
+	result, err := s.ExecuteConsoleScript(context.Background(), "results", "1", table.ConnectionID, `
+CREATE TEMP TABLE imported(id INTEGER PRIMARY KEY, name TEXT);
+INSERT INTO imported VALUES(1, 'one;two') RETURNING id, name;
+SELECT name, NULL AS empty, 9007199254740993 AS big FROM imported;
+WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x < 1100) SELECT x FROM n;
+INSERT INTO imported VALUES(2, 'after preview');
+SELECT count(*) AS total FROM imported;
+SELECT * FROM missing;
+INSERT INTO imported VALUES(3, 'must not run');`)
+	if err != nil || result.Completed != 6 || result.Total != 8 || len(result.Statements) != 7 || result.Error == "" {
+		t.Fatalf("script summary: %+v %v", result, err)
+	}
+	returning := result.Statements[1].Results[0]
+	if len(returning.Rows) != 1 || returning.Rows[0][1] != "one;two" {
+		t.Fatalf("RETURNING result: %+v", returning)
+	}
+	selected := result.Statements[2].Results[0]
+	if selected.Columns[0] != "name" || selected.Rows[0][1] != nil || selected.Rows[0][2] != "9007199254740993" {
+		t.Fatalf("query values: %+v", selected)
+	}
+	limited := result.Statements[3].Results[0]
+	if !limited.Truncated || len(limited.Rows) != 1000 {
+		t.Fatalf("preview limit: %+v", limited)
+	}
+	if count := result.Statements[4].RowsAffected; count == nil || *count != 1 {
+		t.Fatalf("affected rows: %v", count)
+	}
+	if count := result.Statements[5].Results[0].Rows[0][0]; count != int64(2) {
+		t.Fatalf("RETURNING ran more than once or later insert failed: %v", count)
+	}
+	if result.Statements[6].Error == "" || result.Statements[6].Line != 8 {
+		t.Fatalf("failed statement: %+v", result.Statements[6])
+	}
+	if s.GetConsoleScriptProgress("results", "1") != nil {
+		t.Fatal("completed progress was not cleaned up")
+	}
+	// The script's temporary table must not leak onto a pooled connection.
+	if _, err := conn.DB().Exec("SELECT * FROM imported"); err == nil {
+		t.Fatal("script session returned to pool")
+	}
+}
+
+func TestScriptBatchMultipleResultSets(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	mock.ExpectQuery("SELECT").WillReturnRows(
+		sqlmock.NewRows([]string{"first"}).AddRow([]byte("one")),
+		sqlmock.NewRows([]string{"second"}).AddRow(2),
+	).RowsWillBeClosed()
+	session, err := database.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	entry := ScriptStatementResult{}
+	remaining := 1
+	if err := executeScriptStatement(context.Background(), session, "sqlserver", "SELECT 1; SELECT 2;", &entry, &remaining); err != nil {
+		t.Fatal(err)
+	}
+	if len(entry.Results) != 2 || entry.Results[0].Rows[0][0] != "one" || !entry.Results[1].Truncated || len(entry.Results[1].Rows) != 0 {
+		t.Fatalf("batch results: %+v", entry.Results)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestScriptExecutionAndTransactionCleanup(t *testing.T) {
 	s, table, conn := editService(t)
@@ -71,6 +145,19 @@ func TestScriptCancellationAndSharedConsoleLock(t *testing.T) {
 	}
 	if _, err := s.ExecuteConsoleQuery(ctx, "c", "query", entities.QueryInput{Query: "SELECT 1"}); err == nil {
 		t.Fatal("query overlapped script")
+	}
+	for {
+		progress := s.GetConsoleScriptProgress("c", "long")
+		if progress != nil && progress.Current == 1 && progress.Total == 2 && progress.Completed == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("live progress: %+v", progress)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if s.GetConsoleScriptProgress("c", "other") != nil {
+		t.Fatal("progress leaked across requests")
 	}
 	if !s.CancelConsoleQuery("c", "long") {
 		t.Fatal("script not cancellable")

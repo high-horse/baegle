@@ -14,5 +14,8 @@ export type {
     ImportPreview,
     ImportRequest,
     SQLScriptFile,
-    ScriptResult
+    ScriptProgress,
+    ScriptResult,
+    ScriptResultSet,
+    ScriptStatementResult
 } from "./models.js";

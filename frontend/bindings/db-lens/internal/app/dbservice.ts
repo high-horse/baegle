@@ -78,6 +78,14 @@ export function GetActiveConnectionObject(): $CancellablePromise<[types$0.Connec
     return $Call.ByID(3293129022);
 }
 
+/**
+ * GetConsoleScriptProgress only exposes the requested execution; late polls
+ * cannot attach progress from a newer script in the same console.
+ */
+export function GetConsoleScriptProgress(consoleID: string, requestID: string): $CancellablePromise<$models.ScriptProgress | null> {
+    return $Call.ByID(3717356820, consoleID, requestID);
+}
+
 export function GetDDL(table: entities$0.TableRef): $CancellablePromise<string> {
     return $Call.ByID(1140029165, table);
 }

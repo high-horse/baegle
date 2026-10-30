@@ -32,7 +32,7 @@
                 <QueryHistory />
                 <span v-if="isNoSQL(dbDriver)">{{ dbDriver === 'cassandra' ? 'CQL' : dbDriver === 'redis' ? 'Redis command array' : dbDriver === 'couchdb' ? 'CouchDB JSON request' : 'MongoDB JSON command' }}</span>
                 <q-btn flat dense no-caps size="sm" class="query-action" icon="save" label="Save" color="primary" :loading="activeTab.savingConsole" :disable="activeTab.closing" title="Save console (Ctrl+S)" aria-label="Save console" @click="queryTabsStore.saveConsole(activeTab.id)" />
-                <span>{{ activeTab.stopping ? 'Stopping…' : activeTab.runningScript ? 'Script running…' : activeTab.runningQuery ? 'Query running…' : 'Ctrl + Enter' }}</span>
+                <span>{{ activeTab.stopping ? 'Stopping…' : activeTab.runningScript ? activeTab.scriptProgress?.total ? `Statement ${activeTab.scriptProgress.current} of ${activeTab.scriptProgress.total} · ${activeTab.scriptProgress.completed} completed` : 'Preparing script…' : activeTab.runningQuery ? 'Query running…' : 'Ctrl + Enter' }}</span>
                 <QueryElapsedTime v-if="activeTab.runningQuery && activeTab.queryStartedAt != null" :started-at="activeTab.queryStartedAt" />
 
                 <q-btn v-if="activeTab.runningQuery" unelevated dense no-caps color="negative" size="sm" class="query-action" icon="stop" :label="activeTab.stopping ? 'Stopping…' : 'Stop'" :disable="activeTab.stopping" aria-label="Cancel running query" @click="queryTabsStore.cancelQuery(activeTab.id)" />
@@ -71,8 +71,13 @@
         <div v-if="dbDriver === 'cassandra'" class="shrink-0 px-3 py-2 text-[length:var(--ui-font-size)] font-mono text-[#94a3b8] border-b border-[var(--border-default)]">
             Run one CQL statement at a time. Results use native Cassandra paging.
         </div>
-        <div v-if="activeTab?.importedScript || activeTab?.scriptResult" class="script-info shrink-0 px-3 py-2 text-[length:var(--ui-font-size)] border-b border-[var(--border-default)]" role="status">
-            <template v-if="activeTab.scriptResult">
+        <div v-if="activeTab?.runningScript || activeTab?.importedScript || activeTab?.scriptResult" class="script-info shrink-0 px-3 py-2 text-[length:var(--ui-font-size)] border-b border-[var(--border-default)]" role="status">
+            <template v-if="activeTab.runningScript">
+                <div v-if="activeTab.scriptProgress">Executing statement {{ activeTab.scriptProgress.current }} of {{ activeTab.scriptProgress.total }} (line {{ activeTab.scriptProgress.line }}). {{ activeTab.scriptProgress.completed }} completed.</div>
+                <div v-else>Preparing script…</div>
+                <q-linear-progress :indeterminate="!activeTab.scriptProgress?.total" :value="activeTab.scriptProgress?.total ? activeTab.scriptProgress.completed / activeTab.scriptProgress.total : 0" color="primary" class="mt-2" aria-label="SQL script progress" />
+            </template>
+            <template v-else-if="activeTab.scriptResult">
                 <span :class="activeTab.scriptResult.error ? 'text-red-300' : 'text-teal-300'">
                     {{ activeTab.scriptResult.cancelled ? 'Script stopped' : activeTab.scriptResult.error ? 'Script failed' : 'Script finished' }}:
                     {{ activeTab.scriptResult.completed }} / {{ activeTab.scriptResult.total }} statements completed in {{ formatDuration(activeTab.scriptResult.duration) }}.
@@ -81,7 +86,7 @@
                     <q-btn v-if="activeTab.scriptResult.errorLine" flat dense no-caps label="Go to line" @click="sqlEditorRef?.focusLine(activeTab!.scriptResult!.errorLine)" />
                 </div>
             </template>
-            <template v-else>SQL file loaded for review. Edit it, then use <strong>Run script</strong> (Alt+X). Run / Ctrl+Enter executes the current statement or selection.</template>
+            <template v-else>SQL file loaded for review. Use Ctrl+A then Ctrl+Enter to execute the file, or <strong>Run script</strong> (Alt+X). Run / Ctrl+Enter executes the current statement or selection; multiple selected statements run as a script.</template>
             <div class="text-[var(--text-muted)]">Script execution stops on the first error. Earlier commits remain; use explicit transactions when needed. This console saves automatically.</div>
         </div>
         <!-- Query Editor -->
@@ -150,6 +155,7 @@ import QueryHistory from "./QueryHistory.vue";
 
 const sqlEditorRef =
     ref<InstanceType<typeof SqlEditor> | null>(null);
+defineExpose({ focusLine: (line: number) => sqlEditorRef.value?.focusLine(line) });
 
 const props = defineProps<{
     activeTab: QueryTab | null;

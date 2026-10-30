@@ -117,6 +117,104 @@ test('SQL files open without execution; Run script uses edited text and shares t
     assert.equal(tab.dirty, true);
 });
 
+test('Ctrl+Enter routes a selected SQL import through ordered script execution', async () => {
+    const { store, calls, backend } = setup();
+    const sql = "CREATE TABLE imported(id INTEGER, name TEXT);INSERT INTO imported VALUES(1,'one;two');INSERT INTO imported VALUES(2,'three');";
+    const tab = store.openSQLScript('dump.sql', sql, '7');
+    let scriptCall;
+    backend.ExecuteConsoleScript = async (...args) => {
+        scriptCall = args;
+        return { completed: 3, total: 3, error: '', errorLine: 0, cancelled: false, duration: 12 };
+    };
+    await store.execute(tab.id, sql);
+    assert.equal(calls.length, 0, 'multiple statements must not reach the single-query endpoint');
+    assert.equal(scriptCall[2], '7');
+    assert.equal(scriptCall[3], sql);
+    assert.equal(tab.scriptResult.completed, 3);
+    assert.equal(tab.error, null);
+
+    const selected = 'INSERT INTO imported VALUES(3,\'selected\');INSERT INTO imported VALUES(4,\'only\');';
+    await store.execute(tab.id, selected);
+    assert.equal(scriptCall[3], selected, 'execute only the selected text, not the entire file');
+});
+
+test('single queries with quoted or commented semicolons retain query results', async () => {
+    const { store, calls } = setup();
+    const tab = store.tabs[0];
+    const sql = "SELECT 'one;two' AS name; -- another; statement;\n;";
+    const run = store.execute(tab.id, sql);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].input.query, sql);
+    calls[0].resolve({ columns: ['name'], rows: [['one;two']], startRow: 1, pageSize: 100, hasMore: false, canNavigate: false, isQuery: true });
+    await run;
+    assert.deepEqual(tab.result.Rows, [['one;two']]);
+    assert.equal(tab.scriptResult, undefined);
+});
+
+test('SQL script detection respects dialect quoting and excludes NoSQL commands', () => {
+    const multiple = databaseDialect.hasMultipleSQLStatements;
+    for (const driver of ['pgx', 'mysql', 'sqlite']) {
+        assert.equal(multiple('SELECT 1;SELECT 2;SELECT 3;', driver), true);
+        assert.equal(multiple("SELECT 'one;two'; /* ignored; */ ;", driver), false);
+    }
+    assert.equal(multiple('SELECT $$one;two$$;', 'pgx'), false);
+    assert.equal(multiple('SELECT `one;two` FROM t;', 'mysql'), false);
+    assert.equal(multiple('SELECT "one;two" FROM t;', 'sqlite'), false);
+    for (const driver of ['mongodb', 'redis', 'couchdb', 'cassandra']) {
+        assert.equal(multiple('SELECT 1;SELECT 2;', driver), false);
+    }
+});
+
+test('script progress updates live, preserves statement results, and clears after completion', async () => {
+    const { store, backend } = setup();
+    const tab = store.openSQLScript('progress.sql', 'SELECT 1; SELECT 2;', '7');
+    let finish;
+    backend.ExecuteConsoleScript = () => new Promise(resolve => { finish = resolve; });
+    let polled;
+    const firstPoll = new Promise(resolve => { polled = resolve; });
+    backend.GetConsoleScriptProgress = async (id, requestID) => {
+        const progress = { requestID, completed: 1, total: 2, current: 2, line: 1, duration: 20 };
+        polled();
+        return progress;
+    };
+    const run = store.execute(tab.id, tab.sql);
+    await firstPoll;
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(tab.scriptProgress.completed, 1);
+    assert.equal(tab.scriptProgress.current, 2);
+    const statements = [{ statement: 1, line: 1, preview: 'SELECT 1', duration: 1, rowsAffected: null,
+        results: [{ columns: ['one'], rows: [[1]], truncated: false }], error: '' }];
+    finish({ completed: 2, total: 2, error: '', errorLine: 0, cancelled: false, duration: 30, statements });
+    await run;
+    assert.deepEqual(tab.scriptResult.statements, statements);
+    assert.equal(tab.scriptProgress, undefined);
+    assert.equal(tab.runningScript, false);
+});
+
+test('late progress from a finished script cannot update a newer execution', async () => {
+    const { store, backend } = setup();
+    const tab = store.openSQLScript('progress.sql', 'SELECT 1; SELECT 2;', '7');
+    let finish, resolvePoll, oldRequest;
+    const polled = new Promise(resolve => {
+        backend.GetConsoleScriptProgress = (_id, requestID) => {
+            oldRequest = requestID;
+            resolve();
+            return new Promise(finishPoll => { resolvePoll = finishPoll; });
+        };
+    });
+    backend.ExecuteConsoleScript = () => new Promise(resolve => { finish = resolve; });
+    const first = store.execute(tab.id, tab.sql);
+    await polled;
+    finish({ completed: 2, total: 2, error: '', errorLine: 0, cancelled: false, duration: 30, statements: [] });
+    await first;
+    const second = store.execute(tab.id, tab.sql);
+    resolvePoll({ requestID: oldRequest, completed: 2, total: 2, current: 2, line: 1, duration: 30 });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(tab.scriptProgress, undefined);
+    finish({ completed: 2, total: 2, error: '', errorLine: 0, cancelled: false, duration: 30, statements: [] });
+    await second;
+});
+
 test('Run and Ctrl+Enter cannot overlap, including while Stop is pending', async () => {
     const { store, calls, cancellations } = setup();
     const id = store.tabs[0].id;

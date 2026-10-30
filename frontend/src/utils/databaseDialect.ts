@@ -14,6 +14,25 @@ export function editorDialect(driver?: string) {
     default: return PostgreSQL;
   }
 }
+
+// Use the SQL lexer so semicolons in strings, quoted identifiers, and comments
+// do not turn a single query into a script. The backend handles script splitting
+// and dialect-specific batches on one connection.
+export function hasMultipleSQLStatements(text: string, driver?: string): boolean {
+  if (isNoSQL(driver)) return false;
+  let count = 0;
+  for (const statement of editorDialect(driver).language.parser.parse(text).topNode.getChildren('Statement')) {
+    let hasSQL = false;
+    for (let child = statement.firstChild; child; child = child.nextSibling) {
+      if (![';', 'LineComment', 'BlockComment'].includes(child.name)) {
+        hasSQL = true;
+        break;
+      }
+    }
+    if (hasSQL && ++count > 1) return true;
+  }
+  return false;
+}
 export function formatterDialect(driver: DatabaseDriver) {
   switch (driver) {
     case 'pgx': return 'postgresql';

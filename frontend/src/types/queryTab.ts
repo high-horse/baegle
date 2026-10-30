@@ -21,6 +21,25 @@ export interface QueryResult {
 }
 
 export type QueryTabType = "query" | "result"
+export interface ScriptStatementResult {
+  statement: number;
+  line: number;
+  preview: string;
+  duration: number;
+  rowsAffected: number | null;
+  results: { columns: string[]; rows: unknown[][]; truncated: boolean }[];
+  error: string;
+}
+
+export interface ScriptProgress {
+  requestID: string;
+  completed: number;
+  total: number;
+  current: number;
+  line: number;
+  duration: number;
+}
+
 export interface QueryTab {
   id: string;
   title: string;
@@ -33,7 +52,8 @@ export interface QueryTab {
   runningQuery?: boolean;
   runningScript?: boolean;
   importedScript?: boolean;
-  scriptResult?: { completed: number; total: number; error: string; errorLine: number; cancelled: boolean; duration: number };
+  scriptResult?: { completed: number; total: number; error: string; errorLine: number; cancelled: boolean; duration: number; statements?: ScriptStatementResult[] };
+  scriptProgress?: ScriptProgress;
   queryStartedAt?: number;
   stopping?: boolean;
   error: string | null;

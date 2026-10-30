@@ -48,6 +48,15 @@ export interface SQLScriptFile {
     "sql": string;
 }
 
+export interface ScriptProgress {
+    "requestID": string;
+    "completed": number;
+    "total": number;
+    "current": number;
+    "line": number;
+    "duration": number;
+}
+
 export interface ScriptResult {
     "completed": number;
     "total": number;
@@ -55,4 +64,21 @@ export interface ScriptResult {
     "errorLine": number;
     "cancelled": boolean;
     "duration": number;
+    "statements": ScriptStatementResult[] | null;
+}
+
+export interface ScriptResultSet {
+    "columns": string[] | null;
+    "rows": (any[] | null)[] | null;
+    "truncated": boolean;
+}
+
+export interface ScriptStatementResult {
+    "statement": number;
+    "line": number;
+    "preview": string;
+    "duration": number;
+    "rowsAffected": number | null;
+    "results": ScriptResultSet[] | null;
+    "error": string;
 }
