@@ -25,7 +25,7 @@
                 no-caps
                 type="button"
                 :disable="busy || !selectedKey || !canEditSelected"
-                @click="deleteRow"
+                @click="deleteRow()"
                 ><q-icon name="delete_outline" size="15px" />
                 {{
                     selectedDraft?.operation === "delete"
@@ -85,7 +85,7 @@
         {{ state.error }}
     </div>
     <q-dialog v-model="dialog" persistent :transition-duration="0">
-        <q-card class="row-editor-card">
+        <q-card class="row-editor-card" :style="{ '--editor-control-height': `${fieldRowHeight - 12}px` }">
             <header class="row-editor-header">
                 <div class="row-editor-heading">
                     <q-icon
@@ -107,11 +107,11 @@
                     ><q-icon name="close" size="16px"
                 /></q-btn>
             </header>
-            <q-form @submit="stageRow">
-                <div class="row-editor-body">
+            <q-form class="row-editor-form" @submit="stageRow">
+                <div class="row-editor-body" :class="{ 'document-editor-body': state?.info?.driver === 'mongodb' }">
                     <template v-if="state?.info?.driver === 'mongodb'">
                         <div class="row-editor-field">
-                            <label for="mongo-row-id"
+                            <label class="field-label" for="mongo-row-id"
                                 >_id
                                 <span class="field-type"
                                     >Document ID</span
@@ -155,28 +155,26 @@
                             aria-label="MongoDB document fields"
                         />
                     </template>
-                    <div v-else class="row-editor-fields">
+                    <q-virtual-scroll v-else ref="fieldScroller" :items="fields" :virtual-scroll-item-size="fieldRowHeight"
+                        :virtual-scroll-slice-size="16" :virtual-scroll-slice-ratio-before="0.5" :virtual-scroll-slice-ratio-after="0.5"
+                        class="row-editor-fields">
+                        <template #default="{ item: field, index }">
                         <div
-                            v-for="(field, index) in fields"
                             :key="field.name"
                             v-memo="[field, field.text, field.mode]"
                             class="row-editor-field"
                         >
-                            <label :for="`row-field-${index}`"
-                                >{{ field.name }}
-                                <span class="field-type">{{
-                                    field.type
-                                }}</span></label
-                            >
-                            <input
-                                :id="`row-field-${index}`"
-                                v-model="field.text"
-                                class="editor-native-input"
-                                :class="{ 'locked-input': field.locked || field.generated }"
-                                type="text" autocomplete="off" spellcheck="false"
-                                :autofocus="index === firstEditableField"
+                            <label class="field-label" :for="`row-field-${index}`">
+                                <span class="field-name" :title="field.name">{{ field.name }}</span>
+                                <span class="field-type" :title="field.type">{{ field.type }}</span>
+                            </label>
+                            <q-input
+                                :for="`row-field-${index}`" v-model="field.text"
+                                class="editor-input" :class="{ 'locked-input': field.locked || field.generated }"
+                                outlined dense dark hide-bottom-space color="primary"
+                                autocomplete="off" spellcheck="false" :autofocus="index === firstEditableField"
                                 :readonly="field.locked || field.generated"
-                                :disabled="!field.locked && !field.generated && field.mode !== 'value'"
+                                :disable="!field.locked && !field.generated && field.mode !== 'value'"
                                 :placeholder="field.mode === 'default' ? 'Database default' : field.mode === 'null' ? 'NULL' : ''"
                             />
                             <span
@@ -191,11 +189,14 @@
                                           : "Read-only"
                                 }}</span
                             >
-                            <select v-else v-model="field.mode" :aria-label="`${field.name} value mode`" class="editor-native-mode">
-                                <option v-for="mode in valueModes(field)" :key="mode.value" :value="mode.value">{{ mode.label }}</option>
-                            </select>
+                            <q-select v-else v-model="field.mode" :for="`row-mode-${index}`"
+                                :aria-label="`${field.name} value mode`" class="value-mode"
+                                outlined dense dark hide-bottom-space color="primary" emit-value map-options
+                                :options="valueModes(field)" options-dense behavior="menu"
+                                popup-content-class="bg-[var(--surface-panel)] text-gray-300" />
                         </div>
-                    </div>
+                        </template>
+                    </q-virtual-scroll>
                     <p v-if="dialogError" class="dialog-error" role="alert">
                         {{ dialogError }}
                     </p>
@@ -227,10 +228,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Notify } from "quasar";
+import { Notify, type QVirtualScroll } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
 import type { QueryResult } from "@/types/queryTab";
+import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 
 const props = defineProps<{
     tabId: string;
@@ -252,14 +254,12 @@ const selectedDraft = computed(() =>
 const draftsByKey = computed(() => new Map(state.value?.drafts.map(row => [row.key, row]) ?? []));
 const rowIndexes = computed(() => props.rowIndexes ?? new Map(props.result.Rows.map((_row, index) =>
     [edits.rowKey(props.tabId, props.result, index), index] as const)));
-const canEditSelected = computed(
-    () =>
-        !!props.selectedKey &&
-        (selectedDraft.value?.operation === "insert" ||
-            (state.value?.info?.canModify &&
-                (selectedDraft.value ||
-                    rowIndexes.value.has(props.selectedKey)))),
-);
+function canEditRow(key: string) {
+    if (busy.value || !key || !state.value?.info?.canInsert) return false;
+    const draft = draftsByKey.value.get(key);
+    return draft?.operation === 'insert' || !!state.value.info.canModify && (!!draft || rowIndexes.value.has(key));
+}
+const canEditSelected = computed(() => canEditRow(props.selectedKey));
 const dialog = ref(false);
 const dialogError = ref("");
 const editingKey = ref("");
@@ -278,6 +278,9 @@ const fields = ref<
         locked: boolean;
     }>
 >([]);
+const fieldScroller = ref<QVirtualScroll | null>(null);
+const resultSettings = useResultSettingsStore();
+const fieldRowHeight = computed(() => Math.max(40, resultSettings.settings.fontSize + 24) + 12);
 const firstEditableField = computed(() => fields.value.findIndex(field => !field.locked && !field.generated && field.mode === 'value'));
 let original: Record<string, unknown> = {};
 const valueOption = { label: 'Value', value: 'value' };
@@ -473,17 +476,17 @@ function stageRow() {
             error instanceof Error ? error.message : String(error);
     }
 }
-function deleteRow() {
-    if (busy.value || !props.selectedKey || !canEditSelected.value) return;
-    const draft = selectedDraft.value;
+function deleteRow(key = props.selectedKey) {
+    if (!canEditRow(key)) return;
+    const draft = draftsByKey.value.get(key);
     if (draft?.operation === "insert" || draft?.operation === "delete") {
-        edits.remove(props.tabId, props.selectedKey);
+        edits.remove(props.tabId, key);
         return;
     }
-    const index = rowIndexes.value.get(props.selectedKey) ?? -1;
+    const index = rowIndexes.value.get(key) ?? -1;
     if (index < 0 && !draft) return;
     edits.stage(props.tabId, {
-        key: props.selectedKey,
+        key,
         operation: "delete",
         keys: draft?.keys ?? edits.keysFor(props.tabId, props.result, index),
         values: {},
@@ -506,7 +509,7 @@ async function save() {
         await queries.execute(props.tabId, tab.executedSql ?? tab.sql, true);
     }
 }
-defineExpose({ openRow });
+defineExpose({ openRow, deleteRow, canEditRow });
 </script>
 
 <style scoped>
@@ -547,9 +550,13 @@ defineExpose({ openRow });
     border-left: 1px solid #555555;
     margin: 0 3px;
 }
-.row-editor-card {
-    width: 720px;
-    max-width: 95vw;
+.row-editor-card.q-card {
+    width: 840px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 48px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     background: var(--surface-panel);
     color: var(--text-primary);
     border: 1px solid #555555;
@@ -559,6 +566,7 @@ defineExpose({ openRow });
 }
 .row-editor-header,
 .row-editor-footer {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -570,6 +578,7 @@ defineExpose({ openRow });
     border-bottom: 1px solid var(--border-default);
 }
 .row-editor-heading {
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -577,6 +586,9 @@ defineExpose({ openRow });
     font-weight: 600;
 }
 .row-editor-table {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: #9ca3af;
     font-weight: 400;
     margin-left: 4px;
@@ -595,87 +607,37 @@ defineExpose({ openRow });
     background: var(--border-default);
     color: var(--accent-color);
 }
-.row-editor-body {
-    max-height: 65vh;
-    overflow: auto;
-    padding: 12px;
-    background: var(--surface-data);
-}
-.row-editor-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
+.row-editor-form { display: flex; flex-direction: column; min-height: 0; }
+.row-editor-body { display: flex; flex-direction: column; min-height: 0; background: var(--surface-data); }
+.row-editor-fields { min-height: 0; max-height: min(65vh, calc(100dvh - 180px)); overflow: auto; padding: 12px 16px; scrollbar-width: thin; }
 .row-editor-field {
     display: grid;
-    grid-template-columns: minmax(100px, 150px) minmax(0, 1fr) 100px;
+    grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) 144px;
     align-items: center;
-    gap: 10px;
+    column-gap: 16px;
+    min-height: calc(var(--editor-control-height, 40px) + 12px);
+    padding: 6px 0;
 }
-.row-editor-field label {
-    overflow-wrap: anywhere;
-    color: var(--text-primary);
-}
-.field-type {
-    display: block;
-    font-size: var(--ui-font-size);
-    color: var(--text-muted);
-    margin-top: 2px;
-    font-weight: 400;
-}
-.editor-input {
-    width: 100%;
-    min-width: 0;
-    font: inherit;
-}
-.editor-input :deep(.q-field__control) {
-    min-height: 28px;
-    height: 28px;
-    border-radius: 2px;
+.row-editor-field > .field-label { min-width: 0; color: var(--text-primary); }
+.field-name, .field-type { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field-type { font-size: var(--ui-font-size); color: var(--text-muted); margin-top: 3px; font-weight: 400; }
+.editor-input, .value-mode { width: 100%; min-width: 0; font: inherit; }
+.editor-input :deep(.q-field__control), .value-mode :deep(.q-field__control) {
+    min-height: var(--editor-control-height, 40px);
+    height: var(--editor-control-height, 40px);
+    border-radius: 5px;
     background: var(--surface-panel);
 }
-.editor-input :deep(.q-field__control::before) {
-    border-color: #555555;
-}
-.editor-input :deep(.q-field__native) {
-    font: inherit;
-    padding: 3px 0;
-}
-.editor-input :deep(.q-field__marginal) {
-    height: 28px;
-}
-.editor-native-input, .editor-native-mode {
-    display: block;
-    width: 100%;
-    min-width: 0;
-    height: 28px;
-    padding: 3px 8px;
-    border: 1px solid var(--border-default);
-    border-radius: 3px;
-    background: var(--surface-panel);
-    color: var(--text-primary);
-    font: inherit;
-    outline: none;
-}
-.editor-native-input:focus, .editor-native-mode:focus-visible { border-color: var(--accent-color); box-shadow: 0 0 0 1px var(--accent-color); }
-.editor-native-input:disabled { opacity: .6; }
-.editor-native-input::placeholder { color: var(--text-muted); }
-.editor-native-input.locked-input { color: var(--text-muted); background: var(--surface-base); }
-.editor-native-mode { cursor: pointer; }
-.locked-input :deep(.q-field__native) {
-    color: var(--text-muted);
-}
-.locked-input :deep(.q-field__control) {
-    background: #303030;
-}
-.field-lock {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    color: var(--text-muted);
-    font-size: var(--ui-font-size);
-    white-space: nowrap;
-}
+.editor-input :deep(.q-field__control::before), .value-mode :deep(.q-field__control::before) { border-color: var(--border-default); }
+.editor-input :deep(.q-field__native), .value-mode :deep(.q-field__native) { font: inherit; }
+.editor-input :deep(.q-field__marginal), .value-mode :deep(.q-field__marginal) { height: var(--editor-control-height, 40px); }
+.value-mode :deep(.q-field__native) { min-width: 0; white-space: nowrap; }
+.value-mode :deep(.q-field__append) { padding-left: 4px; }
+.locked-input :deep(.q-field__native) { color: var(--text-muted); }
+.locked-input :deep(.q-field__control) { background: var(--surface-base); }
+.field-lock { display: flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: var(--ui-font-size); white-space: nowrap; }
+.document-editor-body { max-height: min(65vh, calc(100dvh - 180px)); overflow: auto; padding: 12px 16px; }
+.dialog-error { padding: 0 16px 12px; }
 .document-label {
     display: block;
     margin: 16px 0 8px;
@@ -721,9 +683,11 @@ defineExpose({ openRow });
 }
 @media (max-width: 520px) {
     .row-editor-field {
-        grid-template-columns: minmax(75px, 110px) minmax(0, 1fr) 80px;
-        gap: 6px;
+        grid-template-columns: minmax(0, 1fr) 144px;
+        column-gap: 10px;
     }
+    .row-editor-field > .field-label { grid-column: 1 / -1; margin-bottom: 6px; }
+    .row-editor-fields { padding: 10px 12px; }
     .row-editor-footer > span {
         display: none;
     }

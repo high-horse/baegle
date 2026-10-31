@@ -280,6 +280,7 @@
                     class="q-tr bg-[var(--surface-data)] hover:!bg-[var(--surface-hover)]"
                     :class="{ 'striped-row': resultSettings.settings.stripedRows && (firstRow + props.rowIndex) % 2 === 1, 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
                     @click="selectedRowKey = props.row._editKey || ''"
+                    @dblclick.stop="editGridRow(props.row)"
                 >
                     <td
                         v-for="col in props.cols"
@@ -300,7 +301,7 @@
                         :data-pinned="isPinned(col.name) || undefined"
                         @pointerdown="startCellDrag($event, String(props.row.id), col.name)"
                         @contextmenu="openCellMenu($event, props.row, col)"
-                        @click="col.name !== 'sn' && ($event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
+                        @click="col.name !== 'sn' && $event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) && !rowEditor?.canEditRow(String(props.row._editKey)) && inspectDocument(props.row[col.field], col.Type)"
                     >
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
@@ -329,6 +330,21 @@
         <!-- One menu for the grid, created only when a cell is opened. -->
         <q-menu v-if="contextCell" ref="cellContextMenu" :target="contextCell.target" no-parent-event context-menu dark class="bg-[var(--surface-panel)] text-gray-300">
             <q-list dense>
+                <template v-if="tableTabId">
+                    <q-item-label header>Row actions</q-item-label>
+                    <q-item clickable v-close-popup :disable="contextCell.status === 'delete' || !rowEditor?.canEditRow(contextCell.rowKey)" @click="rowEditor?.openRow(contextCell.rowKey)">
+                        <q-item-section avatar><q-icon name="edit" size="17px" /></q-item-section><q-item-section>Edit row</q-item-section>
+                    </q-item>
+                    <q-item clickable v-close-popup :disable="!rowEditor?.canEditRow(contextCell.rowKey)" @click="rowEditor?.deleteRow(contextCell.rowKey)">
+                        <q-item-section avatar><q-icon :name="contextCell.status === 'delete' ? 'undo' : 'delete_outline'" size="17px" /></q-item-section>
+                        <q-item-section>{{ contextCell.status === 'delete' ? 'Undo delete' : 'Delete row' }}</q-item-section>
+                    </q-item>
+                    <q-separator v-if="contextCell.column !== 'sn'" />
+                </template>
+                <template v-if="contextCell.column !== 'sn'">
+                <q-item v-if="contextCell.inspectable" clickable v-close-popup @click="inspectDocument(contextCell.value, contextCell.documentType)">
+                    <q-item-section avatar><q-icon name="data_object" size="17px" /></q-item-section><q-item-section>Inspect JSON</q-item-section>
+                </q-item>
                 <q-item-label header>Quick filter · {{ serverExpressions ? 'database result' : 'current page' }}</q-item-label>
                 <q-item v-for="action in quickFilterActions" :key="action.operator" clickable v-close-popup :disable="loading || editState?.saving"
                     @click="filterByCell(contextCell.column, contextCell.value, action.operator)">
@@ -336,6 +352,7 @@
                 </q-item>
                 <q-item clickable v-close-popup @click="clearFilter"><q-item-section>Clear filter</q-item-section></q-item>
                 <RelatedRecords v-if="tableTabId" :tab-id="tableTabId" :column="contextCell.label" :row="contextCell.namedRow" :disabled="!!editState?.drafts.length" />
+                </template>
             </q-list>
         </q-menu>
 
@@ -1003,14 +1020,22 @@ const dataTable = ref<QTable | null>(null);
 const rowHeight = computed(() => Math.max(28, resultSettings.settings.fontSize + 16));
 const { visibleRows, firstRow, paddingTop, paddingBottom, scrollToRow } = useResultVirtualRows(dataTable, mappedRows, rowHeight);
 const navigationTable = computed(() => dataTable.value ? { $el: dataTable.value.$el as HTMLElement, scrollTo: scrollToRow } : null);
+function editGridRow(row: Record<string, unknown>) {
+    const key = String(row._editKey ?? '');
+    if (props.tableTabId && row._status !== 'delete' && rowEditor.value?.canEditRow(key)) rowEditor.value.openRow(key);
+}
 const cellContextMenu = ref<QMenu | null>(null);
-const contextCell = shallowRef<{ target: HTMLElement; column: string; label: string; value: unknown; namedRow: Record<string, unknown> } | null>(null);
+const contextCell = shallowRef<{ inspectable: boolean; documentType?: string; rowKey: string; status: string; target: HTMLElement; column: string; label: string; value: unknown; namedRow: Record<string, unknown> } | null>(null);
 async function openCellMenu(event: MouseEvent, row: Record<string, unknown>, column: QTableColumn) {
     selectContextCell(String(row.id), column.name);
-    if (column.name === 'sn') return;
+    if (column.name === 'sn' && !props.tableTabId) return;
     event.preventDefault();
+    if (column.name === 'sn') selectedRowKey.value = String(row.id);
     cellContextMenu.value?.hide();
+    const documentType = props.result.Columns[columnLayout.visible.value[Number(column.name.slice(7))]]?.Type;
     contextCell.value = {
+        inspectable: column.name !== 'sn' && (isMongoResult.value || isJSONColumn(documentType)), documentType,
+        rowKey: String(row.id), status: String(row._status ?? ''),
         target: event.currentTarget as HTMLElement,
         column: column.name,
         label: column.label,
