@@ -195,7 +195,7 @@ function formatCurrentQuery(view: EditorView): boolean {
             userEvent: "input.format",
         });
     } catch (error) {
-        Notify.create({ color: "negative", message: `Unable to format SQL: ${error instanceof Error ? error.message : String(error)}` });
+        Notify.create({ type: "negative", message: `Unable to format SQL: ${error instanceof Error ? error.message : String(error)}` });
     }
     return true;
 }

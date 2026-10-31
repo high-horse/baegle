@@ -61,6 +61,33 @@ body .q-table thead th, body .q-table tbody td, .q-field, .q-item, .q-btn, .q-ta
 
 .table-edit-bar .q-btn > .q-btn__content { gap: 4px; }
 
+.app-notification.q-notification {
+    --notification-accent: var(--accent-color);
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    min-height: 56px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-default);
+    border-left: 3px solid var(--notification-accent);
+    border-radius: 9px;
+    background: var(--surface-panel) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 6px 24px rgb(0 0 0 / 20%);
+    font-size: var(--ui-font-size);
+}
+.app-notification.bg-negative { --notification-accent: #f09494; }
+.app-notification.bg-warning { --notification-accent: #e6bc72; }
+.app-notification.bg-info { --notification-accent: #91bdec; }
+.app-notification .q-notification__icon { color: var(--notification-accent); font-size: 22px; margin-right: 10px; }
+.app-notification .q-notification__message { padding: 3px 0; min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.app-notification .q-notification__caption { color: var(--text-muted); opacity: 1; font-size: inherit; margin-top: 4px; }
+.app-notification .q-notification__actions { padding: 0 0 0 10px; color: var(--text-primary); }
+.app-notification .notification-dismiss { width: 28px; min-width: 28px; height: 28px; min-height: 28px; color: var(--text-muted); }
+.app-notification .notification-dismiss:hover { background: var(--surface-hover); color: var(--text-primary); }
+.app-notification .notification-dismiss:focus-visible { outline: 2px solid var(--notification-accent); outline-offset: 2px; }
+.app-notification .notification-dismiss .q-icon { font-size: 18px; }
+.app-notification .q-notification__progress { height: 2px; background: var(--notification-accent); opacity: .45; }
+
 
 /*@layer utilities {
     .bg-radial-gradient {

@@ -14,7 +14,19 @@ const pinia = createPinia()
 
 app.use(Quasar, {
   config: {
-    notify: { position: 'top-right' },
+    notify: {
+      position: 'top-right',
+      classes: 'app-notification',
+      timeout: 6000,
+      progress: true,
+      actions: [{
+        icon: 'close',
+        round: true,
+        dense: true,
+        'aria-label': 'Dismiss notification',
+        class: 'notification-dismiss',
+      }],
+    },
   },
   plugins: {
     Dark,
@@ -39,5 +51,5 @@ watchEffect(() => {
 })
 
 resultSettings.load().catch(() => {
-  Notify.create({ message: "Could not load result settings. Using defaults.", color: "negative" })
+  Notify.create({ message: "Could not load result settings. Using defaults.", type: "negative" })
 }).finally(() => app.mount("#app"))

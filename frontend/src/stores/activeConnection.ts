@@ -11,7 +11,7 @@ export const useActiveConnection = defineStore("activeConnection", () => {
       activeConnectionId.value = await DbService.GetActiveConnection();
     } catch (error) {
       activeConnectionId.value = null;
-      Notify.create({ message: "Failed to set active connection", color: "negative" });
+      Notify.create({ message: "Failed to set active connection", type: "negative" });
     }
   }
 

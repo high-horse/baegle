@@ -338,7 +338,7 @@ async function testSshConnection() {
     try {
         const ok = await DbService.TestSSHConnection(parseSshConfig());
         if (!ok) throw new Error("SSH connection test failed");
-        Notify.create({ message: "SSH connection successful", color: "positive" });
+        Notify.create({ message: "SSH connection successful", type: "positive" });
     } catch (error: any) {
         Dialog.create({ title: "SSH connection failed", message: error?.message || String(error), color: "negative" });
     } finally {
@@ -441,7 +441,7 @@ async function loadSavedConnection() {
         await nextTick();
         formRef.value?.resetValidation();
     } catch (error: any) {
-        Notify.create({ message: error?.message || "Failed to load connection", color: "negative" });
+        Notify.create({ message: error?.message || "Failed to load connection", type: "negative" });
         await cancelEdit();
     } finally { loadingSavedConnection.value = false; }
 }
@@ -458,10 +458,10 @@ async function saveConnection() {
     try {
         await DatabaseService.UpdateConnection(parseToConfig());
         await store.getConnections();
-        Notify.create({ message: "Connection updated", color: "positive" });
+        Notify.create({ message: "Connection updated", type: "positive" });
         await cancelEdit();
     } catch (error: any) {
-        Notify.create({ message: error?.message || "Failed to update connection", color: "negative" });
+        Notify.create({ message: error?.message || "Failed to update connection", type: "negative" });
     } finally { saving.value = false; }
 }
 watch(editingId, loadSavedConnection);
