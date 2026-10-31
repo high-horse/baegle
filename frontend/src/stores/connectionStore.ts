@@ -180,34 +180,65 @@ export const useConnectionStore = defineStore("connection", () => {
     }
   }
 
-  // Keep backend errors intact so the portal can show a useful failure dialog.
+  const connectionCooldown = ref(false);
+  const cancellingConnection = ref(false);
+  const connectionSelectionDisabled = computed(() => loadingStates.value.connecting || connectionCooldown.value);
+  let cooldownTimer: ReturnType<typeof setTimeout> | undefined;
+  let connectionAttempt: { id: string; cancelled: boolean } | null = null;
+
+  // One handshake per selection. The backend acknowledges cancellation before
+  // releasing this attempt, preventing late completions from opening a workspace.
   async function connectToSession(connection: Connection): Promise<boolean> {
-    if (loadingStates.value.connecting) return false;
+    if (connectionSelectionDisabled.value) return false;
+    connectionCooldown.value = true;
+    clearTimeout(cooldownTimer);
+    cooldownTimer = setTimeout(() => { connectionCooldown.value = false; }, 1000);
+    const attempt = { id: crypto.randomUUID(), cancelled: false };
+    connectionAttempt = attempt;
     loadingStates.value.connecting = true;
     connectingConnectionId.value = connection.id;
-    connectionStage.value = "Checking connection…";
+    cancellingConnection.value = false;
+    connectionStage.value = "Connecting…";
     connectionError.value = null;
     try {
-      const config = toConfig(connection);
-      if (!(await DbService.PingConfig(config))) {
-        throw new Error("The database connection check failed. Check the host, port, credentials, and SSH settings.");
-      }
-      connectionStage.value = "Connecting…";
-      if (!(await DbService.Connect(config))) {
+      if (!(await DbService.ConnectWithRequest(attempt.id, toConfig(connection)))) {
         throw new Error("The database could not establish a connection. Check your saved connection settings and try again.");
       }
+      if (attempt.cancelled || connectionAttempt !== attempt) return false;
       setActiveSession(connection);
       Notify.create({ type: "positive", message: `Connected to ${connection.name}` });
       return true;
     } catch (error) {
+      if (attempt.cancelled || connectionAttempt !== attempt) return false;
       const message = error && typeof error === "object" && "message" in error
         ? String(error.message)
         : String(error || "The connection failed. Check your saved settings and try again.");
       connectionError.value = { connectionId: connection.id, name: connection.name, message };
       return false;
     } finally {
-      connectingConnectionId.value = null;
-      loadingStates.value.connecting = false;
+      if (connectionAttempt === attempt) {
+        connectionAttempt = null;
+        connectingConnectionId.value = null;
+        cancellingConnection.value = false;
+        loadingStates.value.connecting = false;
+      }
+    }
+  }
+
+  async function cancelConnection() {
+    const attempt = connectionAttempt;
+    if (!attempt || attempt.cancelled) return;
+    attempt.cancelled = true;
+    cancellingConnection.value = true;
+    connectionStage.value = "Cancelling…";
+    try {
+      await DbService.CancelConnectionAttempt(attempt.id);
+    } catch (error) {
+      if (connectionAttempt !== attempt) return;
+      attempt.cancelled = false;
+      cancellingConnection.value = false;
+      connectionStage.value = "Connecting…";
+      Notify.create({ type: "negative", message: "Could not cancel the connection. Please try Cancel again." });
     }
   }
 
@@ -255,6 +286,9 @@ export const useConnectionStore = defineStore("connection", () => {
     loadingStates,
     connectingConnectionId,
     connectionStage,
+    connectionSelectionDisabled,
+    cancellingConnection,
+    cancelConnection,
     connectionError,
     showNewConnectionDialog,
     activeConnectionMetadata,

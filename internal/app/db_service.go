@@ -25,16 +25,20 @@ import (
 )
 
 type DbService struct {
-	factory        *factory.Factory
-	manager        *manager.ConnectionManager
-	pager          *sqlExecutor.Pager
-	mongoPager     *mongodb.Pager
-	historyRepo    *db.HistoryRepository
-	consoleMu      sync.Mutex
-	consoleQueries map[string]*consoleQuery
-	scriptProgress map[string]ScriptProgress
-	transferMu     sync.Mutex
-	importing      bool
+	connectMu                  sync.Mutex
+	connectionAttemptMu        sync.Mutex
+	connectionAttempt          *connectionAttempt
+	cancelledConnectionAttempt string
+	factory                    *factory.Factory
+	manager                    *manager.ConnectionManager
+	pager                      *sqlExecutor.Pager
+	mongoPager                 *mongodb.Pager
+	historyRepo                *db.HistoryRepository
+	consoleMu                  sync.Mutex
+	consoleQueries             map[string]*consoleQuery
+	scriptProgress             map[string]ScriptProgress
+	transferMu                 sync.Mutex
+	importing                  bool
 }
 
 func NewDbService(historyRepo *db.HistoryRepository) *DbService {
@@ -60,6 +64,17 @@ func NewDbService(historyRepo *db.HistoryRepository) *DbService {
 }
 
 func (s *DbService) Connect(ctx context.Context, config entities.ConnectionConfig) (bool, error) {
+	if !s.connectMu.TryLock() {
+		return false, fmt.Errorf("a connection attempt is already running")
+	}
+	defer s.connectMu.Unlock()
+	return s.connect(ctx, config)
+}
+
+func (s *DbService) connect(ctx context.Context, config entities.ConnectionConfig) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 	if config.ID == "" {
 		config.ID = strconv.FormatInt(-time.Now().UnixNano(), 10)
 	}
@@ -80,7 +95,14 @@ func (s *DbService) Connect(ctx context.Context, config entities.ConnectionConfi
 
 	// First test the new connection.
 	if err := conn.Connect(ctx); err != nil {
+		_ = conn.Disconnect()
+		_ = transport.Close()
 		return false, fmt.Errorf("failed to connect: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		_ = conn.Disconnect()
+		_ = transport.Close()
+		return false, err
 	}
 
 	if old, ok := s.manager.Active(); ok {
@@ -143,6 +165,13 @@ func (s *DbService) Disconnect(ctx context.Context, connID string) error {
 }
 
 func (s *DbService) ServiceShutdown() error {
+	s.connectionAttemptMu.Lock()
+	if s.connectionAttempt != nil {
+		s.connectionAttempt.cancel()
+	}
+	s.connectionAttemptMu.Unlock()
+	s.connectMu.Lock()
+	defer s.connectMu.Unlock()
 	s.consoleMu.Lock()
 	for _, query := range s.consoleQueries {
 		query.cancel()

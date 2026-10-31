@@ -21,6 +21,15 @@
                     <q-input ref="connectionSearchInput" v-model="connectionSearch" outlined dense clearable color="primary" placeholder="Search connections…" aria-label="Search saved connections" hide-bottom-space aria-keyshortcuts="Control+Shift+F" class="q-mb-md">
                         <template #prepend><q-icon name="search" /></template>
                     </q-input>
+                    <q-banner v-if="store.loadingStates.connecting" dense rounded inline-actions class="connection-progress q-mb-sm" role="status" aria-live="polite" :title="`${connectionStage} ${connectingName}`">
+                        <div class="connection-progress-stage">
+                            <span>{{ connectionStage }}</span>
+                            <span class="connection-progress-name">{{ connectingName }}</span>
+                        </div>
+                        <template #action>
+                            <q-btn flat dense no-caps label="Cancel" :loading="store.cancellingConnection" aria-label="Cancel connection" @click.stop="store.cancelConnection()" />
+                        </template>
+                    </q-banner>
                     <q-item v-if="!connections.length" class="connections-empty-state">
                         <q-item-section>
                             <q-icon name="bookmark_border" size="28px" class="q-mb-md" />
@@ -40,7 +49,7 @@
                             <q-item-section class="group-name">{{ group.name || 'Ungrouped' }}</q-item-section>
                             <q-item-section side><q-badge rounded class="group-count">{{ group.connections.length }}</q-badge></q-item-section>
                         </template>
-                    <q-item v-for="connection in group.connections" :key="connection.id" clickable :active="String(connection.id) === $route.query.edit" active-class="text-primary" class="saved-connection" @click="selectConnection(connection)" @keydown.enter.prevent="selectConnection(connection)" @contextmenu.prevent.stop="actionMenuId = connection.id">
+                    <q-item v-for="connection in group.connections" :key="connection.id" :clickable="!connectionSelectionBlocked" :disable="connectionSelectionBlocked" :active="String(connection.id) === $route.query.edit" active-class="text-primary" class="saved-connection" @click="selectConnection(connection)" @keydown.enter.prevent="selectConnection(connection)" @contextmenu.prevent.stop="actionMenuId = connection.id">
                         <q-item-section avatar class="saved-connection-avatar">
                             <div class="saved-connection-icon">
                                 <q-spinner v-if="connectingConnectionId === connection.id" color="primary" size="18px" />
@@ -121,7 +130,7 @@
                 <q-card-actions align="right" class="q-pa-lg">
                     <q-btn flat no-caps label="Close" color="grey-5" @click="store.connectionError = null" />
                     <q-btn outline no-caps label="Edit connection" color="primary" icon="edit" @click="editFailedConnection" />
-                    <q-btn unelevated no-caps label="Try again" color="primary" text-color="black" icon="refresh" @click="retryConnection" />
+                    <q-btn unelevated no-caps label="Try again" color="primary" text-color="black" icon="refresh" :disable="connectionSelectionBlocked" @click="retryConnection" />
                 </q-card-actions>
             </q-card>
         </q-dialog>
@@ -274,6 +283,10 @@ async function deleteConnection() {
     }
 }
 
+const openingWorkspace = ref(false);
+const connectionSelectionBlocked = computed(() => store.connectionSelectionDisabled || openingWorkspace.value);
+const connectingName = computed(() => store.connections.find(connection => connection.id === store.connectingConnectionId)?.name || "Database connection");
+
 const { connections, activeConnection, connectingConnectionId, connectionStage, connectionError } =
     storeToRefs(store);
 
@@ -282,14 +295,17 @@ function editConnection(id: number) {
 }
 
 async function selectConnection(connection: Connection) {
-    if (store.loadingStates.connecting) return;
+    if (connectionSelectionBlocked.value) return;
+    openingWorkspace.value = true;
     actionMenuId.value = null;
     store.setSelectedSession(connection);
-
-    const connected = await store.connectToSession(connection);
-    if (connected) {
-        await activeConnectionStore.setActiveConnection();
-        $router.push({ name: "WorkSpace" });
+    try {
+        if (await store.connectToSession(connection)) {
+            await activeConnectionStore.setActiveConnection();
+            await $router.push({ name: "WorkSpace" });
+        }
+    } finally {
+        openingWorkspace.value = false;
     }
 }
 
@@ -401,4 +417,11 @@ watch(activeConnection, (newConnection) => {
 .saved-endpoint { min-width: 0; overflow-wrap: anywhere; }
 .portal-drawer .connection-actions { align-self: center; padding-left: 2px; color: var(--text-muted); }
 .portal-drawer .connection-actions > .q-btn { color: var(--text-muted) !important; }
+.connection-progress.q-banner { min-height: 34px; padding: 4px 8px; border-radius: 6px; background: var(--surface-panel); color: var(--text-muted); }
+.connection-progress .q-banner__content { min-width: 0; padding: 0; }
+.connection-progress-stage { display: flex; align-items: baseline; gap: 6px; min-width: 0; line-height: 1.4; }
+.connection-progress-stage > span:first-child { flex-shrink: 0; }
+.connection-progress-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--text-primary); }
+.connection-progress .q-banner__actions { padding: 0 0 0 6px; }
+.connection-progress .q-btn { min-height: 24px; padding: 0 6px; color: var(--accent-color); }
 </style>

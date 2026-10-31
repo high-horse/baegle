@@ -23,6 +23,14 @@ import * as types$0 from "../types/models.js";
 import * as $models from "./models.js";
 
 /**
+ * CancelConnectionAttempt also handles cancellation arriving immediately before
+ * registration or just after the handshake completed but before the UI received it.
+ */
+export function CancelConnectionAttempt(requestID: string): $CancellablePromise<boolean> {
+    return $Call.ByID(367516308, requestID);
+}
+
+/**
  * CancelConsoleQuery targets only this execution, so a delayed Stop cannot
  * cancel a newer query in the same console. The execution call acknowledges completion.
  */
@@ -36,6 +44,14 @@ export function ChooseImportFile(): $CancellablePromise<string> {
 
 export function Connect(config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
     return $Call.ByID(2446242533, config);
+}
+
+/**
+ * ConnectWithRequest performs a single handshake and keeps cancellation tied to
+ * this request, so a delayed Cancel cannot disconnect a newer session.
+ */
+export function ConnectWithRequest(requestID: string, config: entities$0.ConnectionConfig): $CancellablePromise<boolean> {
+    return $Call.ByID(4105105518, requestID, config);
 }
 
 export function DescribeTableEdit(table: entities$0.TableRef): $CancellablePromise<entities$0.TableEditInfo | null> {
