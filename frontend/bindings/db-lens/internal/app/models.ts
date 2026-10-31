@@ -12,6 +12,7 @@ import * as entities$0 from "../engine/entities/models.js";
 import * as json$0 from "../../../encoding/json/models.js";
 
 export interface ExportRequest {
+    "excludedColumns": string[] | null;
     "connectionId": string;
     "scope": string;
     "options": datatransfer$0.Options;

@@ -42,14 +42,15 @@ type ImportRequest struct {
 	Mapping map[string]string    `json:"mapping"`
 }
 type ExportRequest struct {
-	ConnectionID string               `json:"connectionId"`
-	Scope        string               `json:"scope"`
-	Options      datatransfer.Options `json:"options"`
-	Table        entities.TableRef    `json:"table"`
-	Query        string               `json:"query"`
-	Columns      []string             `json:"columns"`
-	Rows         [][]json.RawMessage  `json:"rows"`
-	Documents    []string             `json:"documents"`
+	ExcludedColumns []string             `json:"excludedColumns"`
+	ConnectionID    string               `json:"connectionId"`
+	Scope           string               `json:"scope"`
+	Options         datatransfer.Options `json:"options"`
+	Table           entities.TableRef    `json:"table"`
+	Query           string               `json:"query"`
+	Columns         []string             `json:"columns"`
+	Rows            [][]json.RawMessage  `json:"rows"`
+	Documents       []string             `json:"documents"`
 }
 type ExportResult struct {
 	Path string `json:"path"`
@@ -408,13 +409,17 @@ func (s *DbService) writeExport(ctx context.Context, w io.Writer, input ExportRe
 			}
 			documents := make([]json.RawMessage, len(input.Documents))
 			for i, document := range input.Documents {
-				documents[i] = json.RawMessage(document)
+				var err error
+				documents[i], err = excludeDocumentFields(json.RawMessage(document), input.ExcludedColumns)
+				if err != nil {
+					return 0, err
+				}
 			}
 			err := json.NewEncoder(w).Encode(documents)
 			return len(documents), err
 		}
 		index := 0
-		return datatransfer.Write(w, input.Columns, func() ([]any, error) {
+		return writeExportColumns(w, input.Columns, func() ([]any, error) {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
@@ -432,7 +437,7 @@ func (s *DbService) writeExport(ctx context.Context, w io.Writer, input ExportRe
 				}
 			}
 			return values, nil
-		}, input.Options, target, conn.Type())
+		}, input.Options, target, conn.Type(), input.ExcludedColumns)
 	}
 	if input.Scope != "table" && input.Scope != "query" {
 		return 0, fmt.Errorf("unknown export scope")
@@ -479,6 +484,9 @@ func (s *DbService) writeExport(ctx context.Context, w io.Writer, input ExportRe
 		count := 0
 		for cursor.Next(ctx) {
 			raw, err := bson.MarshalExtJSON(cursor.Current, true, false)
+			if err == nil {
+				raw, err = excludeDocumentFields(raw, input.ExcludedColumns)
+			}
 			if err != nil {
 				return count, err
 			}
@@ -530,7 +538,7 @@ func (s *DbService) writeExport(ctx context.Context, w io.Writer, input ExportRe
 	if err != nil {
 		return 0, err
 	}
-	return datatransfer.Write(w, columns, func() ([]any, error) {
+	return writeExportColumns(w, columns, func() ([]any, error) {
 		if !rows.Next() {
 			if err := rows.Err(); err != nil {
 				return nil, err
@@ -556,5 +564,5 @@ func (s *DbService) writeExport(ctx context.Context, w io.Writer, input ExportRe
 			}
 		}
 		return row, nil
-	}, input.Options, target, conn.Type())
+	}, input.Options, target, conn.Type(), input.ExcludedColumns)
 }

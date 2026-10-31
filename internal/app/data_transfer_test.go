@@ -143,3 +143,85 @@ func TestImportBinaryValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestExportColumnExclusions(t *testing.T) {
+	s, table, conn := editService(t)
+	ctx := context.Background()
+	if _, err := conn.DB().Exec(`CREATE TABLE items(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, doubled INTEGER GENERATED ALWAYS AS (id * 2) STORED, note TEXT); INSERT INTO items(id,name) VALUES(7,'sample')`); err != nil {
+		t.Fatal(err)
+	}
+	columns, err := s.InspectTableColumns(ctx, table)
+	if err != nil || len(columns) != 4 || !columns[0].AutoIncrement || !columns[0].PrimaryKey || !columns[2].Generated {
+		t.Fatalf("export classification: %+v %v", columns, err)
+	}
+	for _, scope := range []string{"table", "query", "page"} {
+		for _, format := range []string{"csv", "json", "xlsx", "sql"} {
+			for _, excluded := range [][]string{nil, {"id"}, {"doubled"}, {"id", "doubled"}} {
+				t.Run(scope+"/"+format+"/"+strings.Join(excluded, "+"), func(t *testing.T) {
+					var file bytes.Buffer
+					options := datatransfer.Options{Format: format, Delimiter: ",", NullToken: `\N`}
+					count, err := s.writeExport(ctx, &file, ExportRequest{ConnectionID: table.ConnectionID, Scope: scope, Table: table, Query: `SELECT * FROM items`, Columns: []string{"id", "name", "doubled", "note"}, Rows: [][]json.RawMessage{{raw(7), raw("sample"), raw(14), raw(nil)}}, Options: options, ExcludedColumns: excluded})
+					if err != nil || count != 1 {
+						t.Fatalf("export: %d %v", count, err)
+					}
+					data, err := datatransfer.Read(file.Bytes(), options, "sqlite")
+					if err != nil {
+						t.Fatal(err)
+					}
+					expected := map[string]string{"id": "7", "name": `"sample"`, "doubled": "14", "note": "null"}
+					for _, name := range excluded {
+						delete(expected, name)
+					}
+					if len(data.Columns) != len(expected) || len(data.Rows) != 1 {
+						t.Fatalf("incorrect columns/rows: %+v", data)
+					}
+					for index, name := range data.Columns {
+						want, found := expected[name]
+						if !found {
+							t.Errorf("excluded column %s was exported", name)
+							continue
+						}
+						// CSV/XLSX preserve numbers as text; JSON/SQL preserve numeric types.
+						got := string(data.Rows[0][index])
+						if got != want && got != `"`+want+`"` {
+							t.Errorf("%s: got %s, want %s", name, got, want)
+						}
+					}
+				})
+			}
+		}
+	}
+	for _, scope := range []string{"table", "query", "page"} {
+		var file bytes.Buffer
+		input := ExportRequest{ConnectionID: table.ConnectionID, Scope: scope, Table: table, Query: `SELECT * FROM items`, Columns: []string{"id", "name", "doubled", "note"}, Rows: [][]json.RawMessage{{raw(7), raw("sample"), raw(14), raw(nil)}}, Options: datatransfer.Options{Format: "json"}, ExcludedColumns: []string{"id", "name", "doubled", "note"}}
+		if _, err := s.writeExport(ctx, &file, input); err == nil || file.Len() != 0 {
+			t.Fatal("accepted an export with no columns")
+		}
+		input.ExcludedColumns = []string{"missing"}
+		if _, err := s.writeExport(ctx, &file, input); err == nil {
+			t.Fatal("silently accepted a missing column")
+		}
+	}
+}
+
+func TestExportDocumentFieldExclusions(t *testing.T) {
+	original := json.RawMessage(`{"_id":{"$oid":"507f1f77bcf86cd799439011"},"large":{"$numberLong":"9007199254740993"},"nested":{"_id":"keep nested ID"},"empty":null}`)
+	filtered, err := excludeDocumentFields(original, []string{"_id"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(filtered, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if _, present := fields["_id"]; present {
+		t.Fatal("ID was not excluded")
+	}
+	if string(fields["large"]) != `{"$numberLong":"9007199254740993"}` || string(fields["nested"]) != `{"_id":"keep nested ID"}` || string(fields["empty"]) != "null" {
+		t.Fatalf("document values changed: %s", filtered)
+	}
+	unchanged, err := excludeDocumentFields(original, nil)
+	if err != nil || !bytes.Equal(unchanged, original) {
+		t.Fatal("default export changed original document")
+	}
+}

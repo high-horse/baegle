@@ -49,7 +49,7 @@ export const useConnectionStore = defineStore("connection", () => {
   
   const connections = ref<Connection[]>([]);
   const connectionGroups = computed(() => Array.from(new Set([
-    "Live", "Prod", "Dev", ...connections.value.map(connection => connection.group).filter(Boolean),
+    "Dev", "Staging", "Prod", ...connections.value.map(connection => connection.group).filter(Boolean),
   ])).sort((a, b) => a.localeCompare(b)));
   async function setConnectionGroup(id: number, group: string): Promise<boolean> {
     try {

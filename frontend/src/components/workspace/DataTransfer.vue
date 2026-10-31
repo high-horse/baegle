@@ -34,6 +34,21 @@
                         <p class="text-caption text-grey-5">{{ scopeHint }}</p>
                         <q-select v-if="format === 'sql' && !sourceTable" v-model="tableKey" :options="tableOptions" emit-value map-options
                             label="Target table name for INSERT statements" outlined dense :disable="busy" class="q-mb-md" />
+                        <div class="export-column-settings">
+                            <h3>Columns to export</h3>
+                            <div class="export-column-toggles">
+                                <q-checkbox v-model="includeGenerated" label="Include generated columns" :disable="busy || !hasGeneratedColumns" />
+                                <q-checkbox v-model="includeIdentity" label="Include identity / auto-increment columns" :disable="busy || !hasIdentityColumns" />
+                                <q-checkbox v-model="includePrimaryKey" label="Include primary-key / ID columns" :disable="busy || !hasPrimaryKeyColumns" />
+                            </div>
+                            <q-select v-model="omittedColumns" :options="exportColumnOptions" emit-value map-options multiple use-chips clearable
+                                label="Additional columns to exclude" outlined dense :disable="busy || !exportColumnNames.length" class="q-mt-sm" />
+                            <p class="text-caption text-grey-5">{{ exportedColumnNames.length }} of {{ exportColumnNames.length }} columns included.
+                                <template v-if="!sourceTable && !isMongo">For query results, choose ID or generated fields by name above.</template>
+                                <template v-else>Unavailable column types are disabled. Uncheck a type to leave those values out of the exported file.</template>
+                            </p>
+                            <p v-if="exportColumnNames.length && !exportedColumnNames.length" class="text-caption text-negative" role="alert">Select at least one column to export.</p>
+                        </div>
                         <h3>Format settings</h3>
                         <q-select v-if="format === 'csv'" v-model="delimiter" :options="delimiters" emit-value map-options
                             label="Column delimiter" outlined dense :disable="busy" class="q-mb-md" />
@@ -47,6 +62,8 @@
                             <dt>Source</dt><dd>{{ sourceTitle }}</dd>
                             <dt>Rows</dt><dd>{{ scopes.find(item => item.value === scope)?.label }}</dd>
                             <template v-if="scope === 'page'"><dt>Loaded rows</dt><dd>{{ sourceResult?.Rows.length ?? 0 }}</dd></template>
+                            <dt>Columns</dt><dd>{{ exportedColumnNames.length }} of {{ exportColumnNames.length }} included</dd>
+                            <template v-if="exportExcludedColumns.length"><dt>Excluded</dt><dd>{{ exportExcludedColumns.join(', ') }}</dd></template>
                             <dt>Format</dt><dd>{{ formats.find(item => item.value === format)?.label }}</dd>
                             <template v-if="format === 'csv'"><dt>Delimiter</dt><dd>{{ delimiters.find(item => item.value === delimiter)?.label }}</dd></template>
                             <template v-if="format === 'csv' || format === 'xlsx'"><dt>NULL text</dt><dd>{{ nullToken || '(empty)' }}</dd></template>
@@ -129,7 +146,7 @@ import { isNoSQL } from "@/utils/databaseDialect";
 import { computed, ref, shallowRef, watch } from 'vue';
 import { DbService } from '@bindings/db-lens/internal/app';
 import type { ImportPreview, ExportRequest } from '@bindings/db-lens/internal/app';
-import type { TableEditInfo, TableRef } from '@bindings/db-lens/internal/engine/entities';
+import type { InspectColumnInfo, TableEditInfo, TableRef } from '@bindings/db-lens/internal/engine/entities';
 import type { QueryResult } from '@/types/queryTab';
 import { useConnectionStore } from '@/stores/connectionStore';
 import { useQueryTabsStore } from '@/stores/queryTabsStore';
@@ -158,14 +175,37 @@ const sourceQuery = ref('');
 const sourceResult = shallowRef<QueryResult | null>(null);
 const sourceTable = shallowRef<TableRef | null>(null);
 const sourceConnectionId = ref('');
+const exportMetadata = shallowRef<InspectColumnInfo[]>([]);
+const includeGenerated = ref(true);
+const includeIdentity = ref(true);
+const includePrimaryKey = ref(true);
+const omittedColumns = ref<string[] | null>([]);
+const exportColumnNames = computed(() => scope.value === 'table' && exportMetadata.value.length
+    ? exportMetadata.value.map(column => column.name) : sourceResult.value?.Columns.map(column => column.Name) ?? []);
+const exportColumnTypes = computed(() => new Map(exportMetadata.value.map(column => [column.name, column])));
+const hasGeneratedColumns = computed(() => exportColumnNames.value.some(name => exportColumnTypes.value.get(name)?.generated));
+const hasIdentityColumns = computed(() => exportColumnNames.value.some(name => exportColumnTypes.value.get(name)?.autoIncrement));
+const hasPrimaryKeyColumns = computed(() => exportColumnNames.value.some(name => exportColumnTypes.value.get(name)?.primaryKey || isMongo.value && name === '_id'));
+const exportExcludedColumns = computed(() => exportColumnNames.value.filter(name => {
+    const column = exportColumnTypes.value.get(name);
+    return (omittedColumns.value ?? []).includes(name) || !includeGenerated.value && column?.generated
+        || !includeIdentity.value && column?.autoIncrement
+        || !includePrimaryKey.value && (column?.primaryKey || isMongo.value && name === '_id');
+}));
+const exportedColumnNames = computed(() => exportColumnNames.value.filter(name => !exportExcludedColumns.value.includes(name)));
+const exportColumnOptions = computed(() => exportColumnNames.value.map(name => {
+    const column = exportColumnTypes.value.get(name);
+    const tags = [column?.primaryKey || isMongo.value && name === '_id' ? 'ID / primary key' : '', column?.autoIncrement ? 'identity' : '', column?.generated ? 'generated' : ''].filter(Boolean);
+    return { label: tags.length ? `${name} (${tags.join(', ')})` : name, value: name };
+}));
 const formatDescriptions: Record<string, string> = {
     csv: 'Delimited text with column headers', json: 'An array of row objects or MongoDB documents',
     xlsx: 'Excel worksheet with values preserved as text', sql: 'SQL INSERT statements for an existing table',
 };
 const formatNotes = computed(() => format.value === 'csv' ? 'UTF-8 with a header row. Values containing delimiters or line breaks are quoted. Leading backslashes are escaped.' :
     format.value === 'xlsx' ? 'Includes a header row. Cells are exported as text to preserve exact IDs and prevent formula conversion. Leading backslashes are escaped.' :
-    format.value === 'json' ? 'Exports complete row objects. MongoDB documents retain Extended JSON types.' :
-    'Exports data-only INSERT statements using the current database dialect. Schema creation is not included.');
+    format.value === 'json' ? 'Exports the selected fields. MongoDB documents retain Extended JSON types.' :
+    'Exports data-only INSERT statements. Exclude generated columns when the destination computes them; include identity values only if the destination accepts explicit IDs.');
 const delimiters = [
     { label: 'Comma (,)', value: ',' }, { label: 'Semicolon (;)', value: ';' },
     { label: 'Tab', value: '\t' }, { label: 'Pipe (|)', value: '|' },
@@ -203,6 +243,7 @@ const scopes = computed(() => [
     ...(sourceResult.value?.IsQuery ? [{ label: 'Fetched rows (current result page)', value: 'page' }] : []),
 ]);
 const canExport = computed(() => scopes.value.some(item => item.value === scope.value) &&
+    (!exportColumnNames.value.length || exportedColumnNames.value.length > 0) &&
     (exportStep.value === 0 || !((scope.value === 'table' || format.value === 'sql') && !table.value)));
 watch(scopes, items => { if (!items.some(item => item.value === scope.value)) scope.value = items[0]?.value ?? 'page'; });
 const scopeHint = computed(() => mode.value === 'import' ? format.value === 'sql' ? 'Review and edit the SQL in a console before executing it.' : 'Review the destination and mappings before importing.' :
@@ -231,11 +272,19 @@ async function open(value: 'import' | 'export') {
     sourceTitle.value = activeTable ? [activeTable.schema, activeTable.name].filter(Boolean).join('.') : active?.title ?? 'Query result';
     sourceConnectionId.value = String(connection.activeConnection?.id);
     exportStep.value = 0;
+    exportMetadata.value = [];
+    omittedColumns.value = [];
+    includeGenerated.value = true; includeIdentity.value = true; includePrimaryKey.value = true;
     if (isMongo.value && activeTable) format.value = 'json';
     tableKey.value = activeTable ? keyFor(activeTable) : tableOptions.value[0]?.value ?? '';
     scope.value = nativeNoSQL.value ? 'page' : activeTable ? 'table' : !isMongo.value && sourceQuery.value ? 'query' : 'page';
     visible.value = true;
     if (!connection.activeConnectionMetadata) await task('Loading tables…', async () => { await connection.setActiveConnectionMetadata(); tableKey.value = tableOptions.value[0]?.value ?? ''; });
+    if (value === 'export' && activeTable && !isNoSQL(connection.activeConnection?.driver)) {
+        await task('Loading export columns…', async () => {
+            exportMetadata.value = await DbService.InspectTableColumns(activeTable) ?? [];
+        });
+    }
 }
 async function chooseFile() {
     await task('Choosing file…', async () => {
@@ -296,6 +345,7 @@ async function exportData() {
         const result = sourceResult.value;
         const response = await DbService.ExportData({ connectionId: sourceConnectionId.value, scope: scope.value,
             options: options.value, table: table.value ?? { connectionId: sourceConnectionId.value, name: '', schema: '', database: '' },
+            excludedColumns: exportExcludedColumns.value,
             query: sourceQuery.value, columns: result?.Columns.map(c => c.Name) ?? [], rows: result?.Rows ?? [], documents: result?.Documents ?? [],
         } as ExportRequest);
         if (response) success.value = `Exported ${response.rows} rows to ${response.path}`;
@@ -322,6 +372,8 @@ async function exportData() {
 .format-option input { accent-color: var(--accent-color); }
 .format-option strong, .format-option small { display: block; }
 .format-option small { margin-top: 3px; color: #aeb1b5; }
+.export-column-settings { margin: 20px 0; padding: 16px; border: 1px solid var(--border-default); border-radius: 6px; background: var(--surface-data); }
+.export-column-toggles { display: flex; flex-direction: column; align-items: flex-start; }
 .export-summary { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; font-size: 13px; }
 .export-summary dt { color: var(--text-muted); }
 .export-summary dd { margin: 0; overflow-wrap: anywhere; }
