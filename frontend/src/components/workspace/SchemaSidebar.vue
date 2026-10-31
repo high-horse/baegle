@@ -2,18 +2,22 @@
     <aside class="schema-sidebar">
         <div class="schema-connection">
             <div class="connection-summary">
-                <div class="connection-engine"><q-icon name="dns" size="20px" /></div>
+                <q-icon name="dns" size="16px" class="connection-engine" />
                 <div class="connection-summary-text">
-                    <div class="connection-eyebrow">CONNECTION</div>
                     <div class="active-connection-name" :title="activeConnection?.name">{{ activeConnection?.name }}</div>
                 </div>
                 <q-btn flat dense round icon="refresh" class="schema-refresh" aria-label="Refresh database objects" :loading="loading" @click="refreshSchema">
                     <q-tooltip>Refresh database objects</q-tooltip>
                 </q-btn>
             </div>
+            <div class="connection-endpoint" :title="connectionAddress">{{ connectionAddress }}</div>
             <div class="connection-details">
-                <span class="driver-badge">{{ activeConnection?.driver }}</span>
-                <span class="connection-endpoint" :title="connectionAddress">{{ connectionAddress }}</span>
+                <q-chip dense square icon="folder_open" class="connection-chip connection-group-chip" aria-label="Connection group" :title="activeConnection?.group || 'Ungrouped'">
+                    <span class="connection-chip-label">{{ activeConnection?.group || 'Ungrouped' }}</span>
+                </q-chip>
+                <q-chip dense square icon="storage" class="connection-chip" aria-label="Database type" :title="activeConnection?.driver">
+                    <span class="connection-chip-label">{{ activeConnection?.driver }}</span>
+                </q-chip>
             </div>
         </div>
         <div class="schema-search">
@@ -243,17 +247,20 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .schema-sidebar { --ui-font-size: var(--sidebar-font-size); height: 100%; min-width: 0; display: flex; flex-direction: column; background: var(--surface-data); color: var(--text-primary); font-size: var(--sidebar-font-size); border-right: 1px solid var(--border-default); }
-.schema-connection { margin: 14px 12px 0; padding: 14px 12px; border: 1px solid var(--border-default); border-radius: 10px; background: var(--surface-panel); }
-.connection-summary { display: flex; align-items: center; gap: 10px; }
-.connection-engine { width: 34px; height: 34px; display: grid; place-items: center; flex-shrink: 0; color: var(--accent-color); background: var(--accent-tint); border-radius: 9px; }
+.schema-connection { padding: 10px 14px; border-bottom: 1px solid var(--border-default); }
+.connection-summary { display: flex; align-items: center; gap: 7px; }
+.connection-engine { flex-shrink: 0; color: var(--accent-color); }
 .connection-summary-text { flex: 1; min-width: 0; }
-.connection-eyebrow { font-size: max(9px, calc(var(--ui-font-size) - 2px)); letter-spacing: .1em; color: var(--text-muted); margin-bottom: 4px; }
-.active-connection-name { font-weight: 600; overflow-wrap: anywhere; line-height: 1.4; }
-.schema-refresh { color: var(--text-muted); flex-shrink: 0; }
-.connection-details { margin-top: 13px; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
-.driver-badge { padding: 3px 6px; border: 1px solid var(--border-default); border-radius: 5px; font-size: max(10px, calc(var(--ui-font-size) - 1px)); color: var(--text-muted); }
-.connection-endpoint { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: max(10px, calc(var(--ui-font-size) - 1px)); }
-.schema-search { padding: 16px 12px 14px; }
+.active-connection-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
+.schema-refresh { color: var(--text-muted); flex-shrink: 0; font-size: 10px; min-width: 24px; min-height: 24px; }
+.connection-details { margin-top: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.connection-chip.q-chip { margin: 0; max-width: 100%; min-height: calc(var(--ui-font-size) + 10px); height: auto; padding: 3px 7px; border: 1px solid var(--border-default); border-radius: 5px; background: var(--surface-panel); color: var(--text-muted); font-size: max(10px, calc(var(--ui-font-size) - 1px)); line-height: 1.25; }
+.connection-group-chip.q-chip { background: var(--accent-tint); border-color: transparent; color: var(--accent-color); }
+.connection-chip :deep(.q-chip__content) { min-width: 0; }
+.connection-chip :deep(.q-chip__icon) { flex-shrink: 0; font-size: 14px; margin-right: 5px; }
+.connection-chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.connection-endpoint { margin-top: 2px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: max(10px, calc(var(--ui-font-size) - 1px)); line-height: 1.4; }
+.schema-search { padding: 12px 12px 14px; }
 .schema-search :deep(.q-field__control) { border-radius: 7px; min-height: max(38px, calc(var(--ui-font-size) + 24px)); }
 .schema-search :deep(.q-field__native) { font-size: var(--ui-font-size); }
 .schema-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 18px 10px; color: var(--text-muted); font-weight: 500; }
