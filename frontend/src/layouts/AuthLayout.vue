@@ -1,31 +1,30 @@
 <template>
     <q-layout view="hHh Lpr fFf" class="connection-portal">
         <q-header bordered class="portal-header">
-            <q-toolbar class="q-px-lg" style="min-height: 64px">
+            <q-toolbar class="portal-toolbar">
                 <q-btn flat round dense icon="menu" aria-label="Toggle saved connections" :aria-expanded="drawerOpen" color="grey-4" class="q-mr-sm" @click="drawerOpen = !drawerOpen" />
                 <AppIcon :size="32" />
-                <q-toolbar-title>
-                    <div class="text-subtitle1 text-weight-medium">baegle</div>
-                    <div class="text-caption text-grey-5">Database workspace</div>
+                <q-toolbar-title class="portal-brand">
+                    <div class="portal-brand-name">baegle</div>
+                    <div class="portal-brand-caption">Database workspace</div>
                 </q-toolbar-title>
-                <q-btn unelevated no-caps color="primary" text-color="black" icon="add" label="New connection" @click="$router.push({ name: 'Welcome', query: {} })" />
+                <q-btn unelevated no-caps color="primary" text-color="black" icon="add" label="New connection" class="new-connection-button" @click="$router.push({ name: 'Welcome', query: {} })" />
             </q-toolbar>
         </q-header>
         <q-drawer v-model="drawerOpen" show-if-above :breakpoint="1023" :width="drawerWidth" bordered class="portal-drawer" :class="{ 'portal-drawer-resizing': resizingDrawer }">
             <q-scroll-area class="fit" :content-style="{ width: '100%' }">
                 <q-list padding class="connection-list q-pa-md">
-                    <q-input ref="connectionSearchInput" v-model="connectionSearch" outlined dense clearable color="primary" label="Search saved connections" aria-keyshortcuts="Control+Shift+F" class="q-mb-md">
+                    <div class="saved-connections-heading">
+                        <div><span>Saved connections</span><q-badge rounded class="connection-count">{{ connections.length }}</q-badge></div>
+                        <q-btn flat round dense icon="close" color="grey-5" aria-label="Close saved connections" @click="drawerOpen = false" />
+                    </div>
+                    <q-input ref="connectionSearchInput" v-model="connectionSearch" outlined dense clearable color="primary" placeholder="Search connections…" aria-label="Search saved connections" hide-bottom-space aria-keyshortcuts="Control+Shift+F" class="q-mb-md">
                         <template #prepend><q-icon name="search" /></template>
                     </q-input>
-                    <q-item dense class="q-mb-sm">
-                        <q-item-section class="text-caption text-grey-5">Saved connections</q-item-section>
-                        <q-item-section side>
-                            <q-btn flat round dense icon="close" color="grey-5" aria-label="Close saved connections" @click="drawerOpen = false" />
-                        </q-item-section>
-                    </q-item>
-                    <q-item v-if="!connections.length">
+                    <q-item v-if="!connections.length" class="connections-empty-state">
                         <q-item-section>
-                            <q-item-label class="text-grey-4">No saved connections</q-item-label>
+                            <q-icon name="bookmark_border" size="28px" class="q-mb-md" />
+                            <q-item-label class="text-grey-4">No saved connections yet</q-item-label>
                             <q-item-label caption>Save a connection to find it here.</q-item-label>
                         </q-item-section>
                     </q-item>
@@ -35,16 +34,21 @@
                             <q-item-label caption>Try a different search.</q-item-label>
                         </q-item-section>
                     </q-item>
-                    <q-expansion-item v-for="group in groupedConnections" :key="group.name" default-opened icon="folder_open" :label="group.name || 'Ungrouped'" :caption="`${group.connections.length} connection${group.connections.length === 1 ? '' : 's'}`" header-class="text-grey-4" class="connection-group">
-                    <q-item v-for="connection in group.connections" :key="connection.id" clickable :active="String(connection.id) === $route.query.edit" active-class="text-primary" class="saved-connection q-mb-sm" @click="selectConnection(connection)" @keydown.enter.prevent="selectConnection(connection)" @contextmenu.prevent.stop="actionMenuId = connection.id">
-                        <q-item-section avatar>
+                    <q-expansion-item v-for="group in groupedConnections" :key="group.name" default-opened header-class="text-grey-4" class="connection-group">
+                        <template #header>
+                            <q-item-section avatar class="group-folder"><q-icon name="folder_open" size="18px" /></q-item-section>
+                            <q-item-section class="group-name">{{ group.name || 'Ungrouped' }}</q-item-section>
+                            <q-item-section side><q-badge rounded class="group-count">{{ group.connections.length }}</q-badge></q-item-section>
+                        </template>
+                    <q-item v-for="connection in group.connections" :key="connection.id" clickable :active="String(connection.id) === $route.query.edit" active-class="text-primary" class="saved-connection" @click="selectConnection(connection)" @keydown.enter.prevent="selectConnection(connection)" @contextmenu.prevent.stop="actionMenuId = connection.id">
+                        <q-item-section avatar class="saved-connection-avatar">
                             <q-spinner v-if="connectingConnectionId === connection.id" color="primary" size="20px" />
-                            <q-icon v-else name="lan" color="primary" size="20px" />
+                            <q-icon v-else  :name="connection.driver === 'mongodb' ? 'data_object' : 'storage'" size="18px" />
                         </q-item-section>
                         <q-item-section>
                             <q-item-label class="connection-name">{{ connection.name }}</q-item-label>
                             <q-item-label v-if="connectingConnectionId === connection.id" caption class="text-primary" role="status">{{ connectionStage }}</q-item-label>
-                            <q-item-label caption class="connection-address">{{ connection.driver }} · {{ connection.host ? `${connection.host}:${connection.port.Int64}` : connection.dbname?.split('/').pop() }}</q-item-label>
+                            <q-item-label caption class="connection-address"><span class="saved-driver">{{ connection.driver }}</span><span class="saved-endpoint">{{ connection.host ? `${connection.host}${connection.port.Valid ? ':' + connection.port.Int64 : ''}` : connection.dbname?.split('/').pop() }}</span></q-item-label>
                             <q-tooltip :delay="350" max-width="420px" class="connection-tooltip">
                                 <div class="text-weight-medium">{{ connection.name }}</div>
                                 <div>Driver: {{ connection.driver }}</div>
@@ -338,8 +342,62 @@ watch(activeConnection, (newConnection) => {
 .saved-connection > .q-item__section--main { min-width: 0; overflow: hidden; }
 .connection-actions { flex-shrink: 0; padding-left: 8px; }
 .connection-error-message { white-space: pre-wrap; overflow-wrap: anywhere; }
-.connection-tooltip { white-space: normal; overflow-wrap: anywhere; font-size: var(--ui-font-size); line-height: 1.5; }
+.connection-tooltip { white-space: normal; overflow-wrap: anywhere; font-size: var(--sidebar-font-size); line-height: 1.5; }
 .connection-note { background: #3c3933; color: #d5cec3; }
 .connection-card .q-card__actions { gap: 8px; }
 .connection-card .q-card__actions > .q-btn { margin-left: 0; }
+
+.portal-header { background: var(--surface-panel); border-color: var(--border-default); }
+.portal-toolbar { min-height: 68px; padding: 0 24px; gap: 10px; }
+.portal-brand { padding-left: 3px; }
+.portal-brand-name { color: var(--text-primary); font-size: calc(var(--ui-font-size) + 6px); line-height: 1.35; font-weight: 600; letter-spacing: -.3px; }
+.portal-brand-caption { color: var(--text-muted); font-size: max(10px, calc(var(--ui-font-size) - 1px)); line-height: 1.5; }
+.new-connection-button { min-height: 36px; border-radius: 7px; font-weight: 500; }
+.portal-drawer { --ui-font-size: var(--sidebar-font-size); font-size: var(--sidebar-font-size); background: var(--surface-data); }
+.saved-connections-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 18px; }
+.saved-connections-heading > div { min-width: 0; flex: 1; display: flex; align-items: center; gap: 9px; font-size: var(--ui-font-size); color: var(--text-primary); font-weight: 600; }
+.saved-connections-heading > div > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.saved-connections-heading > .q-btn, .connection-count { flex-shrink: 0; }
+.portal-drawer .q-field__native, .portal-drawer .q-field__label, .portal-drawer .q-field__input { font-size: var(--ui-font-size); }
+.portal-drawer .q-field--dense .q-field__control, .portal-drawer .q-field--dense .q-field__marginal { min-height: max(40px, calc(var(--ui-font-size) + 24px)); height: max(40px, calc(var(--ui-font-size) + 24px)); }
+.connection-count { background: var(--surface-base); color: var(--text-muted); min-width: 22px; justify-content: center; font-size: max(10px, calc(var(--ui-font-size) - 1px)); padding: 3px 6px; }
+.connection-list { padding-top: 22px; }
+.connection-list > .q-field .q-field__control { border-radius: 7px; background: var(--surface-base); }
+.connection-list .q-field__prepend { padding-right: 8px; }
+.connection-group { margin-top: 8px; }
+.connection-group > .q-expansion-item__container > .q-item { padding: 10px 6px; min-height: 50px; }
+.connection-group > .q-expansion-item__container > .q-item .q-item__label { font-size: var(--ui-font-size); }
+.saved-connection { padding: 12px 10px; background: transparent; border: 1px solid transparent; border-radius: 8px; }
+.saved-connection:hover { background: var(--surface-panel); }
+.saved-connection.q-item--active { border-color: var(--accent-color); background: var(--accent-tint); }
+.saved-connection-avatar { color: var(--accent-color); }
+.connection-name { font-size: var(--ui-font-size); font-weight: 500; }
+.connection-address { margin-top: 5px; font-size: max(10px, calc(var(--ui-font-size) - 1px)); color: var(--text-muted); }
+.connections-empty-state { margin-top: 24px; padding: 24px 12px; text-align: center; color: var(--text-muted); }
+.connections-empty-state .q-item__section { align-items: center; }
+@media (max-width: 600px) {
+    .portal-toolbar { padding: 0 12px; gap: 6px; min-height: 64px; }
+    .portal-brand-caption { display: none; }
+    .new-connection-button { padding: 0 10px; }
+}
+
+/* Shared visual rhythm with the workspace object browser. */
+.portal-drawer .connection-list { padding: 20px 12px; }
+.portal-drawer .saved-connections-heading { padding: 0 4px; margin-bottom: 14px; }
+.portal-drawer .connection-group { margin-top: 12px; }
+.portal-drawer .connection-group > .q-expansion-item__container > .q-item { min-height: 38px; padding: 6px 8px; border-radius: 7px; }
+.portal-drawer .group-folder { min-width: 26px; padding-right: 8px; color: var(--text-muted); }
+.portal-drawer .group-name { font-size: var(--ui-font-size); font-weight: 600; }
+.portal-drawer .group-count { background: var(--surface-panel); color: var(--text-muted); font-size: max(10px, calc(var(--ui-font-size) - 1px)); }
+.portal-drawer .connection-group .q-expansion-item__content { padding: 5px 0 0 8px; }
+.portal-drawer .saved-connection { margin-bottom: 6px; padding: 12px 8px; border: 1px solid var(--border-default); background: var(--surface-panel); border-radius: 9px; }
+.portal-drawer .saved-connection:hover { border-color: var(--accent-color); background: var(--surface-hover); }
+.portal-drawer .saved-connection.q-item--active { border-color: var(--accent-color); background: var(--accent-tint); }
+.portal-drawer .saved-connection-avatar { min-width: 34px; padding-right: 10px; }
+.portal-drawer .saved-connection-avatar .q-icon { width: 30px; height: 34px; border-radius: 7px; background: var(--surface-base); color: var(--accent-color); }
+.portal-drawer .connection-address { display: flex; flex-wrap: wrap; gap: 5px 7px; align-items: center; line-height: 1.5; }
+.saved-driver { font-size: max(9px, calc(var(--sidebar-font-size) - 2px)); padding: 1px 5px; border-radius: 4px; background: var(--surface-base); }
+.saved-endpoint { min-width: 0; overflow-wrap: anywhere; }
+.portal-drawer .connection-actions { padding-left: 2px; color: var(--text-muted); }
+.portal-drawer .connection-actions > .q-btn { color: var(--text-muted) !important; }
 </style>

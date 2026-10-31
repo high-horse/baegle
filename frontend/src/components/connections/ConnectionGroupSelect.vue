@@ -1,7 +1,7 @@
 <template>
     <div>
         <q-select :model-value="modelValue" :options="options" :label="label" clearable outlined dense color="primary"
-            :disable="disable" hint="Clear the selection to leave this connection ungrouped."
+            :disable="disable" hide-bottom-space :hint="compact ? undefined : 'Clear the selection to leave this connection ungrouped.'"
             @update:model-value="$emit('update:modelValue', $event)" />
         <q-btn v-if="!creating" flat dense no-caps color="primary" icon="create_new_folder" label="Create group"
             class="q-mt-sm" :disable="disable" @click="startCreating" />
@@ -26,7 +26,8 @@ const props = withDefaults(defineProps<{
     groups: string[];
     label?: string;
     disable?: boolean;
-}>(), { label: 'Group (optional)', disable: false });
+    compact?: boolean;
+}>(), { label: 'Group (optional)', disable: false, compact: false });
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>();
 const creating = ref(false);
 const newName = ref('');
