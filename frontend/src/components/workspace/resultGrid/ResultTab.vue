@@ -67,20 +67,17 @@
             @keydown="handleResultKeydown"
             @copy="copyCells"
             @paste="pasteCells"
-            @virtual-scroll="onVirtualScroll"
+            @scroll.capture.passive="cellContextMenu?.hide()"
             flat
             square
             dense
             dark
-            :rows="mappedRows"
+            :rows="visibleRows"
             :columns="mappedColumns"
             row-key="id"
             :pagination="{
                 rowsPerPage: 0,
             }"
-            :virtual-scroll="mappedRows.length > 100"
-            :virtual-scroll-item-size="Math.max(28, resultSettings.settings.fontSize + 16)"
-            :virtual-scroll-sticky-size-start="Math.max(28, resultSettings.settings.fontSize + 16)"
             class="data-explorer-grid bg-transparent"
             :class="{ 'has-filter-toolbar': result.IsQuery, 'has-edit-toolbar': !!tableTabId }"
             table-class="table-fixed"
@@ -268,33 +265,41 @@
                  BODY
                  ===================================================== -->
 
+            <template #top-row>
+                <tr v-if="paddingTop" class="q-virtual-scroll__padding" aria-hidden="true">
+                    <td :colspan="mappedColumns.length" :style="{ height: `${paddingTop}px` }" />
+                </tr>
+            </template>
+            <template #bottom-row>
+                <tr v-if="paddingBottom" class="q-virtual-scroll__padding" aria-hidden="true">
+                    <td :colspan="mappedColumns.length" :style="{ height: `${paddingBottom}px` }" />
+                </tr>
+            </template>
             <template #body="props">
-                <q-tr
-                    :props="props"
-                    class="bg-[var(--surface-data)] hover:!bg-[var(--surface-hover)]"
-                    :class="{ 'striped-row': resultSettings.settings.stripedRows && props.rowIndex % 2 === 1, 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
+                <tr :key="props.row.id" :aria-rowindex="firstRow + props.rowIndex + 2"
+                    class="q-tr bg-[var(--surface-data)] hover:!bg-[var(--surface-hover)]"
+                    :class="{ 'striped-row': resultSettings.settings.stripedRows && (firstRow + props.rowIndex) % 2 === 1, 'selected-edit-row': selectedRowKey === props.row._editKey, 'pending-insert': props.row._status === 'insert', 'pending-update': props.row._status === 'update', 'pending-delete': props.row._status === 'delete' }"
                     @click="selectedRowKey = props.row._editKey || ''"
                 >
-                    <q-td
+                    <td
                         v-for="col in props.cols"
                         :key="col.name"
-                        :props="props"
-                        class="box-border overflow-hidden whitespace-nowrap border-b border-[var(--border-default)] px-2 py-1.5 font-mono text-[length:var(--ui-font-size)] text-gray-300"
+                        class="q-td text-left box-border overflow-hidden whitespace-nowrap border-b border-[var(--border-default)] px-2 py-1.5 font-mono text-[length:var(--ui-font-size)] text-gray-300"
                         :class="{
                             'sticky-col-body pl-2 pr-1 text-left text-[var(--text-muted)]':
                                 col.name === 'sn',
                             'active-result-cell': activeCell?.rowKey === String(props.row.id) && col.name === `column-${activeCell.column}`,
-                            'selected-result-cell': isCellSelected(props.rowIndex, col.name),
+                            'selected-result-cell': isCellSelected(firstRow + props.rowIndex, col.name),
                         }"
-                        :id="col.name !== 'sn' ? cellId(props.rowIndex, Number(col.name.slice(7))) : undefined"
+                        :id="col.name !== 'sn' ? cellId(firstRow + props.rowIndex, Number(col.name.slice(7))) : undefined"
                         :role="col.name === 'sn' ? 'rowheader' : 'gridcell'"
                         :data-grid-row="col.name !== 'sn' ? String(props.row.id) : undefined"
                         :data-grid-column="col.name !== 'sn' ? col.name : undefined"
-                        :aria-selected="col.name !== 'sn' ? isCellSelected(props.rowIndex, col.name) : undefined"
+                        :aria-selected="col.name !== 'sn' ? isCellSelected(firstRow + props.rowIndex, col.name) : undefined"
                         :style="getColumnStyle(col.name)"
                         :data-pinned="isPinned(col.name) || undefined"
                         @pointerdown="startCellDrag($event, String(props.row.id), col.name)"
-                        @contextmenu="selectContextCell(String(props.row.id), col.name)"
+                        @contextmenu="openCellMenu($event, props.row, col)"
                         @click="col.name !== 'sn' && ($event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) ? inspectDocument(props.row[col.field], col.Type) : $event.detail === 4 && tableTabId && editState?.info?.canInsert ? rowEditor?.openRow(props.row._editKey) : undefined)"
                     >
                         <!-- Row number -->
@@ -308,14 +313,6 @@
 
                         <!-- Cell -->
                         <template v-else>
-                            <q-menu context-menu dark class="bg-[var(--surface-panel)] text-gray-300">
-                                <q-list dense>
-                                    <q-item-label header>Quick filter · {{ serverExpressions ? 'database result' : 'current page' }}</q-item-label>
-                                    <q-item v-for="action in quickFilterActions" :key="action.operator" clickable v-close-popup :disable="loading || editState?.saving" @click="filterByCell(col.name, props.row[col.field], action.operator)"><q-item-section>{{ action.label }}</q-item-section></q-item>
-                                    <q-item clickable v-close-popup @click="clearFilter"><q-item-section>Clear filter</q-item-section></q-item>
-                                    <RelatedRecords v-if="tableTabId" :tab-id="tableTabId" :column="col.label" :row="originalNamedRow(props.row)" :disabled="!!editState?.drafts.length" />
-                                </q-list>
-                            </q-menu>
                             <div
                                 class="block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
                                 :title="getCellTitle(props.row[col.field])"
@@ -324,10 +321,23 @@
                                 <template v-else>{{ props.row[col.field] }}</template>
                             </div>
                         </template>
-                    </q-td>
-                </q-tr>
+                    </td>
+                </tr>
             </template>
         </q-table>
+
+        <!-- One menu for the grid, created only when a cell is opened. -->
+        <q-menu v-if="contextCell" ref="cellContextMenu" :target="contextCell.target" no-parent-event context-menu dark class="bg-[var(--surface-panel)] text-gray-300">
+            <q-list dense>
+                <q-item-label header>Quick filter · {{ serverExpressions ? 'database result' : 'current page' }}</q-item-label>
+                <q-item v-for="action in quickFilterActions" :key="action.operator" clickable v-close-popup :disable="loading || editState?.saving"
+                    @click="filterByCell(contextCell.column, contextCell.value, action.operator)">
+                    <q-item-section>{{ action.label }}</q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="clearFilter"><q-item-section>Clear filter</q-item-section></q-item>
+                <RelatedRecords v-if="tableTabId" :tab-id="tableTabId" :column="contextCell.label" :row="contextCell.namedRow" :disabled="!!editState?.drafts.length" />
+            </q-list>
+        </q-menu>
 
         <ResultRecordView v-if="recordViewOpen && recordRow" class="result-record-view"
             :class="{ 'has-filter-toolbar': result.IsQuery, 'has-edit-toolbar': !!tableTabId }"
@@ -442,15 +452,18 @@ import {
     onMounted,
     reactive,
     ref,
+    shallowRef,
+    type CSSProperties,
     watch,
 } from "vue";
 
-import { Notify, type QTable, type QTableColumn } from "quasar";
+import { Notify, type QMenu, type QTable, type QTableColumn } from "quasar";
 
 import TableDataEditor from "./TableDataEditor.vue";
 import ResultFilterInput from "./ResultFilterInput.vue";
 import ResultRecordView from "./ResultRecordView.vue";
 import { useResultCellNavigation } from "./useResultCellNavigation";
+import { useResultVirtualRows } from "./useResultVirtualRows";
 import DataTransfer from "../DataTransfer.vue";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 const resultSettings = useResultSettingsStore();
@@ -566,16 +579,22 @@ const getColumnWidth = (columnName: string): number => {
     return columnWidths[columnName] ?? MIN_COLUMN_WIDTH;
 };
 
-const getColumnStyle = (columnName: string) => {
-    const width = getColumnWidth(columnName);
-
-    return {
-        ...(isPinned(columnName) ? { position: 'sticky' as const, left: `${snColumnWidth.value + displayedColumns.value.slice(0, Number(columnName.slice(7))).reduce((sum, _, i) => sum + getColumnWidth(`column-${i}`), 0)}px`, zIndex: 25, background: 'var(--surface-data)' } : {}),
-        width: `${width}px`,
-        minWidth: `${width}px`,
-        maxWidth: `${width}px`,
-    };
-};
+// Reuse column geometry across rows instead of rebuilding it for every cell.
+const columnStyles = computed(() => {
+    const styles: Record<string, CSSProperties> = {};
+    let pinnedLeft = snColumnWidth.value;
+    for (const name of ['sn', ...displayedColumns.value.map((_column, index) => `column-${index}`)]) {
+        const width = getColumnWidth(name);
+        const pinned = isPinned(name);
+        styles[name] = {
+            width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px`,
+            ...(pinned ? { position: 'sticky' as const, left: `${pinnedLeft}px`, zIndex: 25, background: 'var(--surface-data)' } : {}),
+        };
+        if (pinned) pinnedLeft += width;
+    }
+    return styles;
+});
+const getColumnStyle = (name: string) => columnStyles.value[name];
 
 /* =========================================================
    SAFE CELL TITLE
@@ -974,9 +993,35 @@ const mappedRows = computed(() => filteredRows.value.map(({ row, key, status, nu
 }));
 
 const dataTable = ref<QTable | null>(null);
+const rowHeight = computed(() => Math.max(28, resultSettings.settings.fontSize + 16));
+const { visibleRows, firstRow, paddingTop, paddingBottom, scrollToRow } = useResultVirtualRows(dataTable, mappedRows, rowHeight);
+const navigationTable = computed(() => dataTable.value ? { $el: dataTable.value.$el as HTMLElement, scrollTo: scrollToRow } : null);
+const cellContextMenu = ref<QMenu | null>(null);
+const contextCell = shallowRef<{ target: HTMLElement; column: string; label: string; value: unknown; namedRow: Record<string, unknown> } | null>(null);
+async function openCellMenu(event: MouseEvent, row: Record<string, unknown>, column: QTableColumn) {
+    selectContextCell(String(row.id), column.name);
+    if (column.name === 'sn') return;
+    event.preventDefault();
+    cellContextMenu.value?.hide();
+    contextCell.value = {
+        target: event.currentTarget as HTMLElement,
+        column: column.name,
+        label: column.label,
+        value: row[String(column.field)],
+        namedRow: originalNamedRow(row),
+    };
+    await nextTick();
+    cellContextMenu.value?.show(event);
+}
+watch(() => [props.result, displayedColumns.value], () => {
+    cellContextMenu.value?.hide();
+    contextCell.value = null;
+});
+
 const { activeCell, activeCellId, cellId, selectCell, selectContextCell, startCellDrag, handleGridKeydown, onVirtualScroll, revealActiveCell, selectionRange, isCellSelected } = useResultCellNavigation(
-    dataTable, mappedRows, computed(() => displayedColumns.value.map(column => column.Name)), selectedRowKey,
+    navigationTable, mappedRows, computed(() => displayedColumns.value.map(column => column.Name)), selectedRowKey,
 );
+watch(visibleRows, async () => { await nextTick(); onVirtualScroll(); });
 
 function copyCells(event: ClipboardEvent) {
     if (event.target !== event.currentTarget || !event.clipboardData || !selectionRange.value) return;
@@ -1443,6 +1488,8 @@ const mappedColumns =
 
 .data-explorer-grid :deep(tbody td) {
     height: var(--grid-row-height);
+    padding-top: 0;
+    padding-bottom: 0;
     overflow: hidden;
 
     white-space: nowrap;
