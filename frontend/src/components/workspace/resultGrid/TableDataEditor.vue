@@ -8,7 +8,7 @@
                 type="button"
                 :disable="busy"
                 @click="openRow()"
-                ><q-icon name="add" size="15px" /> Add roww</q-btn
+                ><q-icon name="add" size="15px" /> Add row</q-btn
             >
             <q-btn
                 flat
@@ -54,11 +54,7 @@
                 @click="edits.discard(tabId)"
                 ><q-icon name="undo" size="14px" /> Cancel</q-btn
             >
-            <span class="ml-auto text-gray-500">{{
-                state.drafts.length
-                    ? `${state.drafts.length} pending`
-                    : "Double-click a row to edit"
-            }}</span>
+            <span v-if="state.drafts.length" class="ml-auto text-gray-500">{{ state.drafts.length }} pending</span>
         </template>
         <span v-else class="text-gray-500">{{
             state?.loading
@@ -88,7 +84,7 @@
     >
         {{ state.error }}
     </div>
-    <q-dialog v-model="dialog" persistent>
+    <q-dialog v-model="dialog" persistent :transition-duration="0">
         <q-card class="row-editor-card">
             <header class="row-editor-header">
                 <div class="row-editor-heading">
@@ -163,6 +159,7 @@
                         <div
                             v-for="(field, index) in fields"
                             :key="field.name"
+                            v-memo="[field, field.text, field.mode]"
                             class="row-editor-field"
                         >
                             <label :for="`row-field-${index}`"
@@ -171,32 +168,16 @@
                                     field.type
                                 }}</span></label
                             >
-                            <q-input
-                                :for="`row-field-${index}`"
+                            <input
+                                :id="`row-field-${index}`"
                                 v-model="field.text"
-                                outlined
-                                dense
-                                dark
-                                hide-bottom-space
-                                color="primary"
-                                class="editor-input"
-                                :class="{
-                                    'locked-input':
-                                        field.locked || field.generated,
-                                }"
+                                class="editor-native-input"
+                                :class="{ 'locked-input': field.locked || field.generated }"
+                                type="text" autocomplete="off" spellcheck="false"
+                                :autofocus="index === firstEditableField"
                                 :readonly="field.locked || field.generated"
-                                :disable="
-                                    !field.locked &&
-                                    !field.generated &&
-                                    field.mode !== 'value'
-                                "
-                                :placeholder="
-                                    field.mode === 'default'
-                                        ? 'Database default'
-                                        : field.mode === 'null'
-                                          ? 'NULL'
-                                          : ''
-                                "
+                                :disabled="!field.locked && !field.generated && field.mode !== 'value'"
+                                :placeholder="field.mode === 'default' ? 'Database default' : field.mode === 'null' ? 'NULL' : ''"
                             />
                             <span
                                 v-if="field.locked || field.generated"
@@ -210,21 +191,9 @@
                                           : "Read-only"
                                 }}</span
                             >
-                            <q-select
-                                v-else
-                                v-model="field.mode"
-                                :aria-label="`${field.name} value mode`"
-                                class="value-mode"
-                                outlined
-                                dense
-                                dark
-                                hide-bottom-space
-                                color="primary"
-                                emit-value
-                                map-options
-                                :options="valueModes(field)"
-                                popup-content-class="bg-[var(--surface-panel)] text-gray-300 font-mono text-[length:var(--ui-font-size)]"
-                            />
+                            <select v-else v-model="field.mode" :aria-label="`${field.name} value mode`" class="editor-native-mode">
+                                <option v-for="mode in valueModes(field)" :key="mode.value" :value="mode.value">{{ mode.label }}</option>
+                            </select>
                         </div>
                     </div>
                     <p v-if="dialogError" class="dialog-error" role="alert">
@@ -267,6 +236,7 @@ const props = defineProps<{
     tabId: string;
     result: QueryResult;
     selectedKey: string;
+    rowIndexes?: ReadonlyMap<string, number>;
     loading?: boolean;
 }>();
 const edits = useTableEditsStore();
@@ -276,19 +246,19 @@ const busy = computed(
     () => props.loading || state.value?.saving || state.value?.loading,
 );
 const selectedDraft = computed(() =>
-    state.value?.drafts.find((row) => row.key === props.selectedKey),
+    draftsByKey.value.get(props.selectedKey),
 );
+// These indexes change with the page or drafts, not with every selected row.
+const draftsByKey = computed(() => new Map(state.value?.drafts.map(row => [row.key, row]) ?? []));
+const rowIndexes = computed(() => props.rowIndexes ?? new Map(props.result.Rows.map((_row, index) =>
+    [edits.rowKey(props.tabId, props.result, index), index] as const)));
 const canEditSelected = computed(
     () =>
         !!props.selectedKey &&
         (selectedDraft.value?.operation === "insert" ||
             (state.value?.info?.canModify &&
                 (selectedDraft.value ||
-                    props.result.Rows.some(
-                        (_row, index) =>
-                            edits.rowKey(props.tabId, props.result, index) ===
-                            props.selectedKey,
-                    )))),
+                    rowIndexes.value.has(props.selectedKey)))),
 );
 const dialog = ref(false);
 const dialogError = ref("");
@@ -308,12 +278,14 @@ const fields = ref<
         locked: boolean;
     }>
 >([]);
+const firstEditableField = computed(() => fields.value.findIndex(field => !field.locked && !field.generated && field.mode === 'value'));
 let original: Record<string, unknown> = {};
-const valueModes = (field: { nullable: boolean }) => [
-    { label: "Value", value: "value" },
-    ...(field.nullable ? [{ label: "NULL", value: "null" }] : []),
-    ...(isInsert.value ? [{ label: "Default", value: "default" }] : []),
-];
+const valueOption = { label: 'Value', value: 'value' };
+const nullOption = { label: 'NULL', value: 'null' };
+const defaultOption = { label: 'Default', value: 'default' };
+const editModes = [[valueOption], [valueOption, nullOption]];
+const insertModes = [[valueOption, defaultOption], [valueOption, nullOption, defaultOption]];
+const valueModes = (field: { nullable: boolean }) => (isInsert.value ? insertModes : editModes)[Number(field.nullable)];
 const asText = (value: unknown) =>
     value == null
         ? ""
@@ -322,7 +294,7 @@ const asText = (value: unknown) =>
           : String(value);
 function openRow(key = "") {
     if (busy.value || !state.value?.info?.canInsert) return;
-    const draft = state.value.drafts.find((row) => row.key === key);
+    const draft = draftsByKey.value.get(key);
     if (key && draft?.operation !== "insert" && !state.value.info.canModify)
         return;
     if (draft?.operation === "delete") {
@@ -331,9 +303,7 @@ function openRow(key = "") {
     }
     editingKey.value = key;
     isInsert.value = !key || draft?.operation === "insert";
-    const index = props.result.Rows.findIndex(
-        (_row, index) => edits.rowKey(props.tabId, props.result, index) === key,
-    );
+    const index = key ? rowIndexes.value.get(key) ?? -1 : -1;
     original =
         draft?.original ??
         (index < 0
@@ -475,14 +445,8 @@ function stageRow() {
             dialog.value = false;
             return;
         }
-        const index = props.result.Rows.findIndex(
-            (_row, index) =>
-                edits.rowKey(props.tabId, props.result, index) ===
-                editingKey.value,
-        );
-        const existing = state.value?.drafts.find(
-            (row) => row.key === editingKey.value,
-        );
+        const index = rowIndexes.value.get(editingKey.value) ?? -1;
+        const existing = draftsByKey.value.get(editingKey.value);
         const keys = isInsert.value
             ? {}
             : (existing?.keys ??
@@ -516,11 +480,7 @@ function deleteRow() {
         edits.remove(props.tabId, props.selectedKey);
         return;
     }
-    const index = props.result.Rows.findIndex(
-        (_row, index) =>
-            edits.rowKey(props.tabId, props.result, index) ===
-            props.selectedKey,
-    );
+    const index = rowIndexes.value.get(props.selectedKey) ?? -1;
     if (index < 0 && !draft) return;
     edits.stage(props.tabId, {
         key: props.selectedKey,
@@ -663,32 +623,45 @@ defineExpose({ openRow });
     margin-top: 2px;
     font-weight: 400;
 }
-.editor-input,
-.value-mode {
+.editor-input {
     width: 100%;
     min-width: 0;
     font: inherit;
 }
-.editor-input :deep(.q-field__control),
-.value-mode :deep(.q-field__control) {
+.editor-input :deep(.q-field__control) {
     min-height: 28px;
     height: 28px;
     border-radius: 2px;
     background: var(--surface-panel);
 }
-.editor-input :deep(.q-field__control::before),
-.value-mode :deep(.q-field__control::before) {
+.editor-input :deep(.q-field__control::before) {
     border-color: #555555;
 }
-.editor-input :deep(.q-field__native),
-.value-mode :deep(.q-field__native) {
+.editor-input :deep(.q-field__native) {
     font: inherit;
     padding: 3px 0;
 }
-.editor-input :deep(.q-field__marginal),
-.value-mode :deep(.q-field__marginal) {
+.editor-input :deep(.q-field__marginal) {
     height: 28px;
 }
+.editor-native-input, .editor-native-mode {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: 28px;
+    padding: 3px 8px;
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+    background: var(--surface-panel);
+    color: var(--text-primary);
+    font: inherit;
+    outline: none;
+}
+.editor-native-input:focus, .editor-native-mode:focus-visible { border-color: var(--accent-color); box-shadow: 0 0 0 1px var(--accent-color); }
+.editor-native-input:disabled { opacity: .6; }
+.editor-native-input::placeholder { color: var(--text-muted); }
+.editor-native-input.locked-input { color: var(--text-muted); background: var(--surface-base); }
+.editor-native-mode { cursor: pointer; }
 .locked-input :deep(.q-field__native) {
     color: var(--text-muted);
 }

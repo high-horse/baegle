@@ -48,7 +48,7 @@
             <span class="filter-count">{{ serverExpressions ? workingRows.length : `${filteredRows.length}/${workingRows.length}` }} <span class="filter-scope">on this page</span></span>
         </q-form>
 
-        <TableDataEditor v-if="tableTabId" ref="rowEditor" :tab-id="tableTabId" :result="result" :selected-key="selectedRowKey" :loading="loading" />
+        <TableDataEditor v-if="tableTabId" ref="rowEditor" :tab-id="tableTabId" :result="result" :selected-key="selectedRowKey" :row-indexes="sourceRowIndexes" :loading="loading" />
 
         <!-- =========================================================
              TABLE
@@ -345,7 +345,7 @@
             :selected-column="activeCell?.column ?? 0" @close="closeRecordView" @move="moveRecordRow"
             @select-column="column => selectCell(String(recordRow!.id), `column-${column}`, false)" />
 
-        <q-dialog v-model="documentDialog">
+        <q-dialog v-model="documentDialog" :transition-duration="0">
             <q-card class="bg-[var(--surface-panel)] text-gray-300" style="width: 800px; max-width: 90vw">
                 <q-card-section class="flex items-center justify-between">
                     <span>{{ documentTitle }}</span>
@@ -954,16 +954,19 @@ watch(() => props.result, () => {
 });
 const workingRows = computed(() => {
     const drafts = editState.value?.drafts ?? [];
+    const draftsByKey = new Map(drafts.map(draft => [draft.key, draft]));
+    const pageKeys = new Set<string>();
     const rows = props.result.Rows.map((original, index) => {
         const key = props.tableTabId ? tableEdits.rowKey(props.tableTabId, props.result, index) : String(props.result.StartRow + index);
-        const draft = drafts.find(draft => draft.key === key);
+        pageKeys.add(key);
+        const draft = draftsByKey.get(key);
         const row = props.result.Columns.map((column, col) => {
             const value = draft && Object.hasOwn(draft.values, column.Name) ? draft.values[column.Name] : original[col];
             return value != null && typeof value === 'object' ? JSON.stringify(value) : value;
         });
         return { row, index, key, status: draft?.operation ?? '', number: String(props.result.StartRow + index) };
     });
-    for (const draft of drafts.filter(draft => !rows.some(row => row.key === draft.key))) {
+    for (const draft of drafts.filter(draft => !pageKeys.has(draft.key))) {
         rows.push({ row: props.result.Columns.map(column => {
             const value = Object.hasOwn(draft.values, column.Name) ? draft.values[column.Name] : draft.original?.[column.Name];
             return value != null && typeof value === 'object' ? JSON.stringify(value) : value;
@@ -971,6 +974,10 @@ const workingRows = computed(() => {
     }
     return rows;
 });
+// Reuse the keys already prepared for the grid; do not serialize them again on click.
+const sourceRowIndexes = computed(() => new Map(workingRows.value
+    .filter(row => row.index < props.result.Rows.length)
+    .map(row => [row.key, row.index] as const)));
 const filteredRows = computed(() => {
     if (serverExpressions.value) return workingRows.value;
     const rows = workingRows.value.filter(({ row, status }) => {
@@ -1102,6 +1109,12 @@ function moveRecordRow(offset: number) {
     if (row) selectCell(String(row.id), `column-${activeCell.value?.column ?? 0}`, false);
 }
 function handleResultKeydown(event: KeyboardEvent) {
+    if (event.target === event.currentTarget && event.key === 'F2' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing && props.tableTabId && selectedRowKey.value) {
+        event.preventDefault();
+        event.stopPropagation();
+        rowEditor.value?.openRow(selectedRowKey.value);
+        return;
+    }
     if (event.key === 'Tab' && event.target === event.currentTarget && activeCell.value
         && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) {
         event.preventDefault();
