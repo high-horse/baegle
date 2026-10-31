@@ -520,6 +520,11 @@ func (s *DbService) writeExport(ctx context.Context, w io.Writer, input ExportRe
 			return 0, fmt.Errorf("export all query rows requires a single SELECT query")
 		}
 	}
+	if conn.Config().ReadOnly {
+		if err := sqlExecutor.CheckReadOnlySQL(query, conn.Type()); err != nil {
+			return 0, err
+		}
+	}
 	tx, err := sqlConn.DB().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return 0, err

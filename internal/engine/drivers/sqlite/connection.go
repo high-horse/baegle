@@ -49,16 +49,20 @@ func (c *Connection) DB() *sql.DB {
 	return c.db
 }
 
-func (c *Connection) dsn() string {
+func (c *Connection) dsn() (string, error) {
 	u, err := url.Parse("file:" + c.config.Database)
 	if err != nil {
-		return "file:" + c.config.Database + "?_journal_mode=WAL&_foreign_keys=on"
+		return "", fmt.Errorf("invalid SQLite database path: %w", err)
 	}
 	q := u.Query()
+	if c.config.ReadOnly {
+		q.Set("mode", "ro")
+		q.Add("_pragma", "query_only(1)")
+	}
 	q.Set("_journal_mode", "WAL")
 	q.Set("_foreign_keys", "on")
 	u.RawQuery = q.Encode()
-	return u.String()
+	return u.String(), nil
 }
 
 func (c *Connection) Connect(ctx context.Context) error {
@@ -67,8 +71,11 @@ func (c *Connection) Connect(ctx context.Context) error {
 	}
 	log.Println("connected to transport")
 	log.Println("opening database connection")
-	log.Println("dsn:", c.dsn())
-	db, err := sql.Open("sqlite", c.dsn())
+	dsn, err := c.dsn()
+	if err != nil {
+		return err
+	}
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return err
 	}

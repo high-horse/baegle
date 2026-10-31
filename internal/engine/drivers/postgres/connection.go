@@ -59,6 +59,9 @@ func (c *Connection) dsn() string {
 		q.Set("sslmode", "require")
 	}
 	q.Set("connect_timeout", "15")
+	if c.config.ReadOnly {
+		q.Set("default_transaction_read_only", "on")
+	}
 	u.RawQuery = q.Encode()
 	return u.String()
 }

@@ -131,6 +131,7 @@ func (s *DbService) GetActiveConnectionObject() (types.Connection, bool) {
 		DBName:   conn.DatabaseName(),
 		Driver:   conn.Type(),
 		ReadOnly: config.ReadOnly,
+		Group:    config.Group,
 		SSL:      config.SSL,
 	}, true
 }
@@ -254,6 +255,16 @@ func (s *DbService) ExecuteQuery(ctx context.Context, queryInput entities.QueryI
 	}
 	if queryInput.Cursor != "" && queryInput.Type != entities.QueryExecutionCount {
 		s.pager.Close(queryInput.Cursor, conn.ID())
+	}
+	if conn.Config().ReadOnly {
+		if err := sqlExecutor.CheckReadOnlySQL(queryInput.Query, conn.Type()); err != nil {
+			return nil, err
+		}
+		if queryInput.Where != "" {
+			if err := sqlExecutor.CheckReadOnlySQL("SELECT 1 WHERE ("+queryInput.Where+")", conn.Type()); err != nil {
+				return nil, err
+			}
+		}
 	}
 	driver, err := s.factory.Driver(conn.Type())
 	if err != nil {

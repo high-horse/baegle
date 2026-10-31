@@ -18,6 +18,10 @@
                 <q-chip dense square icon="storage" class="connection-chip" aria-label="Database type" :title="activeConnection?.driver">
                     <span class="connection-chip-label">{{ activeConnection?.driver }}</span>
                 </q-chip>
+                <q-chip v-if="activeConnection?.read_only" dense square icon="lock_outline" class="connection-chip" aria-label="Read-only connection">
+                    Read only
+                    <q-tooltip>Reading and exporting are allowed. Data and schema changes are blocked.</q-tooltip>
+                </q-chip>
             </div>
         </div>
         <div class="schema-search">

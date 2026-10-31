@@ -11,6 +11,7 @@ import (
 
 	manager "db-lens/internal/engine/connectionManager"
 	"db-lens/internal/engine/queryExecutor/detector"
+	"db-lens/internal/engine/queryExecutor/sqlExecutor"
 	"db-lens/internal/engine/sqlscript"
 	"github.com/jackc/pgx/v5/stdlib"
 )
@@ -79,9 +80,6 @@ func (s *DbService) ExecuteConsoleScript(ctx context.Context, consoleID, request
 	if !ok || conn.ID() != connectionID {
 		return nil, fmt.Errorf("the console's connection is no longer active")
 	}
-	if conn.Config().ReadOnly {
-		return nil, fmt.Errorf("scripts cannot run on a read-only connection")
-	}
 	sqlConn, ok := conn.(manager.SQLConnection)
 	if !ok {
 		return nil, fmt.Errorf("SQL scripts are not supported on this connection")
@@ -96,6 +94,14 @@ func (s *DbService) ExecuteConsoleScript(ctx context.Context, consoleID, request
 	result.Total = len(statements)
 	if len(statements) == 0 {
 		return nil, fmt.Errorf("the script contains no SQL statements")
+	}
+	if conn.Config().ReadOnly {
+		// Validate the entire script before executing its first statement.
+		for i, statement := range statements {
+			if err := sqlExecutor.CheckReadOnlySQL(statement.SQL, conn.Type()); err != nil {
+				return nil, fmt.Errorf("statement %d (line %d): %w", i+1, statement.Line, err)
+			}
+		}
 	}
 	progress := func(current, line int) {
 		s.consoleMu.Lock()

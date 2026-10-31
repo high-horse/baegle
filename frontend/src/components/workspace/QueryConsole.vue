@@ -39,7 +39,7 @@
 
                 <q-btn v-if="!isNoSQL(dbDriver)" flat dense no-caps size="sm" class="query-action" icon="playlist_play" label="Run script"
                     title="Execute all statements in this console (Alt+X)" aria-label="Run SQL script"
-                    :disable="activeTab.loading || !activeTab.sql.trim() || connectionStore.activeConnection?.read_only"
+                    :disable="activeTab.loading || !activeTab.sql.trim()"
                     @click="executeScript" />
 
                 <q-btn
@@ -200,7 +200,7 @@ function executeActiveTab(sql: string) {
 }
 
 function executeScript() {
-    if (!props.activeTab || connectionStore.activeConnection?.read_only || isNoSQL(dbDriver.value)) return;
+    if (!props.activeTab || isNoSQL(dbDriver.value)) return;
     void queryTabsStore.executeScript(props.activeTab.id);
 }
 </script>
