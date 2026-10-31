@@ -41,7 +41,7 @@ func (i *PostgresInspector) ListDatabases(ctx context.Context, conn manager.Conn
 		}
 		databases = append(databases, entities.DatabaseInfo{Name: name})
 	}
-	return databases, nil
+	return databases, rows.Err()
 }
 
 func (i *PostgresInspector) ListTables(ctx context.Context, conn manager.Connection) ([]entities.InspectTableInfo, error) {
@@ -49,33 +49,25 @@ func (i *PostgresInspector) ListTables(ctx context.Context, conn manager.Connect
 	if !ok {
 		return nil, fmt.Errorf("connection is not sql")
 	}
+	// Catalog metadata remains visible even when data access has not been granted.
+	// Do not use information_schema here: it filters objects by current privileges.
 	query := `
-		SELECT
-			t.table_name,
-			CASE
-				WHEN t.table_type = 'BASE TABLE' THEN 'TABLE'
-				ELSE t.table_type
-			END,
-			current_database(),
-			t.table_schema,
-			c.reltuples::bigint,
-			pg_catalog.obj_description(c.oid),
-			NULL,
-			NULL
-		FROM information_schema.tables t
-		JOIN pg_class c
-			ON c.relname = t.table_name
-		JOIN pg_namespace n
-			ON n.oid = c.relnamespace
-			AND n.nspname = t.table_schema
-		WHERE t.table_schema NOT IN (
-			'pg_catalog',
-			'information_schema'
-		)
-		ORDER BY
-			t.table_schema,
-			t.table_name
-	`
+  SELECT c.relname,
+   CASE c.relkind
+    WHEN 'v' THEN 'VIEW'
+    WHEN 'f' THEN 'FOREIGN'
+    ELSE 'TABLE'
+   END,
+   current_database(), n.nspname,
+   GREATEST(c.reltuples::bigint, 0),
+   pg_catalog.obj_description(c.oid, 'pg_class'), NULL, NULL
+  FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind IN ('r', 'p', 'v', 'f')
+   AND n.nspname <> 'information_schema'
+   AND n.nspname !~ '^pg_'
+  ORDER BY n.nspname, c.relname
+ `
 	rows, err := sqlConn.DB().QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -131,7 +123,7 @@ func (i *PostgresInspector) ListTables(ctx context.Context, conn manager.Connect
 		tables = append(tables, table)
 	}
 
-	return tables, nil
+	return tables, rows.Err()
 }
 
 func (i *PostgresInspector) ListColumns(
@@ -146,35 +138,26 @@ func (i *PostgresInspector) ListColumns(
 	}
 
 	query := `
-		SELECT
-			column_name,
-			data_type,
-			is_nullable,
-			column_default,
-            is_identity,
-            is_generated,
-			COALESCE(
-				(
-					SELECT tc.constraint_type
-					FROM information_schema.table_constraints tc
-					JOIN information_schema.key_column_usage kcu
-						ON tc.constraint_name = kcu.constraint_name
-						AND tc.table_schema = kcu.table_schema
-					WHERE tc.table_name = c.table_name
-					AND tc.table_schema = c.table_schema
-					AND kcu.column_name = c.column_name
-					AND tc.constraint_type = 'PRIMARY KEY'
-					LIMIT 1
-				),
-				''
-			)
-		FROM information_schema.columns c
-		WHERE table_catalog = $1
-		AND table_schema = $2
-		AND table_name = $3
-		ORDER BY ordinal_position
-	`
-
+  SELECT a.attname,
+   pg_catalog.format_type(a.atttypid, a.atttypmod),
+   CASE WHEN a.attnotnull OR t.typnotnull THEN 'NO' ELSE 'YES' END,
+   pg_catalog.pg_get_expr(d.adbin, d.adrelid),
+   CASE WHEN a.attidentity <> '' THEN 'YES' ELSE 'NO' END,
+   CASE WHEN a.attgenerated <> '' THEN 'ALWAYS' ELSE 'NEVER' END,
+   CASE WHEN EXISTS (
+    SELECT 1 FROM pg_catalog.pg_constraint k
+    WHERE k.conrelid = c.oid AND k.contype = 'p'
+     AND a.attnum = ANY(k.conkey)
+   ) THEN 'PRIMARY KEY' ELSE '' END
+  FROM pg_catalog.pg_attribute a
+  JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+  LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+  WHERE current_database() = $1 AND n.nspname = $2 AND c.relname = $3
+   AND a.attnum > 0 AND NOT a.attisdropped
+  ORDER BY a.attnum
+ `
 	rows, err := sqlConn.DB().QueryContext(
 		ctx,
 		query,
