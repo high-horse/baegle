@@ -124,7 +124,7 @@ func TestCursorPreservesSQLAndExecutesOnce(t *testing.T) {
 
 func TestCursorValidationAndConnectionCleanup(t *testing.T) {
 	p, db := testPager(t)
-	for _, size := range []int{-1, 501} {
+	for _, size := range []int{-1, -100} {
 		if _, err := p.Open(context.Background(), db, "test", "SELECT 1", size); err == nil {
 			t.Fatal("accepted invalid size")
 		}

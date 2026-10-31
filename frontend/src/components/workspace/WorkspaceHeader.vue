@@ -4,11 +4,7 @@
     >
         <!-- Left -->
         <div class="flex items-center gap-3">
-            <q-icon
-                name="dns"
-                size="20px"
-                class="text-primary"
-            />
+            <AppIcon :size="32" />
 
             <span
                 class="font-bold text-white tracking-wide text-[length:var(--ui-font-size)]"
@@ -48,6 +44,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import AppIcon from "@/components/AppIcon.vue";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { DbService } from "@bindings/db-lens/internal/app";
 import ResultSettings from "@/components/workspace/resultGrid/ResultSettings.vue";

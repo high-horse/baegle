@@ -99,8 +99,8 @@ func TestNativeCursorBoundsAndClose(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if result.PageSize != 500 {
-			t.Fatal("page size not bounded")
+		if result.PageSize != 1000 {
+			t.Fatal("requested page size was changed")
 		}
 	}
 	if len(c.cursors) != 16 {

@@ -54,8 +54,8 @@ func (p *Pager) open(ctx context.Context, db *sql.DB, connection, query string, 
 	if size == 0 {
 		size = 100
 	}
-	if size < 1 || size > 500 {
-		return nil, fmt.Errorf("page size must be between 1 and 500")
+	if size < 1 {
+		return nil, fmt.Errorf("page size must be a positive whole number")
 	}
 	var key [16]byte
 	if _, err := rand.Read(key[:]); err != nil {
@@ -150,7 +150,7 @@ func (p *Pager) FetchContext(ctx context.Context, id, connection string, page in
 }
 
 func (c *rowCursor) fetch(id string, start time.Time) (*entities.QueryResult, error) {
-	result := &entities.QueryResult{Columns: c.columns, Rows: make([][]interface{}, 0, c.size), IsQuery: len(c.columns) > 0, PageSize: c.size, StartRow: c.read + 1, TotalRows: c.totalRows, CanNavigate: c.totalRows != nil}
+	result := &entities.QueryResult{Columns: c.columns, Rows: make([][]interface{}, 0, min(c.size, 100)), IsQuery: len(c.columns) > 0, PageSize: c.size, StartRow: c.read + 1, TotalRows: c.totalRows, CanNavigate: c.totalRows != nil}
 	if result.IsQuery {
 		if c.pending != nil {
 			result.Rows = append(result.Rows, c.pending)

@@ -57,8 +57,8 @@ func (p *Pager) OpenInput(ctx context.Context, conn manager.Connection, input en
 	if size == 0 {
 		size = 100
 	}
-	if size < 1 || size > 500 {
-		return nil, fmt.Errorf("page size must be between 1 and 500")
+	if size < 1 {
+		return nil, fmt.Errorf("page size must be a positive whole number")
 	}
 	operation, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -249,7 +249,7 @@ func documentRow(document bson.Raw) ([]any, error) {
 }
 func (c *documentCursor) fetch(ctx context.Context, id string, start time.Time) (*entities.QueryResult, error) {
 	result := &entities.QueryResult{IsQuery: true, PageSize: c.size, StartRow: c.read + 1, TotalRows: c.totalRows, CanNavigate: c.totalRows != nil}
-	documents := make([]bson.Raw, 0, c.size)
+	documents := make([]bson.Raw, 0, min(c.size, 100))
 	if c.pending != nil {
 		documents = append(documents, c.pending)
 		c.pending = nil

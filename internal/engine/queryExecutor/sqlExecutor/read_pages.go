@@ -167,8 +167,8 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 	if size == 0 {
 		size = 100
 	}
-	if size < 1 || size > 500 {
-		return nil, fmt.Errorf("page size must be between 1 and 500")
+	if size < 1 {
+		return nil, fmt.Errorf("page size must be a positive whole number")
 	}
 	if input.SortColumn < 0 {
 		return nil, fmt.Errorf("invalid sort column")
@@ -213,11 +213,11 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 		if input.SortColumn == 0 && input.OrderBy == "" {
 			query += " ORDER BY (SELECT NULL)"
 		}
-		query += fmt.Sprintf("\nOFFSET %d ROWS FETCH NEXT %d ROWS ONLY", offset, size+1)
+		query += fmt.Sprintf("\nOFFSET %d ROWS FETCH NEXT %d ROWS ONLY", offset, uint64(size)+1)
 	case "oracle", "db2":
-		query += fmt.Sprintf("\nOFFSET %d ROWS FETCH NEXT %d ROWS ONLY", offset, size+1)
+		query += fmt.Sprintf("\nOFFSET %d ROWS FETCH NEXT %d ROWS ONLY", offset, uint64(size)+1)
 	default:
-		query += fmt.Sprintf("\nLIMIT %d OFFSET %d", size+1, offset)
+		query += fmt.Sprintf("\nLIMIT %d OFFSET %d", uint64(size)+1, offset)
 	}
 	start := time.Now()
 	rows, err := db.QueryContext(ctx, query)
@@ -235,7 +235,7 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 	if err != nil {
 		return nil, err
 	}
-	result := &entities.QueryResult{Rows: make([][]interface{}, 0, size), IsQuery: true, PageSize: size, StartRow: offset + 1, CanNavigate: true}
+	result := &entities.QueryResult{Rows: make([][]interface{}, 0, min(size, 100)), IsQuery: true, PageSize: size, StartRow: offset + 1, CanNavigate: true}
 	for _, ct := range types {
 		nullable, known := ct.Nullable()
 		result.Columns = append(result.Columns, entities.ColumnInfo{Name: ct.Name(), DatabaseType: ct.DatabaseTypeName(), Nullable: nullable && known})

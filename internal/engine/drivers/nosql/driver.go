@@ -181,9 +181,6 @@ func (c *Connection) ExecuteInput(ctx context.Context, in entities.QueryInput) (
 	if size <= 0 {
 		size = 100
 	}
-	if size > 500 {
-		size = 500
-	}
 	result, next, err := c.backend.query(ctx, in.Query, size, nil)
 	if err != nil {
 		return nil, err

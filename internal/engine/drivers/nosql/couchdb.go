@@ -181,7 +181,7 @@ func (b *couchBackend) query(ctx context.Context, q string, size int, state []by
 		pagedAll = false
 	}
 	if pagedAll {
-		query.Set("limit", fmt.Sprint(size+1))
+		query.Set("limit", fmt.Sprint(uint64(size)+1))
 		if page.LastID != "" {
 			key, _ := json.Marshal(page.LastID)
 			query.Set("startkey", string(key))

@@ -52,8 +52,8 @@ func validateResultSettings(settings types.ResultSettings) error {
 	if settings.ImportLimitMiB < 0 || settings.ImportLimitMiB > (1<<63-1)/(1<<20)-1 {
 		return fmt.Errorf("import file limit must be a nonnegative whole number of MiB; use 0 for unlimited")
 	}
-	if settings.RowsPerPage < 1 || settings.RowsPerPage > 500 {
-		return fmt.Errorf("rows per page must be between 1 and 500")
+	if settings.RowsPerPage < 1 {
+		return fmt.Errorf("rows per page must be a positive whole number")
 	}
 	if settings.FontSize < 10 || settings.FontSize > 18 {
 		return fmt.Errorf("font size must be between 10 and 18")

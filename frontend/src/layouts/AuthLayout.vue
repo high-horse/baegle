@@ -3,7 +3,7 @@
         <q-header bordered class="portal-header">
             <q-toolbar class="q-px-lg" style="min-height: 64px">
                 <q-btn flat round dense icon="menu" aria-label="Toggle saved connections" :aria-expanded="drawerOpen" color="grey-4" class="q-mr-sm" @click="drawerOpen = !drawerOpen" />
-                <q-icon name="storage" size="24px" color="primary" />
+                <AppIcon :size="32" />
                 <q-toolbar-title>
                     <div class="text-subtitle1 text-weight-medium">baegle</div>
                     <div class="text-caption text-grey-5">Database workspace</div>
@@ -134,6 +134,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from "@/components/AppIcon.vue";
 import ConnectionGroupSelect from "@/components/connections/ConnectionGroupSelect.vue";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useQuasar, type QInput } from "quasar";

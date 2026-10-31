@@ -148,7 +148,7 @@ func TestReadPageBoundaryAndValidation(t *testing.T) {
 		{Query: "SELECT 1", SortColumn: 1, SortDirection: "desc; DROP TABLE items"},
 		{Query: "SELECT 1", SortColumn: -1},
 		{Query: "SELECT 1", SortColumn: 2, SortDirection: "asc"},
-		{Query: "SELECT 1", PageSize: 501},
+		{Query: "SELECT 1", PageSize: -1},
 	} {
 		if _, err := p.OpenRead(context.Background(), db, "test", "sqlite", input); err == nil {
 			t.Fatalf("accepted invalid input: %+v", input)
@@ -247,5 +247,52 @@ func TestExplicitCountHonorsResultShapeAndCancellation(t *testing.T) {
 	}
 	if _, err := CountRead(ctx, db, "SELECT 1"); err != nil {
 		t.Fatal("connection unusable after count cancellation", err)
+	}
+}
+
+func TestLargeRequestedPageSize(t *testing.T) {
+	p, db := testPager(t)
+	const query = "WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<1201) SELECT x FROM n"
+	for _, navigable := range []bool{false, true} {
+		var result *entities.QueryResult
+		var err error
+		if navigable {
+			result, err = p.OpenRead(context.Background(), db, "test", "sqlite", entities.QueryInput{Query: query, PageSize: 1000})
+		} else {
+			result, err = p.Open(context.Background(), db, "test", query, 1000)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Rows) != 1000 || result.PageSize != 1000 || !result.HasMore {
+			t.Fatalf("large page was truncated: %+v", result)
+		}
+		if navigable {
+			result, err = p.OpenRead(context.Background(), db, "test", "sqlite", entities.QueryInput{Query: query, PageSize: 1000, Page: 2})
+		} else {
+			result, err = p.Fetch(result.Cursor, "test", 2)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Rows) != 201 || result.StartRow != 1001 || result.HasMore {
+			t.Fatalf("incorrect large page boundary: %+v", result)
+		}
+	}
+	// A large request against a small result must not preallocate the requested capacity.
+	for _, navigable := range []bool{false, true} {
+		var result *entities.QueryResult
+		var err error
+		if navigable {
+			result, err = p.OpenRead(context.Background(), db, "test", "sqlite", entities.QueryInput{Query: "SELECT 1", PageSize: 1_000_000_000})
+		} else {
+			result, err = p.Open(context.Background(), db, "test", "SELECT 1", 1_000_000_000)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Rows) != 1 || cap(result.Rows) > 100 {
+			t.Fatal("oversized allocation for a small result")
+		}
 	}
 }
