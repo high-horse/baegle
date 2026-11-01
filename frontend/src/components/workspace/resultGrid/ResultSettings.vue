@@ -1,6 +1,6 @@
 <template>
-    <q-btn flat dense type="button" class="pagination-button" title="Workspace settings"
-        aria-label="Workspace settings" @click="openSettings">
+    <q-btn flat dense type="button" class="pagination-button" title="Workspace settings (Ctrl+.)"
+        aria-label="Workspace settings" aria-keyshortcuts="Control+." @click="openSettings">
         <q-icon name="settings" size="16px" />
     </q-btn>
     <q-dialog v-model="visible" :persistent="saving" aria-labelledby="workspace-settings-title">
@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onBeforeUnmount } from "vue";
+import { ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { defaultResultSettings, useResultSettingsStore } from "@/stores/resultSettingsStore";
 import { isAccentColor } from '@/utils/accentTheme';
 
@@ -135,6 +135,15 @@ watch(() => [visible.value, draft.value.accentColor] as const, ([open, color]) =
     store.accentPreview = open && isAccentColor(color) ? color : null;
 });
 onBeforeUnmount(() => { if (visible.value) store.accentPreview = null; });
+function handleSettingsShortcut(event: KeyboardEvent) {
+    if (event.key !== "." || !event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat || visible.value || document.querySelector(".q-dialog")) return;
+    void openSettings();
+}
+onMounted(() => window.addEventListener("keydown", handleSettingsShortcut, true));
+onBeforeUnmount(() => window.removeEventListener("keydown", handleSettingsShortcut, true));
 async function openSettings() {
     visible.value = true;
     loading.value = true;
