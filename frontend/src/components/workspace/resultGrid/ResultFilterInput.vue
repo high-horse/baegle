@@ -6,7 +6,7 @@
 import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap, placeholder, tooltips } from "@codemirror/view";
-import { syntaxTree } from "@codemirror/language";
+import { completeResultExpression } from "@/utils/resultFilterCompletion";
 import { sql, SQLite } from "@codemirror/lang-sql";
 import { autocompletion, completionKeymap, acceptCompletion, type CompletionContext } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -35,28 +35,7 @@ const attributes = () => EditorView.contentAttributes.of({
 });
 
 function complete(context: CompletionContext) {
-    const node = syntaxTree(context.state).resolveInner(context.pos, -1);
-    if (/String|Comment/.test(node.name)) return null;
-    const quoted = context.matchBefore(/"(?:""|[^"])*$|`(?:``|[^`])*$/);
-    const word = quoted || context.matchBefore(/[\p{L}\p{N}_$.]+/u);
-    if (!word && !context.explicit) return null;
-    const quote = quoted?.text[0] || '"';
-    const closing = quoted && context.state.sliceDoc(context.pos, context.pos + 1) === quote;
-    return {
-        from: word?.from ?? context.pos,
-        to: closing ? context.pos + 1 : context.pos,
-        options: [
-            ...props.columns.map(column => ({
-                label: quoted ? quote + column.Name : column.Name,
-                displayLabel: column.Name,
-                type: "property",
-                detail: column.Type,
-                apply: quote + column.Name.split(quote).join(quote + quote) + quote,
-            })),
-            ...(!quoted ? (props.mode === "order" ? "ASC DESC" : "AND OR NOT LIKE IN IS NULL TRUE FALSE")
-                .split(" ").map(label => ({ label, type: "keyword" })) : []),
-        ],
-    };
+    return completeResultExpression(context, props.columns, props.mode);
 }
 
 onMounted(() => {
