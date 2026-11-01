@@ -138,6 +138,11 @@ watch(() => activeConnection.value?.driver, (driver) => {
 const sidebarWidth = ref(20);
 
 const showResults = ref(true);
+// New executions reveal their output; hiding it afterward remains available
+// while either a single query or a script is running.
+watch(() => queryTabsStore.activeTab?.runningQuery, running => {
+    if (running) showResults.value = true;
+}, { flush: 'sync' });
 
 function hideResults() {
     showResults.value = false;

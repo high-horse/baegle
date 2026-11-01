@@ -4,6 +4,7 @@
             <q-select v-model="selectedStatement" :options="statementOptions" emit-value map-options dense outlined dark
                 class="min-w-0 flex-1" label="Statement results" aria-label="Select SQL statement result" />
             <span class="shrink-0" :class="result.error ? 'text-red-300' : 'text-teal-300'">{{ result.completed }} / {{ result.total }} completed · {{ formatDuration(result.duration) }}</span>
+            <q-btn flat dense round type="button" icon="close" size="sm" title="Hide results (Ctrl+J)" aria-label="Hide script results" @click="emit('close')" />
         </div>
         <q-tabs v-if="queryStatements.length" v-model="selectedStatement" dense no-caps align="left" active-color="primary" indicator-color="primary" class="shrink-0 border-b border-[var(--border-default)]">
             <q-tab v-for="entry in queryStatements" :key="entry.statement" :name="entry.statement" :label="`Statement ${entry.statement}`" />
@@ -26,7 +27,7 @@
                 Result preview limited to 1,000 rows per result and 10,000 rows per script. All statements still execute in full. Run this query separately to browse more rows.
             </div>
             <div v-if="gridResult" class="flex-1 min-h-0 min-w-0 overflow-hidden">
-                <ResultGrid :key="`${selectedStatement}:${selectedSet}`" :result="gridResult" :loading="false" :error="null" />
+                <ResultGrid :key="`${selectedStatement}:${selectedSet}`" :result="gridResult" :loading="false" :error="null" hide-close />
             </div>
         </template>
     </div>
@@ -39,7 +40,7 @@ import { formatDuration } from '@/utils/formatDuration';
 import ResultGrid from './resultGrid/ResultGrid.vue';
 
 const props = defineProps<{ result: NonNullable<QueryTab['scriptResult']> }>();
-const emit = defineEmits<{ focusLine: [line: number] }>();
+const emit = defineEmits<{ focusLine: [line: number]; close: [] }>();
 const selectedStatement = ref(1);
 const selectedSet = ref(0);
 const statements = computed(() => props.result.statements ?? []);

@@ -18,7 +18,7 @@
             </section>
             <section>
                 <h3><q-icon name="tab" size="18px" /> Tabs &amp; session</h3>
-                <p><kbd>Ctrl</kbd> + <kbd>T</kbd> opens a console; <kbd>Ctrl</kbd> + <kbd>W</kbd> closes the active tab. Switch tabs with <kbd>Ctrl</kbd> + <kbd>Tab</kbd>, or go backward with <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Tab</kbd>. <kbd>Ctrl</kbd> + <kbd>J</kbd> shows or hides console results.</p>
+                <p><kbd>Ctrl</kbd> + <kbd>T</kbd> opens a console; <kbd>Ctrl</kbd> + <kbd>W</kbd> closes the active tab. Switch tabs with <kbd>Ctrl</kbd> + <kbd>Tab</kbd>, or go backward with <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Tab</kbd>. <kbd>Ctrl</kbd> + <kbd>J</kbd> shows or hides console results, including script results. The result header’s close button hides the pane without deleting its results; run another query or script to show output again.</p>
                 <p><kbd>Ctrl</kbd> + <kbd>P</kbd> searches tables, views, and collections. Use the arrow keys and <kbd>Enter</kbd> to open a match. Opening an already open table selects its existing tab.</p>
                 <p>Drag tabs to reorder them. Right-click a tab to close it, other tabs, tabs to either side, or all tabs; unsaved table edits still require a discard decision.</p>
                 <p>Each console remembers its scroll position and cursor selection while you switch tabs during this connection session. These positions reset after disconnecting; saved console text follows the normal restore behavior.</p>

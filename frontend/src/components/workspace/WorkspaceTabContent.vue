@@ -10,8 +10,8 @@
                                     horizontal
                                     :limits="[20, 80]"
                                     class="h-full min-w-0 min-h-0"
-                                    :class="{ 'results-collapsed': !showResults && !tab.runningScript && !tab.scriptResult }"
-                                    :disable="!showResults && !tab.runningScript && !tab.scriptResult"
+                                    :class="{ 'results-collapsed': !showResults }"
+                                    :disable="!showResults"
                                 >
                                     <!-- QUERY EDITOR -->
                                     <template #before>
@@ -40,7 +40,7 @@
                                         <div
                                             class="h-full min-w-0 min-h-0 overflow-hidden"
                                         >
-                                            <ScriptResults v-if="tab.scriptResult?.statements?.length" :result="tab.scriptResult" @focus-line="line => queryConsoleRef?.focusLine(line)" />
+                                            <ScriptResults v-if="tab.scriptResult?.statements?.length" :result="tab.scriptResult" @close="hideResults" @focus-line="line => queryConsoleRef?.focusLine(line)" />
                                             <ResultGrid v-else
                                         :query-started-at="tab.queryStartedAt"
                                         :key="tab.id"

@@ -31,14 +31,9 @@
                     {{ formatDuration(result.Duration) }} execution latency
                 </span>
 
-                 <!-- <q-btn flat dense no-caps
-                    type="button"
-                    class="w-5 h-5 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-default)]"
-                    title="Hide resultsssssss"
-                    @click="emit('close')"
-                >
-                    <q-icon name="close" size="14px" />
-                </q-btn> -->
+                <q-btn v-if="!hideClose" flat dense round type="button" size="sm" icon="close"
+                    :title="tableTabId ? 'Close table tab' : 'Hide results (Ctrl+J)'"
+                    :aria-label="tableTabId ? 'Close table tab' : 'Hide results'" @click="emit('close')" />
             </div>
         </div>
 
@@ -170,6 +165,7 @@ defineExpose({ saveChanges: () => resultTabRef.value?.saveChanges() });
 const props = defineProps<{
     result: QueryResult | null;
     tableTabId?: string;
+    hideClose?: boolean;
     loading?: boolean;
     queryStartedAt?: number;
     canFirst?: boolean;
