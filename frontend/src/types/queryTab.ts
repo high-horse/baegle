@@ -1,3 +1,4 @@
+import type { ConsoleViewport } from '@/utils/consoleViewport';
 export interface QueryColumn {
   Name: string;
   Type?: string;
@@ -41,6 +42,7 @@ export interface ScriptProgress {
 }
 
 export interface QueryTab {
+  consoleViewport?: ConsoleViewport;
   id: string;
   title: string;
   type: QueryTabType;

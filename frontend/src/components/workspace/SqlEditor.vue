@@ -6,7 +6,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, getCurrentInstance } from "vue";
+import { ref, onMounted, onBeforeUnmount, onActivated, onDeactivated, nextTick, watch, getCurrentInstance } from "vue";
+import { trackConsoleViewport, type ConsoleViewport } from "@/utils/consoleViewport";
 import { Prec, Compartment } from "@codemirror/state";
 import { linter, type Diagnostic } from "@codemirror/lint";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
@@ -32,12 +33,14 @@ import { acceptCompletion, autocompletion, type CompletionContext } from "@codem
 
 const props = defineProps<{
     modelValue: string;
+    viewport?: ConsoleViewport;
     dbDriver: DatabaseDriver;
     tables?: InspectTableInfo[];
 }>();
 
 const emit = defineEmits<{
     "update:modelValue": [value: string];
+    viewportChange: [value: ConsoleViewport];
     execute: [sql: string];
     'execute-script': [];
     openTable: [table: InspectTableInfo];
@@ -50,6 +53,7 @@ const resultSettings = useResultSettingsStore();
 const editorContainer = ref<HTMLElement | null>(null);
 
 let editorView: EditorView | null = null;
+let viewport: ReturnType<typeof trackConsoleViewport> | undefined;
 const sqlDialect = new Compartment();
 const editorFont = new Compartment();
 
@@ -352,6 +356,7 @@ onMounted(() => {
 
             // Emit changes back to Pinia
             EditorView.updateListener.of((update) => {
+                if (update.selectionSet || update.docChanged) viewport?.capture();
                 if (!update.docChanged) {
                     return;
                 }
@@ -378,6 +383,14 @@ onMounted(() => {
         state: startState,
         parent: editorContainer.value,
     });
+    viewport = trackConsoleViewport(editorView, props.viewport, value => emit('viewportChange', value));
+    viewport.restore();
+});
+
+onDeactivated(() => viewport?.deactivate());
+onActivated(async () => {
+    await nextTick();
+    viewport?.restore();
 });
 
 watch(
@@ -420,6 +433,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+    viewport?.destroy();
     editorView?.destroy();
     editorView = null;
 });

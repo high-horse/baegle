@@ -97,6 +97,8 @@
             <SqlEditor
                 ref="sqlEditorRef"
                 :model-value="activeTab.sql"
+                :viewport="activeTab.consoleViewport"
+                @viewport-change="activeTab.consoleViewport = $event"
                 :db-driver="dbDriver"
                 :tables="connectionStore.activeConnectionMetadata ?? []"
                 @update:model-value="handleSqlUpdate"
