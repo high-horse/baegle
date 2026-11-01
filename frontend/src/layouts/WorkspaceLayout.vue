@@ -157,9 +157,18 @@ async function handleTableSelect(node: {
         return;
     }
 
-    const tab = queryTabsStore.createResultTab(node.label, undefined, {
+    const tableRef = {
         name: node.label, schema: node.schema ?? "", database: node.database ?? activeConnection.value?.dbname ?? "",
-    });
+    };
+    const connectionId = activeConnection.value ? String(activeConnection.value.id) : undefined;
+    const existing = queryTabsStore.tabs.find(tab => tab.type === "result" && !tab.closing
+        && tab.connectionId === connectionId && tab.tableRef?.name === tableRef.name
+        && tab.tableRef.schema === tableRef.schema && tab.tableRef.database === tableRef.database);
+    if (existing) {
+        queryTabsStore.selectTab(existing.id);
+        return;
+    }
+    const tab = queryTabsStore.createResultTab(node.label, connectionId, tableRef);
 
     await executeTableResult(tab.id, node);
     if (activeConnection.value) {
