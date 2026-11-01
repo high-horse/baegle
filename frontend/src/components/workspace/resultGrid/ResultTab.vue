@@ -515,6 +515,7 @@ import {
 
 import { copyToClipboard, Notify, type QMenu, type QTable, type QTableColumn } from "quasar";
 
+import { createGridRowCache, gridValue } from "@/utils/gridRows";
 import AdvancedCopy from "./AdvancedCopy.vue";
 import { duplicateRowValues, selectionStatistics, type CopySelection } from "@/utils/gridConvenience";
 import TableDataEditor from "./TableDataEditor.vue";
@@ -1007,28 +1008,13 @@ watch(() => props.result, () => {
         filterError.value = error instanceof Error ? error.message : String(error);
     }
 });
-const workingRows = computed(() => {
-    const drafts = editState.value?.drafts ?? [];
-    const draftsByKey = editDraftsByKey.value;
-    const pageKeys = new Set<string>();
-    const rows = props.result.Rows.map((original, index) => {
-        const key = props.tableTabId ? tableEdits.rowKey(props.tableTabId, props.result, index) : String(props.result.StartRow + index);
-        pageKeys.add(key);
-        const draft = draftsByKey.get(key);
-        const row = props.result.Columns.map((column, col) => {
-            const value = draft && Object.hasOwn(draft.values, column.Name) ? draft.values[column.Name] : original[col];
-            return value != null && typeof value === 'object' ? JSON.stringify(value) : value;
-        });
-        return { row, index, key, status: draft?.operation ?? '', number: String(props.result.StartRow + index) };
-    });
-    for (const draft of drafts.filter(draft => !pageKeys.has(draft.key))) {
-        rows.push({ row: props.result.Columns.map(column => {
-            const value = Object.hasOwn(draft.values, column.Name) ? draft.values[column.Name] : draft.original?.[column.Name];
-            return value != null && typeof value === 'object' ? JSON.stringify(value) : value;
-        }), index: rows.length, key: draft.key, status: draft.operation, number: draft.operation === 'insert' ? 'New' : 'Pending' });
-    }
-    return rows;
-});
+const gridRows = createGridRowCache();
+const baseRows = computed(() => props.result.Rows.map((original, index) => ({
+    row: original.map(gridValue), index,
+    key: props.tableTabId ? tableEdits.rowKey(props.tableTabId, props.result, index) : String(props.result.StartRow + index),
+    status: '', number: String(props.result.StartRow + index),
+})));
+const workingRows = computed(() => gridRows.overlay(baseRows.value, editDraftsByKey.value, props.result.Columns));
 // Reuse the keys already prepared for the grid; do not serialize them again on click.
 const sourceRowIndexes = computed(() => new Map(workingRows.value
     .filter(row => row.index < props.result.Rows.length)
@@ -1048,11 +1034,7 @@ const filteredRows = computed(() => {
 });
 
 // Stable row identities preserve selection while values are staged or sorted.
-const mappedRows = computed(() => filteredRows.value.map(({ row, key, status, number }) => {
-    const mapped: Record<string, unknown> = { id: key, _editKey: key, _status: status, _rowNumber: number };
-    columnLayout.visible.value.forEach((source, column) => { mapped[`column-${column}`] = row[source]; });
-    return mapped;
-}));
+const mappedRows = computed(() => gridRows.map(filteredRows.value, columnLayout.visible.value));
 
 const dataTable = ref<QTable | null>(null);
 const rowHeight = computed(() => Math.max(28, resultSettings.settings.fontSize + 16));
@@ -1283,7 +1265,8 @@ function openAdvancedCopy() {
         rows: rows.map(row => columns.map((_column, offset) => row[`column-${range.fromColumn + offset}`])),
         keys: copyTable.value ? rows.map(row => {
             const key = String(row.id);
-            return editDraftsByKey.value.get(key)?.keys ?? tableEdits.keysFor(props.tableTabId!, props.result, sourceRowIndexes.value.get(key) ?? -1);
+            const keys = editDraftsByKey.value.get(key)?.keys ?? tableEdits.keysFor(props.tableTabId!, props.result, sourceRowIndexes.value.get(key) ?? -1);
+            return structuredClone(toRaw(keys));
         }) : undefined,
     };
     advancedCopyOpen.value = true;

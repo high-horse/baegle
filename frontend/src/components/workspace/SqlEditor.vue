@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, onActivated, onDeactivated, nextTick, watch, getCurrentInstance } from "vue";
+import { ref, onMounted, onBeforeUnmount, onActivated, onDeactivated, nextTick, watch, getCurrentInstance, computed } from "vue";
 import { trackConsoleViewport, type ConsoleViewport } from "@/utils/consoleViewport";
 import { Prec, Compartment } from "@codemirror/state";
 import { linter, type Diagnostic } from "@codemirror/lint";
@@ -68,25 +68,36 @@ watch(() => resultSettings.settings.consoleFontSize, () => {
 });
 
 
+const completionTableLookup = computed(() => {
+    const lookup = new Map<string, InspectTableInfo>();
+    for (const table of props.tables ?? []) {
+        const key = JSON.stringify([table.name, table.schema]);
+        if (!lookup.has(key)) lookup.set(key, table);
+    }
+    return lookup;
+});
+function findCompletionTable(table: {name: string; schema?: string}) {
+    return completionTableLookup.value.get(JSON.stringify([table.name, table.schema]));
+}
+function completionColumns(table: {name: string; schema?: string}) {
+    const cached = findCompletionTable(table);
+    return cached ? connectionStore.getCachedTableColumns(cached) : [];
+}
+const cachedSchemaCompletion = computed(() => schemaCompletionSource({
+    dialect: getDialect(props.dbDriver),
+    schema: buildSQLCompletionSchema(props.tables ?? [], props.dbDriver, completionColumns,
+        table => {const selected = findCompletionTable(table); if (selected) void connectionStore.loadTableColumns(selected).catch(() => {});}),
+}));
 async function completeSQLSchema(context: CompletionContext) {
     if (isJSONDriver(props.dbDriver)) return null;
     const tables = props.tables ?? [];
+    const driver = props.dbDriver;
     const requested = new Set(getSQLTableReferences(context.state, context.pos)
         .map(reference => matchingSQLTable(tables, reference.path)).filter((table): table is InspectTableInfo => !!table));
     await Promise.all([...requested].map(table => connectionStore.loadTableColumns(table).catch(() => [])));
-    if (context.aborted || tables !== props.tables) return null;
-    const find = (table: { name: string; schema?: string }) => tables.find(item => item.name === table.name && item.schema === table.schema);
-    const getColumns = (table: { name: string; schema?: string }) => {
-        const cached = find(table);
-        return cached ? connectionStore.getCachedTableColumns(cached) : [];
-    };
-    const columns = completeSQLColumns(context, tables, props.dbDriver, getColumns);
-    if (columns) return columns;
-    return schemaCompletionSource({ dialect: getDialect(props.dbDriver),
-        schema: buildSQLCompletionSchema(tables, props.dbDriver,
-            getColumns,
-            table => { const selected = find(table); if (selected) void connectionStore.loadTableColumns(selected).catch(() => {}); }),
-    })(context);
+    if (context.aborted || tables !== props.tables || driver !== props.dbDriver) return null;
+    const columns = completeSQLColumns(context, tables, driver, completionColumns);
+    return columns ?? cachedSchemaCompletion.value(context);
 }
 
 function languageExtension(driver: string) {

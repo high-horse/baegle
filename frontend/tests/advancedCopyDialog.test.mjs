@@ -18,7 +18,7 @@ const source = compileScript(descriptor, {id: 'copy-dialog-test'}).content;
 const renderer = createRenderer({createComment: text => ({text}), createText: text => ({text}), createElement: tag => ({tag}), insert() {}, remove() {}, setText() {}, setElementText() {}, patchProp() {}, parentNode() {return null;}, nextSibling() {return null;}});
 function mount(extra = {}) {
     const copied = [], events = [];
-    const component = evaluate(source, {'@/utils/gridConvenience': helpers, quasar: {copyToClipboard: async text => copied.push(text), Notify: {create() {}}}}).default;
+    const component = evaluate(source, {'@/utils/gridConvenience': helpers, '@/utils/copyWorkerClient': {formatCopySelection: async (...args) => helpers.advancedCopy(...args)}, quasar: {copyToClipboard: async text => copied.push(text), Notify: {create() {}}}}).default;
     component.render = () => null;
     const app = renderer.createApp(component, {modelValue: true, driver: 'pgx', selection: {columns: ['name'], rows: Array.from({length: 100}, (_, i) => [`row-${i}`])}, 'onUpdate:modelValue': value => events.push(value), ...extra});
     const vm = app.mount({});

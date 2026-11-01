@@ -1,8 +1,8 @@
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
 
-import WelcomePage from './pages/WelcomePage.vue';
-import AuthLayout from './layouts/AuthLayout.vue';
-import WorkspaceLayout from './layouts/WorkspaceLayout.vue';
+const WelcomePage = () => import('./pages/WelcomePage.vue');
+const AuthLayout = () => import('./layouts/AuthLayout.vue');
+const WorkspaceLayout = () => import('./layouts/WorkspaceLayout.vue');
 
 const routes: RouteRecordRaw[] = [
   {

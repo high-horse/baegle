@@ -23,7 +23,8 @@
 <script setup lang="ts">
 import {computed, nextTick, ref, watch} from 'vue';
 import {copyToClipboard, Notify} from 'quasar';
-import {advancedCopy, advancedCopyPreview, type CopyFormat, type CopySelection, type CopyTable} from '@/utils/gridConvenience';
+import {formatCopySelection} from '@/utils/copyWorkerClient';
+import {advancedCopyPreview, type CopyFormat, type CopySelection, type CopyTable} from '@/utils/gridConvenience';
 const props = defineProps<{modelValue: boolean; selection: CopySelection; driver: string; table?: CopyTable}>();
 const emit = defineEmits<{'update:modelValue': [value: boolean]}>();
 const format = ref<CopyFormat>('tsv');
@@ -38,7 +39,7 @@ const formats = computed(() => [
     {label: 'Custom delimiter', value: 'custom'}, {label: 'JSON', value: 'json'},
     ...(props.table ? [{label: 'SQL INSERT', value: 'insert'}, {label: 'SQL UPDATE', value: 'update'}] : []),
 ]);
-const options = computed(() => ({format: format.value, headers: headers.value, delimiter: delimiter.value, nullText: nullText.value, driver: props.driver, table: props.table}));
+const options = computed(() => ({format: format.value, headers: headers.value, delimiter: delimiter.value, nullText: nullText.value, driver: props.driver, table: props.table ? {name: props.table.name, schema: props.table.schema, database: props.table.database} : undefined}));
 watch(options, () => {copyError.value = '';});
 watch(() => props.modelValue, () => {copyError.value = '';});
 const preview = computed(() => {
@@ -55,7 +56,7 @@ async function copy() {
         // Let the loading state render before formatting a large selection.
         await nextTick();
         await new Promise<void>(resolve => setTimeout(resolve, 0));
-        await copyToClipboard(advancedCopy(selection, settings));
+        await copyToClipboard(await formatCopySelection(selection, settings));
         emit('update:modelValue', false);
         Notify.create({color: 'positive', message: `${selection.rows.length} selected rows copied`});
     } catch (error) {

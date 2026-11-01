@@ -2,9 +2,10 @@ import { consoleExtension, hasMultipleSQLStatements } from "@/utils/databaseDial
 import { Dialog, Notify } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { defineStore } from "pinia";
-import { computed, ref, watch } from "vue";
+import { computed, markRaw, ref, watch } from "vue";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useResultSettingsStore } from "@/stores/resultSettingsStore";
+import type { SavedConsole } from "@bindings/db-lens/internal/types";
 import type { QueryTab, QueryResult } from "@/types/queryTab";
 import { DbService, DatabaseService } from "@bindings/db-lens/internal/app";
 import { QueryExecutionType } from "@bindings/db-lens/internal/engine/entities";
@@ -42,7 +43,9 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
   // The initial placeholder must never overwrite a previous workspace before
   // connection restoration has finished.
   let persistenceEnabled = false;
-  const persistedSnapshots = new Map<string, string>();
+  const persistedSnapshots = new Map<string, SavedConsole>();
+  const snapshotCache = new WeakMap<QueryTab, SavedConsole>();
+  const serializedSnapshots = new WeakMap<SavedConsole, string>();
 
   const activeTabId = ref<string | null>(tabs.value[0].id);
 
@@ -144,6 +147,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     const index = tabs.value.findIndex(tab => tab.id === id);
     if (index === -1) return true;
     edits.clear(id);
+    persistedSnapshots.delete(id);
 
     const wasActive = activeTabId.value === id;
 
@@ -191,14 +195,32 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
         && typeof table.name === "string" && typeof table.schema === "string" && typeof table.database === "string" ? table : undefined };
     } catch { return {}; }
   }
-  function tabSnapshot(tab: QueryTab, position: number) {
-    return { connectionId: Number(tab.connectionId ?? useConnectionStore().activeConnection?.id),
+  function sameSnapshot(a: SavedConsole | undefined, b: SavedConsole) {
+    return !!a && a.connectionId === b.connectionId && a.id === b.id && a.title === b.title && a.sql === b.sql
+      && a.position === b.position && a.createdAt === b.createdAt && a.tabState === b.tabState;
+  }
+  function tabSnapshot(tab: QueryTab, position: number): SavedConsole {
+    const snapshot = { connectionId: Number(tab.connectionId ?? useConnectionStore().activeConnection?.id),
       id: tab.id, title: tab.title, sql: tab.sql, position, createdAt: tab.createdAt,
       tabState: JSON.stringify({ type: tab.type, table: tab.tableRef, active: activeTabId.value === tab.id }) };
+    const cached = snapshotCache.get(tab);
+    if (sameSnapshot(cached, snapshot)) return cached!;
+    snapshotCache.set(tab, snapshot);
+    return snapshot;
   }
   function workspaceSnapshot() {
-    return tabs.value.map(tabSnapshot).filter(snapshot => Number.isSafeInteger(snapshot.connectionId) && snapshot.connectionId > 0
-      && !tabs.value.find(tab => tab.id === snapshot.id)?.closing);
+    return tabs.value.flatMap((tab, position) => {
+      if (tab.closing) return [];
+      const snapshot = tabSnapshot(tab, position);
+      return Number.isSafeInteger(snapshot.connectionId) && snapshot.connectionId > 0 ? [snapshot] : [];
+    });
+  }
+  function serializeRecovery(snapshot: SavedConsole[], connectionId: number) {
+    return '[' + snapshot.filter(tab => tab.connectionId === connectionId).map(tab => {
+      let text = serializedSnapshots.get(tab);
+      if (text === undefined) {text = JSON.stringify(tab); serializedSnapshots.set(tab, text);}
+      return text;
+    }).join(',') + ']';
   }
   function scheduleAutosave() {
     if (!persistenceEnabled || restoringConsoles.value) return;
@@ -209,7 +231,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     const activeId = Number(useConnectionStore().activeConnection?.id);
     if (Number.isSafeInteger(activeId) && activeId > 0) connectionIds.add(activeId);
     try {
-      for (const id of connectionIds) localStorage.setItem(recoveryKey(String(id)), JSON.stringify(snapshot.filter(tab => tab.connectionId === id)));
+      for (const id of connectionIds) localStorage.setItem(recoveryKey(String(id)), serializeRecovery(snapshot, id));
     } catch { /* Continue saving to the application database. */ }
     clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(flushAutosave, 400);
@@ -219,9 +241,10 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     autosaveTimer = undefined;
     if (restoringConsoles.value) return;
     const snapshot = workspaceSnapshot();
-    await Promise.all(snapshot.filter(tab => persistedSnapshots.get(tab.id) !== JSON.stringify(tab)).map(tab => saveConsole(tab.id)));
-    if (JSON.stringify(snapshot) !== JSON.stringify(workspaceSnapshot())
-      || snapshot.some(tab => persistedSnapshots.get(tab.id) !== JSON.stringify(tab))) return;
+    await Promise.all(snapshot.filter(tab => !sameSnapshot(persistedSnapshots.get(tab.id), tab)).map(tab => saveConsole(tab.id)));
+    const current = workspaceSnapshot();
+    if (snapshot.length !== current.length || snapshot.some((tab, index) => !sameSnapshot(tab, current[index]))
+      || snapshot.some(tab => !sameSnapshot(persistedSnapshots.get(tab.id), tab))) return;
     // Once durable, stop treating recovery data as authoritative over the DB.
     const ids = new Set(snapshot.map(tab => tab.connectionId));
     const activeId = Number(useConnectionStore().activeConnection?.id);
@@ -229,7 +252,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     try {
       for (const id of ids) {
         const key = recoveryKey(String(id));
-        if (localStorage.getItem(key) === JSON.stringify(snapshot.filter(tab => tab.connectionId === id))) localStorage.removeItem(key);
+        if (localStorage.getItem(key) === serializeRecovery(snapshot, id)) localStorage.removeItem(key);
       }
     } catch { /* Recovery remains safe to replay when storage is unavailable. */ }
   }
@@ -250,7 +273,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     const task = Promise.resolve().then(async () => {
       try {
         await DatabaseService.SaveConsole(snapshot);
-        persistedSnapshots.set(id, JSON.stringify(snapshot));
+        persistedSnapshots.set(id, snapshot);
         tab.savedSql = snapshot.sql;
         tab.dirty = tab.sql !== snapshot.sql;
         return true;
@@ -347,7 +370,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       return;
     }
 
-    tab.result = result;
+    tab.result = markRaw(result);
     tab.loading = false;
     tab.error = null;
   }
@@ -377,7 +400,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
   }
 
   function mapResult(response: BackendResult): QueryResult {
-    return {
+    return markRaw({
       Duration: response.duration,
       Columns: (response.columns ?? []).map(column => ({ Name: column.name, Type: column.databaseType, Nullable: column.nullable, DefaultValue: column.defaultValue })),
       Rows: (response.rows ?? []).map(row => row ?? []),
@@ -385,7 +408,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       Cursor: response.cursor, HasMore: response.hasMore,
       StartRow: response.startRow, PageSize: response.pageSize, IsQuery: response.isQuery, CanNavigate: response.canNavigate,
       CanSort: response.canNavigate && useConnectionStore().activeConnection?.driver !== "mongodb",
-    };
+    });
   }
 
   async function execute(id: string, sql: string, afterSave = false, script = false) {
@@ -626,7 +649,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
         // Keep navigation memory bounded regardless of the database size.
         if (tab.pages.length > 10) tab.pages.shift();
         tab.pageIndex = tab.pages.length - 1;
-        tab.result = result;
+        tab.result = markRaw(result);
       } while (tab.fetchingLast && tab.cursor && tabs.value.includes(tab));
     } catch (error) {
       tab.pageError = error instanceof Error ? error.message : String(error);
@@ -678,7 +701,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       tab.pages.push(result);
       if (tab.pages.length > 10) tab.pages.shift();
       tab.pageIndex = tab.pages.length - 1;
-      tab.result = result;
+      tab.result = markRaw(result);
     } catch (error) {
       // A random jump closes the old stream before opening the new one.
       if (!useCursor) tab.cursor = "";
@@ -718,7 +741,11 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     activeTabId.value = null;
   }
 
-  watch(() => JSON.stringify(workspaceSnapshot()), scheduleAutosave, { flush: "sync" });
+  // Track only persistence fields. Traversing/serializing every console's SQL
+  // here made each keystroke re-encode all open documents before scheduling.
+  watch(() => [activeTabId.value, useConnectionStore().activeConnection?.id,
+    ...tabs.value.map(tab => [tab.id, tab.title, tab.sql, tab.type, tab.connectionId, tab.createdAt, tab.closing,
+      tab.tableRef?.name, tab.tableRef?.schema, tab.tableRef?.database])], scheduleAutosave, { flush: "sync" });
 
   return {
     tabs,

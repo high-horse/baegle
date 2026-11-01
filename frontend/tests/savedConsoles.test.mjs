@@ -8,7 +8,7 @@ import { createPinia, setActivePinia } from 'pinia';
 
 const require = createRequire(import.meta.url);
 const source = readFileSync(new URL('../src/stores/queryTabsStore.ts', import.meta.url), 'utf8');
-function setup({ saved = new Map(), storage = new Map() } = {}) {
+function setup({ saved = new Map(), storage = new Map(), onStringify } = {}) {
     const notifications = [];
     let executions = 0;
     const service = {
@@ -37,9 +37,10 @@ function setup({ saved = new Map(), storage = new Map() } = {}) {
         setItem: (key, value) => storage.set(key, value),
         removeItem: key => storage.delete(key),
     };
-    new Function('module', 'exports', 'require', 'localStorage', 'setTimeout', 'clearTimeout', compiled)(
+    new Function('module', 'exports', 'require', 'localStorage', 'setTimeout', 'clearTimeout', 'JSON', compiled)(
         module, module.exports, name => overrides[name] ?? require(name), localStorage,
-        callback => { scheduled = callback; return 1; }, () => { scheduled = undefined; });
+        callback => { scheduled = callback; return 1; }, () => { scheduled = undefined; },
+        {parse: JSON.parse, stringify(value, ...args) {onStringify?.(value); return JSON.stringify(value, ...args);}});
     setActivePinia(createPinia());
     return { store: module.exports.useQueryTabsStore(), saved, storage, service, connection, notifications,
         autosave: async () => { const callback = scheduled; scheduled = undefined; if (callback) await callback(); },
@@ -199,4 +200,30 @@ test('failed deletion keeps saved tab open, and stale restoration cannot reopen 
     resolve([{ id: 'old', title: 'old.sql', sql: 'SELECT 1', createdAt: 1 }]);
     await restore;
     assert.equal(store.tabs.length, 0);
+});
+
+test('typing serializes only the changed console and keeps synchronous crash recovery', async () => {
+    const encoded = [];
+    const first = setup({onStringify: value => {if (value && typeof value === 'object' && typeof value.sql === 'string') encoded.push(value.id);}});
+    await first.store.restoreConsoles('1');
+    const active = first.store.tabs[0];
+    first.store.updateSql(active.id, 'SELECT 1');
+    const other = first.store.createTab('1');
+    first.store.updateSql(other.id, "SELECT 'long';\n".repeat(10000));
+    encoded.length = 0;
+    first.store.updateSql(active.id, 'SELECT 123');
+    assert.deepEqual(encoded, [active.id], 'unmodified large consoles must reuse encoded recovery data');
+    assert.equal(JSON.parse(first.storage.get('baegle.workspace.1')).find(tab => tab.id === active.id).sql, 'SELECT 123');
+    await first.autosave();
+    assert.equal(first.saved.get(`1:${active.id}`).sql, 'SELECT 123');
+});
+test('fetched results stay outside deep reactivity while edits and paging state remain reactive', () => {
+    const {store} = setup();
+    const id = store.tabs[0].id;
+    const result = {Rows: [[1, {nested: 'value'}]], Columns: [{Name: 'id'}, {Name: 'data'}], StartRow: 1};
+    store.setResult(id, result);
+    assert.equal(store.tabs[0].result, result);
+    assert.equal(store.tabs[0].result.Rows[0], result.Rows[0]);
+    store.updateSql(id, 'SELECT * FROM items');
+    assert.equal(store.tabs[0].dirty, true);
 });
