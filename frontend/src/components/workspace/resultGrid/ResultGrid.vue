@@ -31,7 +31,7 @@
                     {{ formatDuration(result.Duration) }} execution latency
                 </span>
 
-                <q-btn v-if="!hideClose" flat dense round type="button" size="sm" icon="close"
+                <q-btn v-if="!hideClose" flat dense type="button" class="workspace-close-button" icon="close"
                     :title="tableTabId ? 'Close table tab' : 'Hide results (Ctrl+J)'"
                     :aria-label="tableTabId ? 'Close table tab' : 'Hide results'" @click="emit('close')" />
             </div>

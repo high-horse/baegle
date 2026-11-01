@@ -46,7 +46,7 @@ body .q-table thead th, body .q-table tbody td, .q-field, .q-item, .q-btn, .q-ta
 .table-edit-bar .q-btn > .q-btn__content,
 .filter-action > .q-btn__content,
 .pagination-button > .q-btn__content,
-.tab-close > .q-btn__content,
+.workspace-close-button > .q-btn__content,
 .new-tab-button > .q-btn__content {
     display: flex;
     flex-direction: row;
@@ -132,3 +132,18 @@ body .q-table thead th, body .q-table tbody td, .q-field, .q-item, .q-btn, .q-ta
     min-height: 28px;
     border-radius: 4px;
 }
+
+
+.workspace-close-button.q-btn {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    flex: 0 0 20px;
+    padding: 0;
+    border-radius: 4px;
+    color: var(--text-muted);
+}
+.workspace-close-button.q-btn .q-icon { font-size: 14px; }
+.workspace-close-button.q-btn:hover { color: var(--text-primary); background: var(--surface-hover); }
+.workspace-close-button.q-btn:focus-visible { outline: 1px solid var(--accent-color); outline-offset: 1px; }

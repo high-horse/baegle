@@ -4,7 +4,7 @@
             <q-select v-model="selectedStatement" :options="statementOptions" emit-value map-options dense outlined dark
                 class="min-w-0 flex-1" label="Statement results" aria-label="Select SQL statement result" />
             <span class="shrink-0" :class="result.error ? 'text-red-300' : 'text-teal-300'">{{ result.completed }} / {{ result.total }} completed · {{ formatDuration(result.duration) }}</span>
-            <q-btn flat dense round type="button" icon="close" size="sm" title="Hide results (Ctrl+J)" aria-label="Hide script results" @click="emit('close')" />
+            <q-btn flat dense type="button" icon="close" class="workspace-close-button" title="Hide results (Ctrl+J)" aria-label="Hide script results" @click="emit('close')" />
         </div>
         <q-tabs v-if="queryStatements.length" v-model="selectedStatement" dense no-caps align="left" active-color="primary" indicator-color="primary" class="shrink-0 border-b border-[var(--border-default)]">
             <q-tab v-for="entry in queryStatements" :key="entry.statement" :name="entry.statement" :label="`Statement ${entry.statement}`" />

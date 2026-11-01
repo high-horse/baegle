@@ -87,10 +87,10 @@
                     <q-btn
                         flat
                         dense
-                        round
-                        size="xs"
+                        type="button"
                         icon="close"
-                        class="tab-close"
+                        class="tab-close workspace-close-button"
+                        :aria-label="`Close ${tab.title}`"
                         :disable="tab.closing"
                         @pointerdown.stop
                         @dragstart.stop.prevent
@@ -353,22 +353,10 @@ function closeTabs(tabs: QueryTab[]) {
 }
 
 .tab-close {
-    width: 22px;
-    height: 28px;
-    min-height: 28px;
-
-    margin-right: 2px;
-
-    border-radius: 3px !important;
-    color: inherit;
+    margin-right: 3px;
     opacity: .65;
 }
 .workspace-tab-active .tab-close, .workspace-tab:hover .tab-close, .tab-close:focus-visible { opacity: 1; }
-
-.tab-close:hover {
-    color: #ffffff !important;
-    background: var(--border-default) !important;
-}
 
 
 .new-tab-button {
