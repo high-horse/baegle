@@ -3,6 +3,7 @@ package sqlExecutor
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"strings"
 	"time"
 
@@ -116,7 +117,7 @@ func (e *Executor) Execute(
 		if err := rows.Scan(ptrs...); err != nil {
 			return nil, err
 		}
-		result = append(result, normalizeRow(values))
+		result = append(result, normalizeRow(values, columns...))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -193,7 +194,7 @@ func (e *Executor) runQuery(ctx context.Context, db *sql.DB, query string, start
 		if err := rows.Scan(ptrs...); err != nil {
 			return nil, err
 		}
-		results = append(results, normalizeRow(values))
+		results = append(results, normalizeRow(values, columns...))
 	}
 
 	if err := rows.Err(); err != nil {
@@ -226,12 +227,17 @@ func (e *Executor) runExec(ctx context.Context, db *sql.DB, query string, start 
 }
 
 // normalizeRow converts []byte (how most drivers return TEXT/VARCHAR/DECIMAL)
-// into string so the result is JSON/JS-friendly instead of base64.
-func normalizeRow(values []interface{}) []interface{} {
+// into string so the result is JSON/JS-friendly instead of base64. Binary
+// columns use a hex representation to preserve invalid UTF-8 and zero bytes.
+func normalizeRow(values []interface{}, columns ...entities.ColumnInfo) []interface{} {
 	out := make([]interface{}, len(values))
 	for i, v := range values {
 		if b, ok := v.([]byte); ok {
-			out[i] = string(b)
+			if i < len(columns) && binaryColumn(columns[i].DatabaseType) {
+				out[i] = "0x" + hex.EncodeToString(b)
+			} else {
+				out[i] = string(b)
+			}
 		} else if integer, ok := v.(int64); ok && (integer > 9007199254740991 || integer < -9007199254740991) {
 			out[i] = fmt.Sprintf("%d", integer)
 		} else {
@@ -239,6 +245,18 @@ func normalizeRow(values []interface{}) []interface{} {
 		}
 	}
 	return out
+}
+
+func binaryColumn(name string) bool {
+	name = strings.ToUpper(strings.TrimSpace(name))
+	if index := strings.IndexByte(name, '('); index >= 0 {
+		name = strings.TrimSpace(name[:index])
+	}
+	switch name {
+	case "BYTEA", "BLOB", "TINYBLOB", "MEDIUMBLOB", "LONGBLOB", "BINARY", "VARBINARY", "RAW", "LONG RAW", "IMAGE", "BFILE":
+		return true
+	}
+	return false
 }
 
 func isQueryStatement(query string) bool {

@@ -178,10 +178,16 @@
 
                         <!-- Context menu -->
                         <q-menu
-                            v-if="col.name !== 'sn' && (result.CanSort ?? result.CanNavigate)"
+                            v-if="col.name !== 'sn'"
                             context-menu
                             class="min-w-[150px] border border-[var(--border-default)] bg-[var(--surface-panel)] text-gray-300 shadow-xl"
                         >
+                            <q-item clickable v-close-popup dense @click="copyColumnName(col.label)">
+                                <q-item-section avatar class="min-w-[24px]"><q-icon name="content_copy" size="14px" /></q-item-section>
+                                <q-item-section>Copy column name</q-item-section>
+                            </q-item>
+                            <template v-if="result.CanSort ?? result.CanNavigate">
+                            <q-separator class="my-1 bg-[var(--border-default)]" />
                             <!-- Sort Ascending -->
                             <q-item
                                 clickable
@@ -256,6 +262,7 @@
                                     </q-item-label>
                                 </q-item-section>
                             </q-item>
+                            </template>
                         </q-menu>
                     </q-th>
                 </q-tr>
@@ -301,7 +308,7 @@
                         :data-pinned="isPinned(col.name) || undefined"
                         @pointerdown="startCellDrag($event, String(props.row.id), col.name)"
                         @contextmenu="openCellMenu($event, props.row, col)"
-                        @click="col.name !== 'sn' && $event.detail === 3 && (isMongoResult || isJSONColumn(col.Type)) && !rowEditor?.canEditRow(String(props.row._editKey)) && inspectDocument(props.row[col.field], col.Type)"
+                        @click="col.name !== 'sn' && $event.detail === 3 && !rowEditor?.canEditRow(String(props.row._editKey)) && inspectDocument(props.row[col.field], col.Type, col.label)"
                     >
                         <!-- Row number -->
                         <template v-if="col.name === 'sn'">
@@ -342,8 +349,12 @@
                     <q-separator v-if="contextCell.column !== 'sn'" />
                 </template>
                 <template v-if="contextCell.column !== 'sn'">
-                <q-item v-if="contextCell.inspectable" clickable v-close-popup @click="inspectDocument(contextCell.value, contextCell.documentType)">
-                    <q-item-section avatar><q-icon name="data_object" size="17px" /></q-item-section><q-item-section>Inspect JSON</q-item-section>
+                <q-item clickable v-close-popup @click="copyColumnName(contextCell.label)">
+                    <q-item-section avatar><q-icon name="content_copy" size="17px" /></q-item-section>
+                    <q-item-section>Copy column name</q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="inspectDocument(contextCell.value, contextCell.documentType, contextCell.label)">
+                    <q-item-section avatar><q-icon name="data_object" size="17px" /></q-item-section><q-item-section>View cell value</q-item-section>
                 </q-item>
                 <q-item-label header>Quick filter · {{ serverExpressions ? 'database result' : 'current page' }}</q-item-label>
                 <q-item v-for="action in quickFilterActions" :key="action.operator" clickable v-close-popup :disable="loading || editState?.saving"
@@ -362,17 +373,7 @@
             :selected-column="activeCell?.column ?? 0" @close="closeRecordView" @move="moveRecordRow"
             @select-column="column => selectCell(String(recordRow!.id), `column-${column}`, false)" />
 
-        <q-dialog v-model="documentDialog" :transition-duration="0">
-            <q-card class="bg-[var(--surface-panel)] text-gray-300" style="width: 800px; max-width: 90vw">
-                <q-card-section class="flex items-center justify-between">
-                    <span>{{ documentTitle }}</span>
-                    <q-btn flat round dense icon="close" aria-label="Close JSON details" v-close-popup />
-                </q-card-section>
-                <q-card-section style="max-height: 70vh; overflow: auto">
-                    <pre class="text-[length:var(--ui-font-size)] font-mono whitespace-pre-wrap break-words select-text">{{ selectedDocument }}</pre>
-                </q-card-section>
-            </q-card>
-        </q-dialog>
+        <CellValueViewer v-model="documentDialog" :value="selectedDocument" :type="documentType" :column="documentColumn" />
 
         <!-- =========================================================
              FIXED BOTTOM TOOLBAR
@@ -474,7 +475,7 @@ import {
     watch,
 } from "vue";
 
-import { Notify, type QMenu, type QTable, type QTableColumn } from "quasar";
+import { copyToClipboard, Notify, type QMenu, type QTable, type QTableColumn } from "quasar";
 
 import TableDataEditor from "./TableDataEditor.vue";
 import ResultFilterInput from "./ResultFilterInput.vue";
@@ -493,25 +494,17 @@ import { quickFilter } from '@/utils/quickFilter';
 import { useConnectionStore } from '@/stores/connectionStore';
 import { useColumnLayout } from './useColumnLayout';
 import { useQueryTabsStore } from '@/stores/queryTabsStore';
+import CellValueViewer from "./CellValueViewer.vue";
 import RelatedRecords from './RelatedRecords.vue';
 
 const documentDialog = ref(false);
-const selectedDocument = ref("");
-const documentTitle = ref("JSON value");
-function isJSONColumn(type?: string): boolean {
-    return /(?:^|[.\s_])jsonb?(?:\[\])?$/i.test(type?.trim() ?? "");
-}
-function inspectDocument(value: unknown, type?: string) {
-    documentTitle.value = isMongoResult.value ? "MongoDB document" : "JSON value";
-    if (typeof value === "string") {
-        if (type === "string") selectedDocument.value = value;
-        else {
-            try { selectedDocument.value = JSON.stringify(JSON.parse(value), null, 2); }
-            catch { selectedDocument.value = value; }
-        }
-    } else {
-        selectedDocument.value = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
-    }
+const selectedDocument = shallowRef<unknown>(null);
+const documentType = ref<string>();
+const documentColumn = ref("");
+function inspectDocument(value: unknown, type?: string, column = "") {
+    selectedDocument.value = value;
+    documentType.value = type;
+    documentColumn.value = column;
     documentDialog.value = true;
 }
 
@@ -1025,7 +1018,7 @@ function editGridRow(row: Record<string, unknown>) {
     if (props.tableTabId && row._status !== 'delete' && rowEditor.value?.canEditRow(key)) rowEditor.value.openRow(key);
 }
 const cellContextMenu = ref<QMenu | null>(null);
-const contextCell = shallowRef<{ inspectable: boolean; documentType?: string; rowKey: string; status: string; target: HTMLElement; column: string; label: string; value: unknown; namedRow: Record<string, unknown> } | null>(null);
+const contextCell = shallowRef<{ documentType?: string; rowKey: string; status: string; target: HTMLElement; column: string; label: string; value: unknown; namedRow: Record<string, unknown> } | null>(null);
 async function openCellMenu(event: MouseEvent, row: Record<string, unknown>, column: QTableColumn) {
     selectContextCell(String(row.id), column.name);
     if (column.name === 'sn' && !props.tableTabId) return;
@@ -1034,7 +1027,7 @@ async function openCellMenu(event: MouseEvent, row: Record<string, unknown>, col
     cellContextMenu.value?.hide();
     const documentType = props.result.Columns[columnLayout.visible.value[Number(column.name.slice(7))]]?.Type;
     contextCell.value = {
-        inspectable: column.name !== 'sn' && (isMongoResult.value || isJSONColumn(documentType)), documentType,
+        documentType,
         rowKey: String(row.id), status: String(row._status ?? ''),
         target: event.currentTarget as HTMLElement,
         column: column.name,
@@ -1054,6 +1047,14 @@ const { activeCell, activeCellId, cellId, selectCell, selectContextCell, startCe
     navigationTable, mappedRows, computed(() => displayedColumns.value.map(column => column.Name)), selectedRowKey,
 );
 watch(visibleRows, async () => { await nextTick(); onVirtualScroll(); });
+
+async function copyColumnName(name: string) {
+    try {
+        await copyToClipboard(name);
+    } catch (error) {
+        Notify.create({ type: 'negative', message: `Could not copy column name: ${String(error)}` });
+    }
+}
 
 function copyCells(event: ClipboardEvent) {
     if (event.target !== event.currentTarget || !event.clipboardData || !selectionRange.value) return;
@@ -1134,6 +1135,14 @@ function moveRecordRow(offset: number) {
     if (row) selectCell(String(row.id), `column-${activeCell.value?.column ?? 0}`, false);
 }
 function handleResultKeydown(event: KeyboardEvent) {
+    if (event.key === 'F7' && event.target === event.currentTarget && activeCell.value && recordRow.value
+        && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) {
+        event.preventDefault();
+        event.stopPropagation();
+        const column = displayedColumns.value[activeCell.value.column];
+        if (column) inspectDocument(recordRow.value[`column-${activeCell.value.column}`], column.Type, column.Name);
+        return;
+    }
     if (event.target === event.currentTarget && event.key === 'F2' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing && props.tableTabId && selectedRowKey.value) {
         event.preventDefault();
         event.stopPropagation();

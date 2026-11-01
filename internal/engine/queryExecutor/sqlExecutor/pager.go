@@ -157,7 +157,7 @@ func (c *rowCursor) fetch(id string, start time.Time) (*entities.QueryResult, er
 			c.pending = nil
 		}
 		for len(result.Rows) < c.size && c.rows.Next() {
-			row, err := scanCursorRow(c.rows, len(c.columns))
+			row, err := scanCursorRow(c.rows, c.columns)
 			if err != nil {
 				return nil, err
 			}
@@ -165,7 +165,7 @@ func (c *rowCursor) fetch(id string, start time.Time) (*entities.QueryResult, er
 		}
 		// One lookahead distinguishes an exact full final page from an unfinished result.
 		if len(result.Rows) == c.size && c.rows.Next() {
-			row, err := scanCursorRow(c.rows, len(c.columns))
+			row, err := scanCursorRow(c.rows, c.columns)
 			if err != nil {
 				return nil, err
 			}
@@ -184,16 +184,16 @@ func (c *rowCursor) fetch(id string, start time.Time) (*entities.QueryResult, er
 	return result, nil
 }
 
-func scanCursorRow(rows *sql.Rows, count int) ([]interface{}, error) {
-	values := make([]interface{}, count)
-	ptrs := make([]interface{}, count)
+func scanCursorRow(rows *sql.Rows, columns []entities.ColumnInfo) ([]interface{}, error) {
+	values := make([]interface{}, len(columns))
+	ptrs := make([]interface{}, len(columns))
 	for i := range values {
 		ptrs[i] = &values[i]
 	}
 	if err := rows.Scan(ptrs...); err != nil {
 		return nil, err
 	}
-	return normalizeRow(values), nil
+	return normalizeRow(values, columns...), nil
 }
 
 func (p *Pager) Close(id, connection string) {

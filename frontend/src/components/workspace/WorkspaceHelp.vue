@@ -18,7 +18,7 @@
                 <h3><q-icon name="open_with" size="18px" /> Navigate &amp; select</h3>
                 <p>Use the arrow keys to move between cells. Hold <kbd>Shift</kbd> with arrows or a click to extend a selection, or drag across cells.</p>
                 <p><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>C</kbd> copies cells; <kbd>V</kbd> with the same modifier pastes into an editable table. <kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>A</kbd> selects the current page.</p>
-                <p>Press <kbd>Tab</kbd> to switch between the grid and row details. Right-click a JSON or MongoDB cell and choose <strong>Inspect JSON</strong> to view its document.</p>
+                <p>Press <kbd>Tab</kbd> to switch between the grid and row details. Press <kbd>F7</kbd> on a selected cell, or right-click it and choose <strong>View cell value</strong> to read long text, JSON, XML, or binary data.</p>
             </section>
             <section>
                 <h3><q-icon name="filter_alt" size="18px" /> Filter &amp; export</h3>

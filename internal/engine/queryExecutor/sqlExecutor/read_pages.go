@@ -245,7 +245,7 @@ func (p *Pager) OpenRead(ctx context.Context, db *sql.DB, connection, dialect st
 			result.HasMore = true
 			break
 		}
-		row, err := scanCursorRow(rows, len(types))
+		row, err := scanCursorRow(rows, result.Columns)
 		if err != nil {
 			return nil, err
 		}
