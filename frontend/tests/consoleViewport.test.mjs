@@ -60,3 +60,16 @@ test('detached editors cannot overwrite a saved viewport; new sessions start fre
     assert.equal(fresh.view.scrollDOM.scrollTop, 0);
     session.destroy();
 });
+
+test('unchanged viewport events do not repeatedly write to the session store', () => {
+    const {view, scroll} = editor();
+    const saves = [];
+    const tracker = trackConsoleViewport(view, undefined, value => saves.push(value));
+    scroll(900, 20);
+    for (let i = 0; i < 1000; i++) {scroll(900, 20); tracker.capture();}
+    assert.equal(saves.length, 1);
+    view.state.selection.main = {anchor: 5, head: 8};
+    tracker.capture();
+    assert.equal(saves.length, 2);
+    tracker.destroy();
+});

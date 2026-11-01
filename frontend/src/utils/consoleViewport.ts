@@ -15,7 +15,9 @@ export function trackConsoleViewport(view: EditorView, initial: ConsoleViewport 
     function capture() {
         if (!active || restoring || destroyed || !view.dom.isConnected) return;
         const {anchor, head} = view.state.selection.main;
-        snapshot = {top: view.scrollDOM.scrollTop, left: view.scrollDOM.scrollLeft, anchor, head};
+        const top = view.scrollDOM.scrollTop, left = view.scrollDOM.scrollLeft;
+        if (snapshot?.top === top && snapshot.left === left && snapshot.anchor === anchor && snapshot.head === head) return;
+        snapshot = {top, left, anchor, head};
         save(snapshot);
     }
     function restore() {
@@ -24,7 +26,10 @@ export function trackConsoleViewport(view: EditorView, initial: ConsoleViewport 
         restoring = true;
         const saved = snapshot;
         const length = view.state.doc.length;
-        view.dispatch({selection: {anchor: Math.min(saved.anchor, length), head: Math.min(saved.head, length)}});
+        const anchor = Math.min(saved.anchor, length), head = Math.min(saved.head, length);
+        if (view.state.selection.main.anchor !== anchor || view.state.selection.main.head !== head) {
+            view.dispatch({selection: {anchor, head}});
+        }
         view.requestMeasure({
             key: view,
             read: () => saved,

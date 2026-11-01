@@ -508,6 +508,7 @@ import {
     reactive,
     ref,
     shallowRef,
+    toRaw,
     type CSSProperties,
     watch,
 } from "vue";
@@ -551,6 +552,7 @@ function inspectDocument(value: unknown, type?: string, column = "") {
 
 const tableEdits = useTableEditsStore();
 const editState = computed(() => props.tableTabId ? tableEdits.states[props.tableTabId] : undefined);
+const editDraftsByKey = computed(() => new Map(editState.value?.drafts.map(draft => [draft.key, draft]) ?? []));
 const isMongoResult = computed(() => props.result.Documents !== undefined
     || editState.value?.info?.driver === "mongodb"
     || props.result.Columns.some(column => column.Type === "Extended JSON"));
@@ -1007,7 +1009,7 @@ watch(() => props.result, () => {
 });
 const workingRows = computed(() => {
     const drafts = editState.value?.drafts ?? [];
-    const draftsByKey = new Map(drafts.map(draft => [draft.key, draft]));
+    const draftsByKey = editDraftsByKey.value;
     const pageKeys = new Set<string>();
     const rows = props.result.Rows.map((original, index) => {
         const key = props.tableTabId ? tableEdits.rowKey(props.tableTabId, props.result, index) : String(props.result.StartRow + index);
@@ -1060,7 +1062,7 @@ type InlineEdit = { key: string; column: string; name: string; text: string; mod
 const inlineEdit = ref<InlineEdit | null>(null);
 function inlineTarget(key: string): PasteTarget {
     const tabId = props.tableTabId!;
-    const draft = editState.value?.drafts.find(item => item.key === key);
+    const draft = editDraftsByKey.value.get(key);
     const index = sourceRowIndexes.value.get(key) ?? -1;
     if (!draft && index < 0) throw new Error('This row is no longer available.');
     const original = draft?.original ?? Object.fromEntries(props.result.Columns.map((column, i) => [column.Name, props.result.Rows[index]?.[i]]));
@@ -1074,7 +1076,7 @@ function inlineMetadata(column: string) {
 function canEditInline(key: string, column: string) {
     const info = editState.value?.info;
     const metadata = inlineMetadata(column);
-    const draft = editState.value?.drafts.find(item => item.key === key);
+    const draft = editDraftsByKey.value.get(key);
     return !!props.tableTabId && !!info && !!metadata && !props.loading && !editState.value?.saving
         && !editState.value?.loading && info.driver !== 'mongodb' && draft?.operation !== 'delete'
         && (draft?.operation === 'insert' ? info.canInsert : info.canModify)
@@ -1156,7 +1158,7 @@ async function addInlineRow() {
 function canDuplicateRow(key: string) {
     const state = editState.value;
     return !!props.tableTabId && !!state?.info?.canInsert && !props.loading && !state.loading && !state.saving
-        && state.drafts.find(row => row.key === key)?.operation !== 'delete'
+        && editDraftsByKey.value.get(key)?.operation !== 'delete'
         && mappedRows.value.some(row => String(row.id) === key);
 }
 async function duplicateInlineRow(key = selectedRowKey.value) {
@@ -1166,11 +1168,12 @@ async function duplicateInlineRow(key = selectedRowKey.value) {
         const target = inlineTarget(key);
         const original = info.driver === 'mongodb'
             ? JSON.parse(props.result.Documents?.[sourceRowIndexes.value.get(key) ?? -1] ?? '{}') : target.original;
-        const source = JSON.parse(JSON.stringify({...original, ...target.draft?.values}));
+        const source = Object.fromEntries(Object.entries({...original, ...target.draft?.values})
+            .map(([name, value]) => [name, value && typeof value === 'object' ? toRaw(value) : value]));
         const values = duplicateRowValues(info.columns ?? [], info.keys ?? [], source);
         // Document fields need not appear in the collection's sampled columns.
         if (info.driver === 'mongodb') {
-            for (const [name, value] of Object.entries(source)) if (name !== '_id') values[name] = value;
+            for (const [name, value] of Object.entries(source)) if (name !== '_id') values[name] = structuredClone(value);
         }
         const newKey = `new-${crypto.randomUUID()}`;
         tableEdits.stage(props.tableTabId!, {key: newKey, operation: 'insert', keys: {}, values, original: {}});
@@ -1252,26 +1255,37 @@ const { activeCell, activeCellId, cellId, selectCell, selectContextCell, startCe
 watch(visibleRows, async () => { await nextTick(); onVirtualScroll(); });
 
 const advancedCopyOpen = ref(false);
-const copySelection = ref<CopySelection>({columns: [], rows: []});
+const copySelection = shallowRef<CopySelection>({columns: [], rows: []});
+watch(advancedCopyOpen, open => { if (!open) copySelection.value = {columns: [], rows: []}; });
 const copyDriver = computed(() => editState.value?.info?.driver ?? useConnectionStore().activeConnection?.driver ?? 'pgx');
 const copyTable = computed(() => !['mongodb', 'redis', 'couchdb'].includes(copyDriver.value) ? editState.value?.info?.table : undefined);
-const selectedCells = computed(() => {
-    const range = selectionRange.value;
-    if (!range) return {columns: [], rows: [], keys: []};
-    const columns = displayedColumns.value.slice(range.fromColumn, range.toColumn + 1);
-    const rows = mappedRows.value.slice(range.fromRow, range.toRow + 1);
-    return {columns: columns.map(column => column.Name),
-        rows: rows.map(row => columns.map((_column, offset) => row[`column-${range.fromColumn + offset}`])),
-        keys: rows.map(row => props.tableTabId ? inlineTarget(String(row.id)).keys : {})};
-});
+const numericColumns = computed(() => displayedColumns.value.map(column => /(?:int|numeric|decimal|real|double|float|number|money)/i.test(column.Type ?? '')));
 const selectionStats = computed(() => {
     const range = selectionRange.value;
-    const columns = range ? displayedColumns.value.slice(range.fromColumn, range.toColumn + 1) : [];
-    return selectionStatistics(selectedCells.value.rows, columns.map(column => /(?:int|numeric|decimal|real|double|float|number|money)/i.test(column.Type ?? '')));
+    function* rows() {
+        if (!range) return;
+        for (let index = range.fromRow; index <= range.toRow; index++) {
+            const row = mappedRows.value[index];
+            const values: unknown[] = [];
+            for (let column = range.fromColumn; column <= range.toColumn; column++) values.push(row[`column-${column}`]);
+            yield values;
+        }
+    }
+    return selectionStatistics(rows(), range ? numericColumns.value.slice(range.fromColumn, range.toColumn + 1) : []);
 });
 function openAdvancedCopy() {
     if (!commitInline() || !selectionRange.value) return;
-    copySelection.value = selectedCells.value;
+    const range = selectionRange.value;
+    const columns = displayedColumns.value.slice(range.fromColumn, range.toColumn + 1);
+    const rows = mappedRows.value.slice(range.fromRow, range.toRow + 1);
+    copySelection.value = {
+        columns: columns.map(column => column.Name),
+        rows: rows.map(row => columns.map((_column, offset) => row[`column-${range.fromColumn + offset}`])),
+        keys: copyTable.value ? rows.map(row => {
+            const key = String(row.id);
+            return editDraftsByKey.value.get(key)?.keys ?? tableEdits.keysFor(props.tableTabId!, props.result, sourceRowIndexes.value.get(key) ?? -1);
+        }) : undefined,
+    };
     advancedCopyOpen.value = true;
 }
 
@@ -1328,7 +1342,7 @@ function pasteCells(event: ClipboardEvent) {
         const tabId = props.tableTabId;
         const targets = mappedRows.value.slice(range.fromRow, range.fromRow + cells.length).map(row => {
             const key = String(row.id);
-            const draft = editState.value?.drafts.find(item => item.key === key);
+            const draft = editDraftsByKey.value.get(key);
             if (draft?.operation === 'insert' ? !info.canInsert : !info.canModify) throw new Error('This row is read-only.');
             const index = props.result.Rows.findIndex((_row, i) => tableEdits.rowKey(tabId, props.result, i) === key);
             if (!draft && index < 0) throw new Error('The target row is no longer available.');

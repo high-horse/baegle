@@ -5,7 +5,7 @@ import ts from 'typescript';
 const compiled = ts.transpileModule(readFileSync(new URL('../src/utils/gridConvenience.ts', import.meta.url), 'utf8'), {compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS}}).outputText;
 const module = {exports: {}};
 new Function('exports', compiled)(module.exports);
-const {duplicateRowValues, advancedCopy, selectionStatistics} = module.exports;
+const {duplicateRowValues, advancedCopy, advancedCopyPreview, selectionStatistics} = module.exports;
 const table = {name: 'people', schema: 'public', database: 'test'};
 const options = {format: 'csv', headers: true, nullText: 'NULL', driver: 'pgx', table};
 test('duplicate omits composite keys, identities, generated values, and missing defaults', () => {
@@ -50,4 +50,36 @@ test('statistics handle empty selections and reject already imprecise JS numbers
     assert.deepEqual(selectionStatistics([], []), {cells: 0, filled: 0, count: 0, excluded: 0, sum: '0', min: '', max: '', average: ''});
     const stats = selectionStatistics([[Number.MAX_SAFE_INTEGER + 1], ['NaN'], [null]], [true]);
     assert.equal(stats.count, 0); assert.equal(stats.excluded, 2);
+});
+
+test('copy previews inspect only their bounded sample while full copy includes every selected row', () => {
+    let visited = 0;
+    const rows = Array.from({length: 5000}, (_, index) => {
+        const row = [];
+        Object.defineProperty(row, 0, {get() {visited++; return `row-${index}`;}, enumerable: true});
+        return row;
+    });
+    const selection = {columns: ['name'], rows};
+    const preview = advancedCopyPreview(selection, options);
+    assert.equal(preview.truncated, true);
+    assert.equal(visited, 50);
+    assert.match(preview.text, /row-49/);
+    assert.doesNotMatch(preview.text, /row-50/);
+    const full = advancedCopy(selection, options);
+    assert.match(full, /row-4999$/);
+});
+test('preview limits long cell text without truncating clipboard output', () => {
+    const selection = {columns: ['note'], rows: [['x'.repeat(100000)]]};
+    const preview = advancedCopyPreview(selection, options);
+    assert.equal(preview.text.length, 20000);
+    assert.equal(preview.truncated, true);
+    assert.equal(advancedCopy(selection, options).length, 100005);
+});
+test('statistics consume a streaming selection once and keep mixed decimal scales exact', () => {
+    let visits = 0;
+    function* selected() {for (const row of [['1.001'], ['2'], ['-0.001']]) {visits++; yield row;}}
+    const stats = selectionStatistics(selected(), [true]);
+    assert.equal(visits, 3);
+    assert.equal(stats.sum, '3');
+    assert.equal(stats.average, '1');
 });

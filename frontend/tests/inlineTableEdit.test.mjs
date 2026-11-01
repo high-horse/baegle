@@ -80,7 +80,8 @@ function grid() {
     const events = [];
     const globals = {
         emit: (...args) => events.push(args),
-        Notify: {create() {}}, duplicateRowValues, props, editState: {value: state}, displayedColumns: {value: columns}, sourceRowIndexes: {value: new Map([['one', 0]])},
+        Notify: {create() {}}, duplicateRowValues, toRaw: value => value, props, editState: {value: state},
+        editDraftsByKey: {get value() {return new Map(state.drafts.map(draft => [draft.key, draft]));}}, displayedColumns: {value: columns}, sourceRowIndexes: {value: new Map([['one', 0]])},
         inlineEdit: inline, activeCell: active, selectedRowKey: selected, tableEdits: edits,
         mappedRows: {get value() { return [{id: 'one'}, ...state.drafts.filter(draft => draft.operation === 'insert').map(draft => ({id: draft.key}))]; }},
         dataTable: {value: null}, rowEditor: {value: null},

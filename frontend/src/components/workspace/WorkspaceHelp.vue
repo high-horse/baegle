@@ -54,7 +54,7 @@
                 <ol>
                     <li>Select the cells to copy. Choose <strong>Advanced copy</strong> from the footer’s copy button or a cell’s right-click menu.</li>
                     <li>Choose tab-separated text, CSV, a custom delimiter, or JSON. Delimited formats let you include column headers and choose how NULL appears.</li>
-                    <li>Review the preview and choose <strong>Copy</strong>. The clipboard uses the selected cells in their displayed order, including staged values.</li>
+                    <li>Review the preview and choose <strong>Copy</strong>. Large previews are shortened to keep the dialog responsive; Copy still includes all selected rows in their displayed order, including staged values.</li>
                 </ol>
                 <p>Table tabs also offer <strong>SQL INSERT</strong> and <strong>SQL UPDATE</strong>. UPDATE needs original primary keys for every selected row, even when those columns are hidden or unselected. SQL is copied for review; it is not executed. New unsaved rows have no original keys for UPDATE.</p>
             </section>

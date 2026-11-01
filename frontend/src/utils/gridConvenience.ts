@@ -30,7 +30,8 @@ function literal(value: unknown, driver: string): string {
     const escaped = text.replaceAll("'", "''");
     return driver === 'pgx' ? `E'${escaped.replaceAll('\\', '\\\\')}'` : `${driver === 'sqlserver' ? 'N' : ''}'${escaped}'`;
 }
-export function advancedCopy(selection: CopySelection, options: {format: CopyFormat; headers: boolean; delimiter?: string; nullText: string; driver: string; table?: CopyTable}) {
+export interface AdvancedCopyOptions {format: CopyFormat; headers: boolean; delimiter?: string; nullText: string; driver: string; table?: CopyTable}
+export function advancedCopy(selection: CopySelection, options: AdvancedCopyOptions) {
     const {columns, rows} = selection;
     if (!columns.length || !rows.length) return '';
     if (options.format === 'json') {
@@ -60,6 +61,11 @@ export function advancedCopy(selection: CopySelection, options: {format: CopyFor
     };
     return [...(options.headers ? [columns] : []), ...rows].map(row => row.map(encode).join(delimiter)).join('\n');
 }
+export function advancedCopyPreview(selection: CopySelection, options: AdvancedCopyOptions) {
+    const rowLimit = 50, characterLimit = 20000;
+    const text = advancedCopy({...selection, rows: selection.rows.slice(0, rowLimit), keys: selection.keys?.slice(0, rowLimit)}, options);
+    return {text: text.slice(0, characterLimit), truncated: selection.rows.length > rowLimit || text.length > characterLimit};
+}
 // Accumulate decimal strings exactly, including BIGINT values returned as text.
 function decimal(value: unknown): {number: bigint; scale: number} | undefined {
     if (typeof value !== 'string' && typeof value !== 'number') return;
@@ -78,9 +84,15 @@ function decimalText(number: bigint, scale: number) {
     const text = scale ? (digits.slice(0, -scale) + '.' + digits.slice(-scale)).replace(/\.?0+$/, '') : digits;
     return (negative && number !== 0n ? '-' : '') + text;
 }
-export function selectionStatistics(rows: unknown[][], numericColumns: boolean[]) {
+export function selectionStatistics(rows: Iterable<readonly unknown[]>, numericColumns: boolean[]) {
     let cells = 0, filled = 0, count = 0, excluded = 0, scale = 0;
     let sum = 0n, min: bigint | undefined, max: bigint | undefined;
+    const powers = new Map<number, bigint>([[0, 1n]]);
+    const power = (exponent: number) => {
+        let value = powers.get(exponent);
+        if (value === undefined) {value = 10n ** BigInt(exponent); powers.set(exponent, value);}
+        return value;
+    };
     for (const row of rows) for (let i = 0; i < row.length; i++) {
         const value = row[i]; cells++;
         if (value == null) continue;
@@ -89,19 +101,21 @@ export function selectionStatistics(rows: unknown[][], numericColumns: boolean[]
         const parsed = decimal(value);
         if (!parsed) {excluded++; continue;}
         if (parsed.scale > scale) {
-            const factor = 10n ** BigInt(parsed.scale - scale);
+            const factor = power(parsed.scale - scale);
             sum *= factor;
             if (min !== undefined) min *= factor;
             if (max !== undefined) max *= factor;
             scale = parsed.scale;
         }
-        const number = parsed.number * 10n ** BigInt(scale - parsed.scale);
+        const number = parsed.number * power(scale - parsed.scale);
         sum += number; count++;
         min = min === undefined || number < min ? number : min;
         max = max === undefined || number > max ? number : max;
     }
-    const average = count ? sum * 10n ** 12n / BigInt(count) : 0n;
+    const expandedSum = sum * 1000000000000n;
+    const divisor = count ? BigInt(count) : 1n;
+    const average = expandedSum / divisor;
     return {cells, filled, count, excluded, sum: decimalText(sum, scale),
         min: min === undefined ? '' : decimalText(min, scale), max: max === undefined ? '' : decimalText(max, scale),
-        average: count ? (sum * 10n ** 12n % BigInt(count) ? '≈' : '') + decimalText(average, scale + 12) : ''};
+        average: count ? (expandedSum % divisor ? '≈' : '') + decimalText(average, scale + 12) : ''};
 }
