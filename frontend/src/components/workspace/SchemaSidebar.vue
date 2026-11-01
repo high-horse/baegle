@@ -6,7 +6,7 @@
                 <div class="connection-summary-text">
                     <div class="active-connection-name" :title="activeConnection?.name">{{ activeConnection?.name }}</div>
                 </div>
-                <q-btn flat dense round icon="refresh" class="schema-refresh" aria-label="Refresh database objects" :loading="loading" @click="refreshSchema">
+                <q-btn flat dense icon="refresh" class="schema-refresh app-icon-button" aria-label="Refresh database objects" :loading="loading" @click="refreshSchema">
                     <q-tooltip>Refresh database objects</q-tooltip>
                 </q-btn>
             </div>

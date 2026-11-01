@@ -31,7 +31,7 @@
                     {{ formatDuration(result.Duration) }} execution latency
                 </span>
 
-                <q-btn v-if="!hideClose" flat dense type="button" class="workspace-close-button" icon="close"
+                <q-btn v-if="!hideClose" flat dense type="button" class="app-close-button" icon="close"
                     :title="tableTabId ? 'Close table tab' : 'Hide results (Ctrl+J)'"
                     :aria-label="tableTabId ? 'Close table tab' : 'Hide results'" @click="emit('close')" />
             </div>
@@ -130,7 +130,6 @@
                 />
             </div>
 
-
         </template>
 
         <!-- Empty -->
@@ -212,7 +211,6 @@ watch(
 );
 </script>
 
-
 <style scoped>
 .result-error { overflow-wrap: anywhere; white-space: pre-wrap; flex-shrink: 0; max-width: 100%; }
 
@@ -247,7 +245,6 @@ watch(
 /* Important: align icon + text */
 .result-sub-tabs :deep(.q-tab__content) {
     height: 100%;
-
     display: flex;
     flex-direction: row;
     align-items: center;

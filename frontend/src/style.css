@@ -4,6 +4,25 @@
 
 :root {
     color-scheme: dark;
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    --radius-tight: 4px;
+    --radius-control: 6px;
+    --radius-panel: 8px;
+    --radius-page: 12px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --shadow-overlay: 0 12px 32px rgb(0 0 0 / 24%);
+    --status-success: #8ad4b1;
+    --status-warning: #e6bc72;
+    --status-error: #f09494;
+    --status-info: #91bdec;
+    --status-success-surface: #354c42;
+    --status-error-surface: #503b3e;
     --surface-base: #35383c;
     --surface-data: #3b3e42;
     --surface-panel: #44484d;
@@ -26,7 +45,7 @@
     --grid-row-height: max(28px, calc(var(--grid-font-size) + 16px));
 }
 
-body, body.body--dark { background: var(--surface-base); color: var(--text-primary); font-size: var(--ui-font-size); }
+body, body.body--dark { background: var(--surface-base); color: var(--text-primary); font-size: var(--ui-font-size); font-family: var(--font-ui); }
 body .bg-primary { background-color: var(--accent-fill) !important; }
 body .bg-primary.text-black, body .bg-primary.text-white { color: var(--accent-on) !important; }
 body .q-table thead th, body .q-table tbody td, .q-field, .q-item, .q-btn, .q-tab__label,
@@ -46,7 +65,7 @@ body .q-table thead th, body .q-table tbody td, .q-field, .q-item, .q-btn, .q-ta
 .table-edit-bar .q-btn > .q-btn__content,
 .filter-action > .q-btn__content,
 .pagination-button > .q-btn__content,
-.workspace-close-button > .q-btn__content,
+.app-close-button > .q-btn__content,
 .new-tab-button > .q-btn__content {
     display: flex;
     flex-direction: row;
@@ -69,35 +88,24 @@ body .q-table thead th, body .q-table tbody td, .q-field, .q-item, .q-btn, .q-ta
     padding: 10px 12px;
     border: 1px solid var(--border-default);
     border-left: 3px solid var(--notification-accent);
-    border-radius: 9px;
+    border-radius: var(--radius-panel);
     background: var(--surface-panel) !important;
     color: var(--text-primary) !important;
     box-shadow: 0 6px 24px rgb(0 0 0 / 20%);
     font-size: var(--ui-font-size);
 }
-.app-notification.bg-negative { --notification-accent: #f09494; }
-.app-notification.bg-warning { --notification-accent: #e6bc72; }
-.app-notification.bg-info { --notification-accent: #91bdec; }
+.app-notification.bg-negative { --notification-accent: var(--status-error); }
+.app-notification.bg-warning { --notification-accent: var(--status-warning); }
+.app-notification.bg-info { --notification-accent: var(--status-info); }
 .app-notification .q-notification__icon { color: var(--notification-accent); font-size: 22px; margin-right: 10px; }
 .app-notification .q-notification__message { padding: 3px 0; min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
 .app-notification .q-notification__caption { color: var(--text-muted); opacity: 1; font-size: inherit; margin-top: 4px; }
 .app-notification .q-notification__actions { padding: 0 0 0 10px; color: var(--text-primary); }
-.app-notification .notification-dismiss { width: 28px; min-width: 28px; height: 28px; min-height: 28px; color: var(--text-muted); }
+.app-notification .notification-dismiss { width: 20px; min-width: 20px; height: 20px; min-height: 20px; color: var(--text-muted); }
 .app-notification .notification-dismiss:hover { background: var(--surface-hover); color: var(--text-primary); }
 .app-notification .notification-dismiss:focus-visible { outline: 2px solid var(--notification-accent); outline-offset: 2px; }
-.app-notification .notification-dismiss .q-icon { font-size: 18px; }
+.app-notification .notification-dismiss .q-icon { font-size: 14px; }
 .app-notification .q-notification__progress { height: 2px; background: var(--notification-accent); opacity: .45; }
-
-
-/*@layer utilities {
-    .bg-radial-gradient {
-        background: radial-gradient(ellipse at top, #1e293b 0%, #0f172a 100%);
-    }
-    .bg-gradient-to-br {
-        background: linear-gradient(to bottom right, #0f172a, #1e293b);
-    }
-}*/
-
 
 .table-refresh-confirmation.q-card {
     width: 420px;
@@ -105,8 +113,8 @@ body .q-table thead th, body .q-table tbody td, .q-field, .q-item, .q-btn, .q-ta
     background: var(--surface-panel);
     color: var(--text-primary);
     border: 1px solid var(--border-default);
-    border-radius: 4px;
-    font-family: monospace;
+    border-radius: var(--radius-tight);
+    font-family: var(--font-ui);
     font-size: var(--ui-font-size);
 }
 .table-refresh-confirmation .q-dialog__title {
@@ -130,20 +138,92 @@ body .q-table thead th, body .q-table tbody td, .q-field, .q-item, .q-btn, .q-ta
 .table-refresh-confirmation .q-card__actions > .q-btn {
     margin-left: 0;
     min-height: 28px;
-    border-radius: 4px;
+    border-radius: var(--radius-tight);
 }
 
-
-.workspace-close-button.q-btn {
+.app-close-button.q-btn {
     width: 20px;
     height: 20px;
     min-width: 20px;
     min-height: 20px;
     flex: 0 0 20px;
     padding: 0;
-    border-radius: 4px;
+    border-radius: var(--radius-tight);
     color: var(--text-muted);
 }
-.workspace-close-button.q-btn .q-icon { font-size: 14px; }
-.workspace-close-button.q-btn:hover { color: var(--text-primary); background: var(--surface-hover); }
-.workspace-close-button.q-btn:focus-visible { outline: 1px solid var(--accent-color); outline-offset: 1px; }
+.app-close-button.q-btn .q-icon { font-size: 14px; }
+.app-close-button.q-btn:hover { color: var(--text-primary); background: var(--surface-hover); }
+.app-close-button.q-btn:focus-visible { outline: 1px solid var(--accent-color); outline-offset: 1px; }
+
+/* Shared surfaces and controls keep dialogs and menus consistent. */
+.q-btn, .q-tab__label { text-transform: none; }
+.q-btn { border-radius: var(--radius-control); }
+.q-btn:focus-visible { outline: 1px solid var(--accent-color); outline-offset: 2px; }
+.q-menu { color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius-control); box-shadow: var(--shadow-overlay); }
+.q-menu .q-item__label--header { color: var(--text-muted); font-size: var(--ui-font-size); font-weight: 600; }
+.q-tooltip { background: var(--surface-panel); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius-tight); line-height: 1.5; }
+.text-gray-300 { color: var(--text-primary); }
+.text-gray-400, .text-grey-5 { color: var(--text-muted); }
+.text-red-300, .text-red-400 { color: var(--status-error); }
+.text-teal-300, .text-teal-400 { color: var(--status-success); }
+.text-amber-300 { color: var(--status-warning); }
+.app-icon-button.q-btn { width: 28px; height: 28px; min-width: 28px; min-height: 28px; flex: 0 0 28px; padding: 0; border-radius: var(--radius-control); color: var(--text-muted); }
+.app-icon-button.q-btn .q-icon { font-size: 16px; }
+.app-icon-button.q-btn:hover { color: var(--accent-color); background: var(--surface-hover); }
+.app-icon-button > .q-btn__content { display: flex; align-items: center; justify-content: center; }
+.app-dialog.q-card, .q-dialog-plugin.q-card {
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 48px);
+    background: var(--surface-panel);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-overlay);
+    font-family: var(--font-ui);
+    font-size: var(--ui-font-size);
+    overflow: hidden;
+}
+.app-dialog.q-card .app-dialog-header, .q-dialog-plugin .q-dialog__title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-shrink: 0;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--surface-panel);
+}
+.app-dialog.q-card .app-dialog-title, .app-dialog.q-card .text-h6, .q-dialog-plugin .q-dialog__title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: calc(var(--ui-font-size) + 3px);
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -.1px;
+}
+.app-dialog-subtitle { margin-top: var(--space-1); color: var(--text-muted); font-size: var(--ui-font-size); line-height: 1.5; }
+.app-dialog.q-card .app-dialog-body, .q-dialog-plugin .q-dialog__message { padding: var(--space-5); min-height: 0; line-height: 1.6; }
+.q-dialog-plugin .q-dialog__message { color: var(--text-muted); }
+.app-dialog.q-card .app-dialog-actions, .q-dialog-plugin .q-card__actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    flex-shrink: 0;
+    padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border-default);
+}
+.app-dialog.q-card .app-dialog-actions .q-btn, .q-dialog-plugin .q-card__actions .q-btn { min-height: 32px; margin-left: 0; padding: 0 var(--space-3); border-radius: var(--radius-control); font-family: var(--font-ui); }
+.app-dialog .q-field--outlined .q-field__control { border-radius: var(--radius-control); background: var(--surface-data); }
+.app-dialog .q-separator { background: var(--border-default); }
+.app-dialog-scroll { min-height: 0; overflow: auto; overscroll-behavior: contain; }
+* { scrollbar-width: thin; scrollbar-color: var(--border-default) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: var(--radius-tight); }
+*::-webkit-scrollbar-thumb:hover { background: var(--surface-hover); }
+@media (prefers-reduced-motion: reduce) { .q-btn, .q-field__control { transition: none; } }
+
+.app-dialog-icon { width: 32px; height: 32px; flex-shrink: 0; border-radius: var(--radius-control); background: var(--accent-tint); color: var(--accent-color); }
+
+.app-dialog .q-list > .q-item { padding: var(--space-3) var(--space-5); }

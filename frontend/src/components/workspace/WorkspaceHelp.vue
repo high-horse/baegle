@@ -1,11 +1,11 @@
 <template>
-    <q-btn flat dense round icon="help_outline" size="sm" title="Workspace help" aria-label="Workspace help and instructions">
+    <q-btn flat dense class="app-icon-button" icon="help_outline" size="sm" title="Workspace help" aria-label="Workspace help and instructions">
         <q-menu anchor="bottom right" self="top right" :offset="[0, 10]" max-height="75vh" class="workspace-help-menu">
             <div class="workspace-help-content">
             <header>
                 <div class="help-icon"><q-icon name="help_outline" size="22px" /></div>
                 <div class="help-heading"><h2>Workspace help</h2><p>Shortcuts and everyday actions</p></div>
-                <q-btn flat round dense icon="close" size="sm" aria-label="Close workspace help" v-close-popup />
+                <q-btn flat dense class="app-close-button" icon="close" aria-label="Close workspace help" v-close-popup />
             </header>
             <div class="help-sections">
             <section>
@@ -95,25 +95,25 @@
     background: var(--surface-panel);
     color: var(--text-primary);
     border: 1px solid var(--border-default);
-    border-radius: 14px;
-    box-shadow: 0 16px 48px #0005;
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-overlay);
     overflow-x: hidden;
     overflow-y: auto;
     scrollbar-width: thin;
 }
 .workspace-help-content { min-height: 0; }
-header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 22px 24px; background: var(--surface-panel); border-bottom: 1px solid var(--border-default); }
-.help-icon { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px; background: var(--accent-tint); color: var(--accent-color); }
+header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: var(--surface-panel); border-bottom: 1px solid var(--border-default); }
+.help-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: var(--radius-control); background: var(--accent-tint); color: var(--accent-color); }
 .help-heading { flex: 1; min-width: 0; }
-h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 600; letter-spacing: -.2px; }
+h2 { margin: 0; font-size: calc(var(--ui-font-size) + 3px); line-height: 1.4; font-weight: 600; letter-spacing: -.2px; }
 .help-heading p { margin: 3px 0 0; font-size: 11px; }
-.help-sections { display: grid; gap: 16px; padding: 20px 24px 24px; }
-section { padding: 16px; background: var(--surface-data); border: 1px solid var(--border-default); border-radius: 9px; }
-h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 12px; font-weight: 600; }
+.help-sections { display: grid; gap: 16px; padding: 20px; }
+section { padding: 16px; background: var(--surface-data); border: 1px solid var(--border-default); border-radius: var(--radius-panel); }
+h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: max(12px, var(--ui-font-size)); font-weight: 600; }
 h3 .q-icon { color: var(--accent-color); }
-p { margin: 0 0 12px; color: var(--text-muted); font-size: 12px; line-height: 1.75; }
+p { margin: 0 0 12px; color: var(--text-muted); font-size: max(12px, var(--ui-font-size)); line-height: 1.75; }
 p:last-child { margin-bottom: 0; }
-ol { margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 12px; line-height: 1.75; }
+ol { margin: 0; padding-left: 20px; color: var(--text-muted); font-size: max(12px, var(--ui-font-size)); line-height: 1.75; }
 li + li { margin-top: 8px; }
 ol + p { margin-top: 12px; }
 code { padding: 1px 4px; border-radius: 3px; background: var(--surface-panel); color: var(--text-primary); font-size: 11px; overflow-wrap: anywhere; }

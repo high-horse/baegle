@@ -1,8 +1,8 @@
 <template>
     <q-dialog :model-value="modelValue" :persistent="copying" :transition-duration="0" @update:model-value="emit('update:modelValue', $event)">
-        <q-card class="advanced-copy-card">
-            <header><div><h2>Advanced copy</h2><p>{{ selection.rows.length }} rows · {{ selection.columns.length }} columns · selected cells</p></div>
-                <q-btn flat round dense icon="close" aria-label="Close advanced copy" :disable="copying" v-close-popup /></header>
+        <q-card class="advanced-copy-card app-dialog">
+            <header class="app-dialog-header"><div><h2 class="app-dialog-title">Advanced copy</h2><p>{{ selection.rows.length }} rows · {{ selection.columns.length }} columns · selected cells</p></div>
+                <q-btn flat dense class="app-close-button" icon="close" aria-label="Close advanced copy" :disable="copying" v-close-popup /></header>
             <div class="copy-options">
                 <q-select v-model="format" :disable="copying" :options="formats" emit-value map-options dark dense outlined label="Format" />
                 <q-input v-if="format === 'custom'" v-model="delimiter" :disable="copying" dark dense outlined label="Delimiter" />
@@ -15,7 +15,7 @@
                 <p v-if="copyError" class="copy-error" role="alert">{{ copyError }}</p>
                 <p v-if="preview.error" class="copy-error" role="alert">{{ preview.error }}</p>
             </div>
-            <footer><q-btn flat dense no-caps label="Cancel" :disable="copying" v-close-popup />
+            <footer class="app-dialog-actions"><q-btn flat dense no-caps label="Cancel" :disable="copying" v-close-popup />
                 <q-btn unelevated dense no-caps color="primary" label="Copy" icon="content_copy" :disable="!!preview.error || !preview.text" :loading="copying" @click="copy" /></footer>
         </q-card>
     </q-dialog>
@@ -65,16 +65,16 @@ async function copy() {
 }
 </script>
 <style scoped>
-.advanced-copy-card.q-card { width: 660px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 48px); display: flex; flex-direction: column; overflow: hidden; background: var(--surface-panel); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: 4px; font-family: monospace; font-size: var(--ui-font-size); }
+.advanced-copy-card.q-card { width: 660px; display: flex; flex-direction: column; overflow: hidden; }
 header, footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; flex-shrink: 0; }
 header { border-bottom: 1px solid var(--border-default); }
 h2 { margin: 0; font-size: 13px; font-weight: 600; color: var(--accent-color); }
 p { margin: 5px 0 0; color: var(--text-muted); }
-.copy-options { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex-shrink: 0; }
-.copy-preview { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; padding: 0 16px 16px; }
+.copy-options { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex-shrink: 0; }
+.copy-preview { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; padding: 0 20px 20px; }
 label { color: var(--text-muted); margin-bottom: 6px; }
-textarea { width: 100%; height: 260px; min-height: 80px; resize: vertical; background: var(--surface-data); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: 4px; padding: 10px; font: inherit; white-space: pre; overflow: auto; }
-.copy-error { color: #f28b82; }
+textarea { width: 100%; height: 260px; min-height: 80px; resize: vertical; background: var(--surface-data); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: 4px; padding: 10px; font: inherit; font-family: var(--font-mono); white-space: pre; overflow: auto; }
+.copy-error { color: var(--status-error); }
 footer { justify-content: flex-end; border-top: 1px solid var(--border-default); }
 </style>
 

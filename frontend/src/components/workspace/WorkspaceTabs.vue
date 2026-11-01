@@ -25,13 +25,13 @@
                 >
                     <q-menu context-menu dark class="bg-[var(--surface-panel)] text-gray-300">
                         <q-list dense style="min-width: 210px">
-                            <q-item clickable v-close-popup :disable="closingTabs || tab.closing" @click="closeTab(tab.id)"><q-item-section>Close Tab</q-item-section></q-item>
-                            <q-item clickable v-close-popup :disable="closingTabs || tabs.length < 2" @click="closeTabs(tabs.filter(item => item.id !== tab.id))"><q-item-section>Close Other Tabs</q-item-section></q-item>
+                            <q-item clickable v-close-popup :disable="closingTabs || tab.closing" @click="closeTab(tab.id)"><q-item-section>Close tab</q-item-section></q-item>
+                            <q-item clickable v-close-popup :disable="closingTabs || tabs.length < 2" @click="closeTabs(tabs.filter(item => item.id !== tab.id))"><q-item-section>Close other tabs</q-item-section></q-item>
                             <q-separator dark />
-                            <q-item clickable v-close-popup :disable="closingTabs || index === 0" @click="closeTabs(tabs.slice(0, index))"><q-item-section>Close Tabs to the Left</q-item-section></q-item>
-                            <q-item clickable v-close-popup :disable="closingTabs || index === tabs.length - 1" @click="closeTabs(tabs.slice(index + 1))"><q-item-section>Close Tabs to the Right</q-item-section></q-item>
+                            <q-item clickable v-close-popup :disable="closingTabs || index === 0" @click="closeTabs(tabs.slice(0, index))"><q-item-section>Close tabs to the left</q-item-section></q-item>
+                            <q-item clickable v-close-popup :disable="closingTabs || index === tabs.length - 1" @click="closeTabs(tabs.slice(index + 1))"><q-item-section>Close tabs to the right</q-item-section></q-item>
                             <q-separator dark />
-                            <q-item clickable v-close-popup :disable="closingTabs" @click="closeTabs(tabs)"><q-item-section>Close All Tabs</q-item-section></q-item>
+                            <q-item clickable v-close-popup :disable="closingTabs" @click="closeTabs(tabs)"><q-item-section>Close all tabs</q-item-section></q-item>
                         </q-list>
                     </q-menu>
                     <!-- Tab button -->
@@ -89,7 +89,7 @@
                         dense
                         type="button"
                         icon="close"
-                        class="tab-close workspace-close-button"
+                        class="tab-close app-close-button"
                         :aria-label="`Close ${tab.title}`"
                         :disable="tab.closing"
                         @pointerdown.stop
@@ -112,10 +112,10 @@
                     icon="add"
                     class="new-tab-button shrink-0"
                     color="grey-6"
-                    title="New Query"
+                    title="New console"
                     @click="createTab"
                 >
-                    <q-tooltip>New Query</q-tooltip>
+                    <q-tooltip>New console</q-tooltip>
                 </q-btn>
             </div>
         </q-scroll-area>
@@ -237,7 +237,7 @@ function closeTabs(tabs: QueryTab[]) {
     height: 100%;
     border: 1px solid transparent;
     border-bottom: 0;
-    border-radius: 6px 6px 0 0;
+    border-radius: var(--radius-control) 6px 0 0;
     color: var(--text-muted);
     transition: background-color 120ms ease, color 120ms ease;
 }
@@ -245,7 +245,7 @@ function closeTabs(tabs: QueryTab[]) {
 .workspace-tab.workspace-tab-active {
     background: var(--accent-surface);
     border-color: var(--accent-color);
-    color: #f1f6fc;
+    color: var(--text-primary);
     box-shadow: 0 1px 0 var(--accent-surface);
 }
 .workspace-tab-active::before {
@@ -253,7 +253,7 @@ function closeTabs(tabs: QueryTab[]) {
     position: absolute;
     inset: -1px -1px auto;
     height: 3px;
-    border-radius: 6px 6px 0 0;
+    border-radius: var(--radius-control) 6px 0 0;
     background: var(--selection-border);
     pointer-events: none;
 }
@@ -315,7 +315,6 @@ function closeTabs(tabs: QueryTab[]) {
     visibility: hidden !important;
 }
 
-
 .tabs-content {
     width: max-content;
     min-width: 100%;
@@ -328,7 +327,6 @@ function closeTabs(tabs: QueryTab[]) {
     gap: 3px;
     padding: 4px 4px 0;
 }
-
 
 .tab-button {
     height: 100% !important;
@@ -357,7 +355,6 @@ function closeTabs(tabs: QueryTab[]) {
     opacity: .65;
 }
 .workspace-tab-active .tab-close, .workspace-tab:hover .tab-close, .tab-close:focus-visible { opacity: 1; }
-
 
 .new-tab-button {
     width: 36px;

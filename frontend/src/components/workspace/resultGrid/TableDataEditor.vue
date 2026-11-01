@@ -89,9 +89,9 @@
         {{ state.error }}
     </div>
     <q-dialog v-model="dialog" persistent :transition-duration="0">
-        <q-card class="row-editor-card">
-            <header class="row-editor-header">
-                <div class="row-editor-heading">
+        <q-card class="row-editor-card app-dialog">
+            <header class="row-editor-header app-dialog-header">
+                <div class="row-editor-heading app-dialog-title">
                     <q-icon
                         :name="isInsert ? 'add' : 'edit'"
                         size="16px"
@@ -105,10 +105,10 @@
                     dense
                     no-caps
                     type="button"
-                    class="editor-icon-button"
+                    class="app-close-button"
                     aria-label="Close row editor"
                     @click="dialog = false"
-                    ><q-icon name="close" size="16px"
+                    ><q-icon name="close" size="14px"
                 /></q-btn>
             </header>
             <q-form class="row-editor-form" @submit="stageRow">
@@ -163,23 +163,24 @@
                         {{ dialogError }}
                     </p>
                 </div>
-                <footer class="row-editor-footer">
+                <footer class="row-editor-footer app-dialog-actions">
                     <span>Stage changes, then Save to commit.</span>
                     <q-btn
                         flat
                         dense
                         no-caps
                         type="button"
-                        class="editor-button"
+
                         @click="dialog = false"
                         >Cancel</q-btn
                     >
                     <q-btn
-                        flat
+                        unelevated
                         dense
                         no-caps
+                        color="primary"
+                        text-color="black"
                         type="submit"
-                        class="editor-button editor-button-primary"
                         >Stage changes</q-btn
                     >
                 </footer>
@@ -407,7 +408,7 @@ defineExpose({ openRow, deleteRow, canEditRow, save });
     font: inherit;
     line-height: 1.2;
     padding: 3px 6px;
-    color: #9ca3af;
+    color: var(--text-muted);
     white-space: nowrap;
 }
 .table-edit-bar .q-btn:hover:not(.disabled) {
@@ -423,22 +424,14 @@ defineExpose({ openRow, deleteRow, canEditRow, save });
 }
 .divider {
     height: 16px;
-    border-left: 1px solid #555555;
+    border-left: 1px solid var(--border-default);
     margin: 0 3px;
 }
 .row-editor-card.q-card {
     width: 840px;
-    max-width: calc(100vw - 32px);
-    max-height: calc(100dvh - 48px);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    background: var(--surface-panel);
-    color: var(--text-primary);
-    border: 1px solid #555555;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: var(--ui-font-size);
 }
 .row-editor-header,
 .row-editor-footer {
@@ -465,23 +458,9 @@ defineExpose({ openRow, deleteRow, canEditRow, save });
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #9ca3af;
+    color: var(--text-muted);
     font-weight: 400;
     margin-left: 4px;
-}
-.editor-icon-button {
-    min-height: 24px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    color: #9ca3af;
-}
-.editor-icon-button:hover {
-    background: var(--border-default);
-    color: var(--accent-color);
 }
 .row-editor-form { display: flex; flex-direction: column; min-height: 0; }
 .row-editor-body { display: flex; flex-direction: column; min-height: 0; background: var(--surface-data); }
@@ -524,11 +503,12 @@ defineExpose({ openRow, deleteRow, canEditRow, save });
 }
 .document-input :deep(textarea) {
     min-height: 240px;
+    font-family: var(--font-mono);
     line-height: 1.6;
     resize: vertical;
 }
 .dialog-error {
-    color: #fca5a5;
+    color: var(--status-error);
     margin-top: 12px;
 }
 .row-editor-footer {
@@ -538,24 +518,6 @@ defineExpose({ openRow, deleteRow, canEditRow, save });
     flex: 1;
     color: var(--text-muted);
     font-size: var(--ui-font-size);
-}
-.editor-button {
-    min-height: 28px;
-    font: inherit;
-    padding: 6px 10px;
-    border: 1px solid #555555;
-    border-radius: 2px;
-    color: #9ca3af;
-    background: var(--surface-panel);
-    white-space: nowrap;
-}
-.editor-button:hover {
-    background: var(--border-default);
-    color: var(--accent-color);
-}
-.editor-button-primary {
-    border-color: var(--accent-color);
-    color: var(--accent-color);
 }
 @media (max-width: 520px) {
     .row-editor-field {
@@ -574,8 +536,8 @@ defineExpose({ openRow, deleteRow, canEditRow, save });
     bottom: 36px;
     inset-inline: 0;
     padding: 8px 12px;
-    background: #351c1c;
-    color: #fca5a5;
+    background: var(--status-error-surface);
+    color: var(--status-error);
     font-size: var(--ui-font-size);
 }
 </style>

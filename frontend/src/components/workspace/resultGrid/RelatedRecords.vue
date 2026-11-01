@@ -3,10 +3,10 @@
     <q-item-section>{{ loading ? 'Loading relations…' : 'Related records…' }}</q-item-section>
   </q-item>
   <q-dialog v-model="show">
-    <q-card dark class="bg-[var(--surface-panel)] text-gray-300" style="min-width: 380px; max-width: 90vw">
-      <q-card-section class="flex items-center"><strong>Related records · {{ column }}</strong><q-space /><q-btn flat dense icon="close" v-close-popup aria-label="Close related records" /></q-card-section>
+    <q-card dark class="app-dialog" style="width: 480px; display: flex; flex-direction: column">
+      <q-card-section class="app-dialog-header"><strong class="app-dialog-title">Related records · {{ column }}</strong><q-space /><q-btn flat dense class="app-close-button" icon="close" v-close-popup aria-label="Close related records" /></q-card-section>
       <q-card-section v-if="error" class="text-red-300" role="alert">{{ error }}</q-card-section>
-      <q-list v-if="relations.length" style="max-height: 60vh; overflow: auto">
+      <q-list v-if="relations.length" class="app-dialog-scroll" style="max-height: 60vh">
         <q-item v-for="(relation, index) in relations" :key="index" clickable :disable="relation.columns.some(name => row[name] == null)" @click="open(relation)">
           <q-item-section><q-item-label>{{ relation.direction }} → {{ relation.target.schema || relation.target.database }}.{{ relation.target.name }}</q-item-label>
             <q-item-label caption class="text-gray-400">{{ relation.columns.join(', ') }} → {{ relation.targetColumns.join(', ') }}</q-item-label>

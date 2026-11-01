@@ -1,6 +1,6 @@
 <template>
     <q-dialog v-model="visible" :transition-duration="0" position="top" @show="searchInput?.focus()">
-        <q-card class="table-picker" @keydown="handlePickerKey">
+        <q-card class="table-picker app-dialog" @keydown="handlePickerKey">
             <q-input
                 ref="searchInput"
                 v-model="query"

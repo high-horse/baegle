@@ -1,17 +1,18 @@
 <template>
-    <q-btn v-if="action === 'import'" flat dense round icon="file_upload" size="sm" title="Import data" aria-label="Import data"
+    <q-btn v-if="action === 'import'" flat dense class="app-icon-button" icon="file_upload" size="sm" title="Import data" aria-label="Import data"
         :disable="connection.activeConnection?.read_only || nativeNoSQL" @click="open('import')" />
     <q-btn v-else flat dense no-caps class="export-button" title="Export result data" aria-label="Export data"
         :disable="disabled" @click="open('export')">
         <q-icon name="file_download" size="16px" /><span>Export</span>
     </q-btn>
     <q-dialog v-model="visible" :persistent="busy">
-        <q-card class="transfer-card">
-            <q-card-section>
-                <div class="text-h6">{{ mode === 'import' ? 'Import data' : 'Export data — Data transfer' }}</div>
-                <div class="text-caption text-grey-5">{{ connection.activeConnection?.name }}<template v-if="mode === 'export'"> · {{ sourceTitle }}</template></div>
+        <q-card class="transfer-card app-dialog">
+            <q-card-section class="app-dialog-header">
+                <div class="min-w-0"><div class="app-dialog-title">{{ mode === 'import' ? 'Import data' : 'Export data' }}</div>
+                <div class="text-caption text-grey-5">{{ connection.activeConnection?.name }}<template v-if="mode === 'export'"> · {{ sourceTitle }}</template></div></div>
+                <q-btn flat dense type="button" icon="close" class="app-close-button" aria-label="Close data transfer" :disable="busy" v-close-popup />
             </q-card-section>
-            <q-card-section class="q-pt-none transfer-body">
+            <q-card-section class="transfer-body app-dialog-body">
                 <q-banner v-if="error" class="bg-red-10 text-red-2 q-mb-md" role="alert">{{ error }}</q-banner>
                 <q-banner v-if="success" class="bg-green-10 text-green-2 q-mb-md" role="status">{{ success }}</q-banner>
                 <template v-if="mode === 'export'">
@@ -123,7 +124,7 @@
                     <q-spinner color="primary" /><span>{{ operation }} <QueryElapsedTime v-if="startedAt !== null" :started-at="startedAt" /></span>
                 </div>
             </q-card-section>
-            <q-card-actions align="right" class="q-pa-md">
+            <q-card-actions align="right" class="app-dialog-actions">
                 <q-btn flat no-caps :label="success ? 'Close' : 'Cancel'" :disable="busy" v-close-popup />
                 <q-btn v-if="mode === 'import' && format === 'sql'" unelevated no-caps color="primary" text-color="black" label="Open SQL in editor"
                     :disable="busy || !path" @click="openSQLFile" />
@@ -354,25 +355,25 @@ async function exportData() {
 </script>
 
 <style scoped>
-.transfer-card { width: 760px; max-width: 95vw; background: var(--surface-panel); color: var(--text-primary); }
-.transfer-body { max-height: 72vh; overflow: auto; }
+.transfer-card { display: flex; flex-direction: column; width: 760px; }
+.transfer-body { min-height: 0; max-height: 72vh; overflow: auto; }
 .export-button { height: 24px; min-height: 24px; padding: 0 6px; border: 1px solid var(--border-default); background: var(--surface-data); color: var(--text-muted); font-size: var(--ui-font-size); line-height: 1.2; }
 .export-button :deep(.q-btn__content) { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 4px; }
 .export-button:hover:not(.disabled) { background: var(--border-default); color: var(--accent-color); }
 .export-steps { display: flex; list-style: none; padding: 0; margin: 0 0 20px; gap: 20px; border-bottom: 1px solid var(--border-default); }
 .export-steps li { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; color: var(--text-muted); }
 .export-steps li.active { color: var(--accent-color); border-bottom: 2px solid var(--accent-color); }
-.export-steps li.complete { color: #c9d2c7; }
+.export-steps li.complete { color: var(--status-success); }
 .export-steps li > span { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid currentColor; border-radius: 50%; font-size: var(--ui-font-size); }
 .export-panel { min-height: 260px; }
 .export-panel h3 { font-size: 14px; font-weight: 600; line-height: 1.5; margin: 0 0 14px; }
 .format-list { display: grid; gap: 8px; }
-.format-option { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border-default); border-radius: 4px; background: #303030; cursor: pointer; }
+.format-option { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border-default); border-radius: var(--radius-tight); background: var(--surface-data); cursor: pointer; }
 .format-option.selected { border-color: var(--accent-color); background: var(--accent-surface); }
 .format-option input { accent-color: var(--accent-color); }
 .format-option strong, .format-option small { display: block; }
-.format-option small { margin-top: 3px; color: #aeb1b5; }
-.export-column-settings { margin: 20px 0; padding: 16px; border: 1px solid var(--border-default); border-radius: 6px; background: var(--surface-data); }
+.format-option small { margin-top: 3px; color: var(--text-muted); }
+.export-column-settings { margin: 20px 0; padding: 16px; border: 1px solid var(--border-default); border-radius: var(--radius-control); background: var(--surface-data); }
 .export-column-toggles { display: flex; flex-direction: column; align-items: flex-start; }
 .export-summary { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; font-size: 13px; }
 .export-summary dt { color: var(--text-muted); }
@@ -382,5 +383,5 @@ async function exportData() {
 .mapping-row > span { overflow-wrap: anywhere; }
 .preview-scroll { overflow: auto; max-height: 210px; }
 table { border-collapse: collapse; font-size: var(--ui-font-size); }
-th, td { padding: 6px 10px; border: 1px solid #555; text-align: left; max-width: 280px; overflow-wrap: anywhere; white-space: pre-wrap; }
+th, td { padding: 6px 10px; border: 1px solid var(--border-default); text-align: left; max-width: 280px; overflow-wrap: anywhere; white-space: pre-wrap; }
 </style>

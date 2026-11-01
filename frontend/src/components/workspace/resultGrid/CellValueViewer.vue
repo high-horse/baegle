@@ -1,21 +1,21 @@
 <template>
     <q-dialog :model-value="modelValue" :transition-duration="0" @update:model-value="emit('update:modelValue', $event)">
-        <q-card class="cell-value-viewer bg-[var(--surface-panel)] text-[var(--text-primary)]">
-            <q-card-section class="flex items-center gap-3">
+        <q-card class="cell-value-viewer app-dialog">
+            <q-card-section class="app-dialog-header">
                 <div class="flex-1 min-w-0">
-                    <div class="text-base break-words">Cell value<span v-if="column"> · {{ column }}</span></div>
+                    <div class="app-dialog-title break-words">Cell value<span v-if="column"> · {{ column }}</span></div>
                     <div class="text-caption text-[var(--text-muted)]">{{ content.kind }}<span v-if="type"> · {{ type }}</span> · {{ content.size }}</div>
                 </div>
-                <q-btn flat round dense icon="close" aria-label="Close cell value viewer" v-close-popup />
+                <q-btn flat dense class="app-close-button" icon="close" aria-label="Close cell value viewer" v-close-popup />
             </q-card-section>
-            <div class="flex items-center gap-3 px-4 pb-3">
+            <div class="flex items-center gap-3 px-5 py-3">
                 <q-btn-toggle v-model="mode" dense flat no-caps :options="modes" aria-label="Value display format" />
                 <q-space />
                 <q-checkbox v-model="wrap" dense label="Wrap" />
                 <q-btn flat dense no-caps icon="content_copy" label="Copy" @click="copyValue" />
             </div>
             <q-separator />
-            <q-card-section class="value-content">
+            <q-card-section class="value-content app-dialog-body">
                 <pre class="value-text" :class="{ 'value-wrap': wrap }" tabindex="0" aria-label="Cell value" aria-readonly="true">{{ displayed }}</pre>
             </q-card-section>
         </q-card>
@@ -46,7 +46,7 @@ async function copyValue() {
 </script>
 
 <style scoped>
-.cell-value-viewer { width: 900px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; }
+.cell-value-viewer { width: 900px; display: flex; flex-direction: column; }
 .value-content { overflow: auto; min-height: 160px; flex: 1; }
 .value-text { margin: 0; white-space: pre; font-family: monospace; font-size: var(--ui-font-size); user-select: text; }
 .value-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }

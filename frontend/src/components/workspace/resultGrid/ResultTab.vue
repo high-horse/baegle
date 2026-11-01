@@ -745,8 +745,6 @@ watch(columnSignature, async () => {
         },
     );
 
-
-
     await nextTick();
 
     await measureHeaderWidths();
@@ -1512,20 +1510,20 @@ const mappedColumns =
     background: var(--surface-data);
 }
 .result-filter-input:focus-within { border-color: var(--accent-color); }
-.result-filter-input.has-error { border-color: #b45353; }
+.result-filter-input.has-error { border-color: var(--status-error); }
 .filter-expression { flex: 1; min-width: 0; }
 .filter-expression :deep(.q-field__control), .filter-expression :deep(.q-field__marginal) { min-height: 23px; height: 23px; }
 .filter-expression :deep(.q-field__native) { padding: 0; color: var(--text-primary); }
 .filter-expression :deep(input::placeholder) { color: var(--text-muted); }
-.filter-action { min-height: 25px; padding: 0; display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; color: #9ca3af; border: 1px solid transparent; }
-.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: var(--accent-color); background: var(--border-default); border-color: #555555; }
+.filter-action { min-height: 25px; padding: 0; display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; color: var(--text-muted); border: 1px solid transparent; }
+.filter-action:hover:not(.disabled), .filter-action:focus-visible { color: var(--accent-color); background: var(--border-default); border-color: var(--border-default); }
 .filter-action.disabled { opacity: .3; cursor: default; }
 .filter-count { color: var(--text-muted); white-space: nowrap; padding-left: 6px; }
 @media (max-width: 600px) { .filter-scope { display: none; } }
 
 .row-number {
     display: block;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     text-align: right;
     white-space: nowrap;
@@ -1566,7 +1564,7 @@ const mappedColumns =
 
     width: 1px;
 
-    background: #5a5a5a;
+    background: var(--border-default);
 
     transition:
         background-color 80ms ease,
@@ -1608,9 +1606,9 @@ const mappedColumns =
 
 .data-explorer-grid.has-edit-toolbar { top: 70px !important; }
 .selected-edit-row :deep(td) { box-shadow: inset 0 1px var(--selection-border), inset 0 -1px var(--selection-border); }
-.pending-insert :deep(td) { background: #12281f !important; }
+.pending-insert :deep(td) { background: var(--status-success-surface) !important; }
 .pending-update :deep(td) { background: var(--accent-surface) !important; }
-.pending-delete :deep(td) { background: #321c1c !important; text-decoration: line-through; opacity: .65; }
+.pending-delete :deep(td) { background: var(--status-error-surface) !important; text-decoration: line-through; opacity: .65; }
 
 .data-explorer-grid.has-filter-toolbar {
     top: 36px;
@@ -1629,7 +1627,6 @@ const mappedColumns =
     min-width: 0;
     min-height: 0;
     max-width: 100%;
-
     overflow: auto;
 
     scrollbar-width: thin;
@@ -1648,7 +1645,6 @@ const mappedColumns =
     width: var(--result-table-width);
     min-width: var(--result-table-width);
     max-width: var(--result-table-width);
-
 }
 
 /* =========================================================
@@ -1661,7 +1657,6 @@ const mappedColumns =
     box-sizing: border-box;
 
     min-width: 0;
-
     overflow: hidden;
 
     white-space: nowrap;
@@ -1693,7 +1688,6 @@ const mappedColumns =
     z-index: 40;
 
     background: var(--surface-panel);
-
     overflow: hidden;
 
     white-space: nowrap;
@@ -1745,7 +1739,6 @@ const mappedColumns =
     min-width: var(--row-number-width);
 
     max-width: var(--row-number-width);
-
     overflow: visible;
     text-overflow: clip;
 
@@ -1796,7 +1789,6 @@ const mappedColumns =
     min-width: 0;
 
     max-width: 100%;
-
     overflow: hidden;
 
     white-space: nowrap;
@@ -1851,12 +1843,12 @@ const mappedColumns =
     :deep(.q-table__middle::-webkit-scrollbar-thumb) {
     background: var(--border-default);
 
-    border-radius: 4px;
+    border-radius: var(--radius-tight);
 }
 
 .data-explorer-grid
     :deep(.q-table__middle::-webkit-scrollbar-thumb:hover) {
-    background: #5a5a5a;
+    background: var(--border-default);
 }
 
 /* =========================================================
@@ -1903,7 +1895,7 @@ const mappedColumns =
     ) {
     background: var(--border-default);
 
-    border-color: #5a5a5a;
+    border-color: var(--border-default);
 
     color: var(--accent-color);
 }
@@ -1973,7 +1965,7 @@ const mappedColumns =
 .selection-stats { max-width: 220px; min-width: 0; color: var(--text-muted); font-family: monospace; font-size: var(--ui-font-size); }
 .selection-stats :deep(.q-btn__content) { flex-wrap: nowrap; }
 .selection-stats :deep(.block) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:global(.selection-statistics-menu) { max-width: min(420px, calc(100vw - 24px)); background: var(--surface-panel); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: 4px; font-family: monospace; }
+:global(.selection-statistics-menu) { max-width: min(420px, calc(100vw - 24px)); background: var(--surface-panel); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius-tight); font-family: monospace; }
 .statistics-heading { padding: 10px 12px; color: var(--accent-color); border-bottom: 1px solid var(--border-default); font-weight: 600; }
 .statistics-values { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 20px; margin: 12px; }
 .statistics-values dt { color: var(--text-muted); }

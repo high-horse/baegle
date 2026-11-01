@@ -1,19 +1,19 @@
 <template>
-  <q-btn flat dense no-caps size="sm" icon="history" label="History" aria-label="Query history" @click="show = true; load()" />
+  <q-btn flat dense no-caps size="sm" class="query-action" icon="history" label="History" aria-label="Query history" @click="show = true; load()" />
   <q-dialog v-model="show">
-    <q-card dark class="bg-[var(--surface-panel)] text-gray-300" style="width: 850px; max-width: 95vw">
-      <q-card-section class="flex items-center gap-3">
-        <strong>Query history</strong><q-space />
-        <q-btn flat dense icon="refresh" :loading="loading" aria-label="Refresh history" @click="load" />
-        <q-btn flat dense icon="close" v-close-popup aria-label="Close history" />
+    <q-card dark class="app-dialog query-history-card" style="width: 850px; display: flex; flex-direction: column">
+      <q-card-section class="app-dialog-header">
+        <strong class="app-dialog-title">Query history</strong><q-space />
+        <q-btn flat dense class="app-icon-button" icon="refresh" :loading="loading" aria-label="Refresh history" @click="load" />
+        <q-btn flat dense class="app-close-button" icon="close" v-close-popup aria-label="Close history" />
       </q-card-section>
-      <q-card-section class="q-pt-none">
+      <q-card-section class="app-dialog-body">
         <q-input v-model="search" dark dense outlined clearable placeholder="Search query text or database" aria-label="Search query history" />
         <q-checkbox v-model="onlyConnection" dark dense label="Current connection only" class="q-mt-sm" />
         <div class="text-[length:var(--ui-font-size)] text-gray-400 q-mt-sm">Most recent 1,000 executions. Open restores SQL to a new console without running it.</div>
         <div v-if="error" class="text-red-300 q-mt-sm" role="alert">{{ error }}</div>
       </q-card-section>
-      <q-list style="max-height: 60vh; overflow: auto">
+      <q-list class="app-dialog-scroll" style="max-height: 60vh">
         <q-item v-for="entry in filtered" :key="entry.id" class="border-t border-[var(--border-default)]">
           <q-item-section>
             <q-item-label caption class="text-gray-400">{{ new Date(entry.executed_at * 1000).toLocaleString() }} · {{ entry.databaseName }} · {{ entry.duration }} ms · <span :class="entry.status === 'ERROR' ? 'text-red-300' : 'text-teal-300'">{{ entry.status }}</span></q-item-label>

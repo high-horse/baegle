@@ -33,10 +33,10 @@
             <q-btn
                 flat
                 dense
-                round
                 icon="logout"
                 size="sm"
-                class="text-primary hover:bg-[var(--accent-tint)]"
+                class="app-icon-button"
+                title="Disconnect" aria-label="Disconnect"
                 @click="handleDisconnect"
             />
         </div>

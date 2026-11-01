@@ -33,7 +33,7 @@
                     <h2>{{ editingId ? 'Edit connection' : 'Connection details' }}</h2>
                     <p class="panel-description">{{ editingId ? 'Update your saved connection settings.' : 'Enter the details for your database.' }}</p>
                 </div>
-                <q-btn v-if="editingId" flat round dense icon="close" aria-label="Cancel editing" color="grey-5" :disable="saving || testingConnection" @click="cancelEdit" />
+                <q-btn v-if="editingId" flat dense class="app-close-button" icon="close" aria-label="Cancel editing" color="grey-5" :disable="saving || testingConnection" @click="cancelEdit" />
             </div>
         <q-form ref="formRef" @submit="editingId ? saveConnection() : connect()">
             <q-card-section class="connection-form-body">
@@ -115,18 +115,18 @@
     </q-card>
 
     <q-dialog v-model="sshDialog" persistent>
-        <q-card flat bordered class="connection-card ssh-card">
-            <q-card-section class="row items-center no-wrap q-pa-lg">
-                <q-avatar rounded color="dark" text-color="primary" icon="vpn_key" size="44px" />
+        <q-card flat bordered class="connection-card ssh-card app-dialog">
+            <q-card-section class="app-dialog-header">
+                <q-avatar rounded class="app-dialog-icon" text-color="primary" icon="vpn_key" size="32px" />
                 <div class="col q-ml-md">
-                    <div class="text-h6">SSH configuration</div>
+                    <div class="app-dialog-title">SSH configuration</div>
                     <div class="text-caption text-grey-5">Set up the tunnel for this database connection.</div>
                 </div>
-                <q-btn flat round dense icon="close" color="grey-5" aria-label="Close SSH configuration" :disable="testingSsh" @click="cancelSsh" />
+                <q-btn flat dense class="app-close-button" icon="close" color="grey-5" aria-label="Close SSH configuration" :disable="testingSsh" @click="cancelSsh" />
             </q-card-section>
             <q-separator dark />
             <q-form ref="sshFormRef" @submit="saveSshConfig">
-                <q-card-section class="q-pa-lg">
+                <q-card-section class="app-dialog-body">
                     <div class="row q-col-gutter-md">
                         <div class="col-12"><q-input v-model="sshForm.name" label="Configuration name" :rules="[required]" outlined dense color="primary" hide-bottom-space :disable="testingSsh" /></div>
                         <div class="col-12 col-sm-8"><q-input v-model="sshForm.host" label="SSH host" :rules="[required]" outlined dense color="primary" hide-bottom-space :disable="testingSsh" /></div>
@@ -149,8 +149,7 @@
                     </q-banner>
                     <div class="text-caption text-grey-5 q-mt-md">Connect with OpenSSH first to trust the server in ~/.ssh/known_hosts.</div>
                 </q-card-section>
-                <q-separator dark />
-                <q-card-actions align="right" class="q-pa-lg">
+                <q-card-actions align="right" class="app-dialog-actions">
                     <q-btn flat no-caps label="Cancel" color="grey-5" :disable="testingSsh" @click="cancelSsh" />
                     <q-btn outline no-caps label="Test SSH" icon="network_check" color="primary" :loading="testingSsh" @click="testSshConnection" />
                     <q-btn unelevated no-caps label="Save SSH" icon="save" color="primary" text-color="black" :disable="testingSsh" type="submit" />
@@ -503,18 +502,18 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.connection-setup.q-card { font-size: var(--ui-font-size); width: 100%; max-width: none; overflow: hidden; border: 1px solid var(--border-default); border-radius: 14px; background: var(--surface-panel); box-shadow: 0 10px 36px #0001; }
+.connection-setup.q-card { font-size: var(--ui-font-size); width: 100%; max-width: none; overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-page); background: var(--surface-panel); box-shadow: 0 10px 36px #0001; }
 .connection-setup-grid { display: grid; grid-template-columns: calc(204px + 4 * var(--ui-font-size)) minmax(0, 1fr); }
 .database-panel { display: flex; flex-direction: column; padding: 24px 20px; background: var(--surface-data); border-right: 1px solid var(--border-default); }
 .panel-eyebrow { font-size: max(9px, calc(var(--ui-font-size) - 2px)); font-weight: 600; letter-spacing: 1.5px; color: var(--text-muted); }
 h2 { margin: 7px 0 0; color: var(--text-primary); font-size: calc(var(--ui-font-size) + 7px); line-height: 1.4; font-weight: 600; letter-spacing: -.3px; }
 .panel-description { margin: 7px 0 0; font-size: var(--ui-font-size); line-height: 1.65; color: var(--text-muted); }
-.database-category-tabs { margin-top: 22px; border: 1px solid var(--border-default); border-radius: 7px; background: var(--surface-base); }
+.database-category-tabs { margin-top: 22px; border: 1px solid var(--border-default); border-radius: var(--radius-control); background: var(--surface-base); }
 .database-category-tabs :deep(.q-tab) { min-height: 34px; }
 .database-category-tabs :deep(.q-tab--active) { background: var(--accent-tint); }
 .database-category-tabs :deep(.q-tab__indicator) { display: none; }
 .database-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
-.database-option { position: relative; min-width: 0; min-height: 78px; padding: 12px 4px; border: 1px solid var(--border-default); border-radius: 9px; background: var(--surface-panel); transition: border-color 120ms, background 120ms; }
+.database-option { position: relative; min-width: 0; min-height: 78px; padding: 12px 4px; border: 1px solid var(--border-default); border-radius: var(--radius-panel); background: var(--surface-panel); transition: border-color 120ms, background 120ms; }
 .database-option:hover { border-color: var(--accent-color); }
 .database-option-selected { border-color: var(--accent-color); background: var(--accent-tint); }
 .database-option-content { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; min-width: 0; text-align: center; }
@@ -526,7 +525,7 @@ h2 { margin: 7px 0 0; color: var(--text-primary); font-size: calc(var(--ui-font-
 .database-panel-note .q-icon { flex-shrink: 0; margin-top: 1px; }
 .connection-details-panel { min-width: 0; }
 .connection-details-heading { display: flex; align-items: center; gap: 14px; padding: 20px 24px; border-bottom: 1px solid var(--border-default); }
-.connection-heading-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; color: var(--accent-color); background: var(--accent-tint); }
+.connection-heading-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-page); color: var(--accent-color); background: var(--accent-tint); }
 .connection-heading-copy { flex: 1; min-width: 0; }
 .connection-heading-copy h2 { margin-top: 3px; font-size: calc(var(--ui-font-size) + 10px); }
 .connection-heading-copy .panel-description { margin-top: 3px; }
@@ -536,19 +535,19 @@ h2 { margin: 7px 0 0; color: var(--text-primary); font-size: calc(var(--ui-font-
 .details-section-title { padding-top: 0; margin-bottom: 0; }
 .options-section-title { margin-top: 18px; margin-bottom: 12px; }
 .connection-preferences { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
-.connection-options { border-color: var(--border-default); border-radius: 8px; background: var(--surface-data); }
+.connection-options { border-color: var(--border-default); border-radius: var(--radius-panel); background: var(--surface-data); }
 .connection-options :deep(.q-item__section--avatar) { min-width: 32px; }
-.connection-form-body :deep(.q-field--outlined .q-field__control) { min-height: max(42px, calc(var(--ui-font-size) + 24px)); border-radius: 7px; background: var(--surface-data); }
+.connection-form-body :deep(.q-field--outlined .q-field__control) { min-height: max(42px, calc(var(--ui-font-size) + 24px)); border-radius: var(--radius-control); background: var(--surface-data); }
 .connection-setup :deep(.q-field__native), .connection-setup :deep(.q-field__input), .connection-setup :deep(.q-field__label),
 .connection-setup :deep(.q-field__bottom), .connection-setup :deep(.q-btn__content), .connection-setup :deep(.q-item__label), .connection-setup :deep(.q-checkbox__label) { font-size: var(--ui-font-size); }
 .connection-form-body :deep(.q-field--outlined .q-field__control::before) { border-color: var(--border-default); }
 .connection-form-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 24px; }
-.connection-form-actions > .q-btn { margin-left: 0; min-height: 38px; border-radius: 7px; padding: 0 16px; }
-.connection-test-result { display: flex; align-items: flex-start; gap: 9px; margin: 0 24px 16px; padding: 12px 14px; border: 1px solid var(--border-default); border-radius: 7px; background: var(--accent-tint); color: var(--accent-color); overflow-wrap: anywhere; }
+.connection-form-actions > .q-btn { margin-left: 0; min-height: 38px; border-radius: var(--radius-control); padding: 0 16px; }
+.connection-test-result { display: flex; align-items: flex-start; gap: 9px; margin: 0 24px 16px; padding: 12px 14px; border: 1px solid var(--border-default); border-radius: var(--radius-control); background: var(--accent-tint); color: var(--accent-color); overflow-wrap: anywhere; }
 .connection-test-result .q-icon { flex-shrink: 0; }
-.connection-test-failed { background: rgba(239, 83, 80, .08); color: #f28b82; }
+.connection-test-failed { background: rgba(239, 83, 80, .08); color: var(--status-error); }
 .connection-test-note { display: flex; align-items: center; gap: 7px; flex: 1; font-size: max(10px, calc(var(--ui-font-size) - 1px)); line-height: 1.5; color: var(--text-muted); }
-.ssh-card.q-card { width: 600px; max-width: calc(100vw - 32px); border-radius: 12px; background: var(--surface-panel); }
+.ssh-card.q-card { width: 600px; max-width: calc(100vw - 32px); border-radius: var(--radius-page); background: var(--surface-panel); }
 .connection-note { background: var(--accent-tint); color: var(--text-muted); }
 @media (max-width: 800px) {
     .connection-setup-grid { grid-template-columns: 1fr; }

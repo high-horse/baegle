@@ -21,7 +21,7 @@
                 <q-btn flat dense size="12px" icon="chevron_left" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" title="Previous match (Shift+Enter)" aria-label="Previous match" :disable="!hasMatches" @click="find(true)" />
                 <q-btn flat dense size="12px" icon="chevron_right" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" title="Next match (Enter)" aria-label="Next match" :disable="!hasMatches" @click="find(false)" />
                 <span class="min-w-10 px-1 text-[length:var(--ui-font-size)] tabular-nums" :class="findText && !hasMatches ? 'text-red-300' : ''" role="status" aria-label="Search matches">{{ matchIndex }}/{{ matches.length }}</span>
-                <q-btn flat dense size="12px" icon="close" class="h-6 min-h-6! w-6 min-w-6! shrink-0! p-0!" title="Close search (Esc)" aria-label="Close find and replace" @click="closeSearchPanel(view)" />
+                <q-btn flat dense size="12px" icon="close" class="app-close-button" title="Close search (Esc)" aria-label="Close find and replace" @click="closeSearchPanel(view)" />
             </div>
         </div>
         <div v-if="replaceExpanded && !readOnly.value" class="mt-1 flex flex-wrap items-center gap-2">

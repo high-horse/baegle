@@ -16,7 +16,7 @@
                 <q-list padding class="connection-list q-pa-md">
                     <div class="saved-connections-heading">
                         <div><span>Saved connections</span><q-badge rounded class="connection-count">{{ connections.length }}</q-badge></div>
-                        <q-btn flat round dense icon="close" color="grey-5" aria-label="Close saved connections" @click="drawerOpen = false" />
+                        <q-btn flat dense class="app-close-button" icon="close" color="grey-5" aria-label="Close saved connections" @click="drawerOpen = false" />
                     </div>
                     <q-input ref="connectionSearchInput" v-model="connectionSearch" outlined dense clearable color="primary" placeholder="Search connections…" aria-label="Search saved connections" hide-bottom-space aria-keyshortcuts="Control+Shift+F" class="q-mb-md">
                         <template #prepend><q-icon name="search" /></template>
@@ -98,36 +98,38 @@
                 @pointercancel="finishDrawerResize" @lostpointercapture="finishDrawerResize" @keydown="resizeDrawerWithKeyboard" />
         </q-drawer>
         <q-dialog :model-value="!!groupConnection" :persistent="savingGroup" @update:model-value="open => { if (!open) groupConnection = null; }">
-            <q-card class="connection-card" style="width: 420px">
+            <q-card class="connection-card app-dialog" style="width: 420px">
                 <q-form @submit="saveGroup">
-                    <q-card-section>
-                        <div class="text-h6">Move to group</div>
-                        <div class="text-caption q-mb-md">{{ groupConnection?.name }}</div>
+                    <q-card-section class="app-dialog-header">
+                        <div><div class="app-dialog-title">Move to group</div><div class="app-dialog-subtitle">{{ groupConnection?.name }}</div></div>
+                        <q-btn flat dense icon="close" class="app-close-button" aria-label="Close connection group" :disable="savingGroup" @click="groupConnection = null" />
+                    </q-card-section>
+                    <q-card-section class="app-dialog-body">
                         <ConnectionGroupSelect v-model="groupName" :groups="store.connectionGroups" :disable="savingGroup" />
                     </q-card-section>
-                    <q-card-actions align="right">
+                    <q-card-actions align="right" class="app-dialog-actions">
                         <q-btn flat label="Cancel" :disable="savingGroup" @click="groupConnection = null" />
-                        <q-btn type="submit" label="Save" color="primary" text-color="black" :loading="savingGroup" />
+                        <q-btn unelevated no-caps type="submit" label="Save" color="primary" text-color="black" :loading="savingGroup" />
                     </q-card-actions>
                 </q-form>
             </q-card>
         </q-dialog>
         <q-page-container><router-view /></q-page-container>
         <q-dialog :model-value="!!connectionError" @update:model-value="open => { if (!open) store.connectionError = null; }">
-            <q-card flat bordered class="connection-card" style="width: 520px">
-                <q-card-section class="row items-center no-wrap q-pa-lg">
+            <q-card flat bordered class="connection-card app-dialog" style="width: 520px">
+                <q-card-section class="app-dialog-header">
                     <q-icon name="error_outline" color="negative" size="28px" class="q-mr-md" />
                     <div class="col">
-                        <div class="text-h6">Unable to connect</div>
+                        <div class="app-dialog-title">Unable to connect</div>
                         <div class="text-caption text-grey-5">{{ connectionError?.name }}</div>
                     </div>
+                    <q-btn flat dense icon="close" class="app-close-button" aria-label="Close connection error" @click="store.connectionError = null" />
                 </q-card-section>
-                <q-card-section class="q-px-lg q-pt-none">
+                <q-card-section class="app-dialog-body">
                     <q-banner rounded class="connection-note connection-error-message">{{ connectionError?.message }}</q-banner>
                     <div class="text-caption text-grey-5 q-mt-md">Check the saved host, port, credentials, and SSH settings, then try again.</div>
                 </q-card-section>
-                <q-separator dark />
-                <q-card-actions align="right" class="q-pa-lg">
+                <q-card-actions align="right" class="app-dialog-actions">
                     <q-btn flat no-caps label="Close" color="grey-5" @click="store.connectionError = null" />
                     <q-btn outline no-caps label="Edit connection" color="primary" icon="edit" @click="editFailedConnection" />
                     <q-btn unelevated no-caps label="Try again" color="primary" text-color="black" icon="refresh" :disable="connectionSelectionBlocked" @click="retryConnection" />
@@ -135,11 +137,13 @@
             </q-card>
         </q-dialog>
         <q-dialog :model-value="!!connectionToDelete" :persistent="deletingConnection" @update:model-value="value => { if (!value) connectionToDelete = null; }">
-            <q-card flat bordered class="connection-card" style="width: 420px">
-                <q-card-section class="text-h6 q-pa-lg">Delete connection</q-card-section>
-                <q-card-section class="q-px-lg q-pt-none">Delete “{{ connectionToDelete?.name }}” from saved connections? Your database and its data will remain unchanged.</q-card-section>
-                <q-separator dark />
-                <q-card-actions align="right" class="q-pa-lg">
+            <q-card flat bordered class="connection-card app-dialog" style="width: 420px">
+                <q-card-section class="app-dialog-header">
+                    <div class="app-dialog-title">Delete connection</div>
+                    <q-btn flat dense icon="close" class="app-close-button" aria-label="Close delete connection" :disable="deletingConnection" @click="connectionToDelete = null" />
+                </q-card-section>
+                <q-card-section class="app-dialog-body">Delete “{{ connectionToDelete?.name }}” from saved connections? Your database and its data will remain unchanged.</q-card-section>
+                <q-card-actions align="right" class="app-dialog-actions">
                     <q-btn flat no-caps label="Cancel" color="grey-5" :disable="deletingConnection" @click="connectionToDelete = null" />
                     <q-btn unelevated no-caps color="negative" label="Delete" :loading="deletingConnection" @click="deleteConnection" />
                 </q-card-actions>
@@ -266,7 +270,6 @@ async function saveGroup() {
     } finally { savingGroup.value = false; }
 }
 
-
 async function deleteConnection() {
     const connection = connectionToDelete.value;
     if (!connection || deletingConnection.value) return;
@@ -331,9 +334,9 @@ watch(activeConnection, (newConnection) => {
 </script>
 
 <style>
-.connection-portal { background: var(--surface-base); color: #eeeae4; }
-.portal-header, .connection-card, .connection-menu { background: var(--surface-panel); color: #eeeae4; }
-.portal-drawer { background: var(--surface-data); color: #eeeae4; container-type: inline-size; }
+.connection-portal { background: var(--surface-base); color: var(--text-primary); }
+.portal-header, .connection-card, .connection-menu { background: var(--surface-panel); color: var(--text-primary); }
+.portal-drawer { background: var(--surface-data); color: var(--text-primary); container-type: inline-size; }
 .portal-drawer-resizing, .portal-drawer-resizing * { user-select: none; cursor: col-resize !important; }
 .connection-drawer-resizer { position: absolute; top: 0; right: 0; bottom: 0; width: 7px; z-index: 5; cursor: col-resize; touch-action: none; }
 .connection-drawer-resizer::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 2px; background: var(--border-default); transition: background 120ms; }
@@ -350,17 +353,17 @@ watch(activeConnection, (newConnection) => {
     .connection-actions { padding-left: 4px; }
     .connection-address { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
-.connection-card { width: 100%; max-width: 600px; border-color: var(--border-default); border-radius: 12px; }
+.connection-card { width: 100%; max-width: 600px; border-color: var(--border-default); border-radius: var(--radius-page); }
 .ssh-card { width: 560px; max-width: calc(100vw - 32px); }
-.connection-options, .saved-connection { border: 1px solid var(--border-default); border-radius: 8px; }
+.connection-options, .saved-connection { border: 1px solid var(--border-default); border-radius: var(--radius-panel); }
 .saved-connection { background: var(--surface-panel); width: 100%; min-width: 0; }
-.saved-connection.q-item--active { border-color: #c99334; background: #423c32; }
+.saved-connection.q-item--active { border-color: var(--accent-color); background: var(--accent-tint); }
 .saved-connection .q-item__section--avatar { min-width: 32px; }
 .saved-connection > .q-item__section--main { min-width: 0; overflow: hidden; }
 .connection-actions { flex-shrink: 0; padding-left: 8px; }
 .connection-error-message { white-space: pre-wrap; overflow-wrap: anywhere; }
 .connection-tooltip { white-space: normal; overflow-wrap: anywhere; font-size: var(--sidebar-font-size); line-height: 1.5; }
-.connection-note { background: #3c3933; color: #d5cec3; }
+.connection-note { background: var(--surface-data); color: var(--text-muted); }
 .connection-card .q-card__actions { gap: 8px; }
 .connection-card .q-card__actions > .q-btn { margin-left: 0; }
 
@@ -369,7 +372,7 @@ watch(activeConnection, (newConnection) => {
 .portal-brand { padding-left: 3px; }
 .portal-brand-name { color: var(--text-primary); font-size: calc(var(--ui-font-size) + 6px); line-height: 1.35; font-weight: 600; letter-spacing: -.3px; }
 .portal-brand-caption { color: var(--text-muted); font-size: max(10px, calc(var(--ui-font-size) - 1px)); line-height: 1.5; }
-.new-connection-button { min-height: 36px; border-radius: 7px; font-weight: 500; }
+.new-connection-button { min-height: 36px; border-radius: var(--radius-control); font-weight: 500; }
 .portal-drawer { --ui-font-size: var(--sidebar-font-size); font-size: var(--sidebar-font-size); background: var(--surface-data); }
 .saved-connections-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 18px; }
 .saved-connections-heading > div { min-width: 0; flex: 1; display: flex; align-items: center; gap: 9px; font-size: var(--ui-font-size); color: var(--text-primary); font-weight: 600; }
@@ -379,12 +382,12 @@ watch(activeConnection, (newConnection) => {
 .portal-drawer .q-field--dense .q-field__control, .portal-drawer .q-field--dense .q-field__marginal { min-height: max(40px, calc(var(--ui-font-size) + 24px)); height: max(40px, calc(var(--ui-font-size) + 24px)); }
 .connection-count { background: var(--surface-base); color: var(--text-muted); min-width: 22px; justify-content: center; font-size: max(10px, calc(var(--ui-font-size) - 1px)); padding: 3px 6px; }
 .connection-list { padding-top: 22px; }
-.connection-list > .q-field .q-field__control { border-radius: 7px; background: var(--surface-base); }
+.connection-list > .q-field .q-field__control { border-radius: var(--radius-control); background: var(--surface-base); }
 .connection-list .q-field__prepend { padding-right: 8px; }
 .connection-group { margin-top: 8px; }
 .connection-group > .q-expansion-item__container > .q-item { padding: 10px 6px; min-height: 50px; }
 .connection-group > .q-expansion-item__container > .q-item .q-item__label { font-size: var(--ui-font-size); }
-.saved-connection { padding: 12px 10px; background: transparent; border: 1px solid transparent; border-radius: 8px; }
+.saved-connection { padding: 12px 10px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-panel); }
 .saved-connection:hover { background: var(--surface-panel); }
 .saved-connection.q-item--active { border-color: var(--accent-color); background: var(--accent-tint); }
 .saved-connection-avatar { color: var(--accent-color); }
@@ -402,22 +405,22 @@ watch(activeConnection, (newConnection) => {
 .portal-drawer .connection-list { padding: 20px 12px; }
 .portal-drawer .saved-connections-heading { padding: 0 4px; margin-bottom: 14px; }
 .portal-drawer .connection-group { margin-top: 12px; }
-.portal-drawer .connection-group > .q-expansion-item__container > .q-item { min-height: 38px; padding: 6px 8px; border-radius: 7px; }
+.portal-drawer .connection-group > .q-expansion-item__container > .q-item { min-height: 38px; padding: 6px 8px; border-radius: var(--radius-control); }
 .portal-drawer .group-folder { min-width: 26px; padding-right: 8px; color: var(--text-muted); }
 .portal-drawer .group-name { font-size: var(--ui-font-size); font-weight: 600; }
 .portal-drawer .group-count { background: var(--surface-panel); color: var(--text-muted); font-size: max(10px, calc(var(--ui-font-size) - 1px)); }
 .portal-drawer .connection-group .q-expansion-item__content { padding: 5px 0 0 8px; }
-.portal-drawer .saved-connection { margin-bottom: 6px; padding: 12px 8px; border: 1px solid var(--border-default); background: var(--surface-panel); border-radius: 9px; }
+.portal-drawer .saved-connection { margin-bottom: 6px; padding: 12px 8px; border: 1px solid var(--border-default); background: var(--surface-panel); border-radius: var(--radius-panel); }
 .portal-drawer .saved-connection:hover { border-color: var(--accent-color); background: var(--surface-hover); }
 .portal-drawer .saved-connection.q-item--active { border-color: var(--accent-color); background: var(--accent-tint); }
 .portal-drawer .saved-connection-avatar { flex: 0 0 30px; min-width: 30px; width: 30px; padding: 0; margin-right: 10px; align-self: center; }
-.portal-drawer .saved-connection-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; background: var(--surface-base); color: var(--accent-color); }
+.portal-drawer .saved-connection-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-control); background: var(--surface-base); color: var(--accent-color); }
 .portal-drawer .connection-address { display: flex; flex-wrap: wrap; gap: 5px 7px; align-items: center; line-height: 1.5; }
-.saved-driver { font-size: max(9px, calc(var(--sidebar-font-size) - 2px)); padding: 1px 5px; border-radius: 4px; background: var(--surface-base); }
+.saved-driver { font-size: max(9px, calc(var(--sidebar-font-size) - 2px)); padding: 1px 5px; border-radius: var(--radius-tight); background: var(--surface-base); }
 .saved-endpoint { min-width: 0; overflow-wrap: anywhere; }
 .portal-drawer .connection-actions { align-self: center; padding-left: 2px; color: var(--text-muted); }
 .portal-drawer .connection-actions > .q-btn { color: var(--text-muted) !important; }
-.connection-progress.q-banner { min-height: 34px; padding: 4px 8px; border-radius: 6px; background: var(--surface-panel); color: var(--text-muted); }
+.connection-progress.q-banner { min-height: 34px; padding: 4px 8px; border-radius: var(--radius-control); background: var(--surface-panel); color: var(--text-muted); }
 .connection-progress .q-banner__content { min-width: 0; padding: 0; }
 .connection-progress-stage { display: flex; align-items: baseline; gap: 6px; min-width: 0; line-height: 1.4; }
 .connection-progress-stage > span:first-child { flex-shrink: 0; }
