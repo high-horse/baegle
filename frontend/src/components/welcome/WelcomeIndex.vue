@@ -33,7 +33,7 @@
                     <h2>{{ editingId ? 'Edit connection' : 'Connection details' }}</h2>
                     <p class="panel-description">{{ editingId ? 'Update your saved connection settings.' : 'Enter the details for your database.' }}</p>
                 </div>
-                <q-btn v-if="editingId" flat round dense icon="close" aria-label="Cancel editing" color="grey-5" @click="cancelEdit" />
+                <q-btn v-if="editingId" flat round dense icon="close" aria-label="Cancel editing" color="grey-5" :disable="saving || testingConnection" @click="cancelEdit" />
             </div>
         <q-form ref="formRef" @submit="editingId ? saveConnection() : connect()">
             <q-card-section class="connection-form-body">
@@ -98,11 +98,16 @@
                     </q-item>
                 </q-list>
             </q-card-section>
+            <div v-if="editingId && connectionTestResult" class="connection-test-result" :class="{ 'connection-test-failed': !connectionTestResult.ok }" role="status" aria-live="polite">
+                <q-icon :name="connectionTestResult.ok ? 'check_circle' : 'error_outline'" size="18px" />
+                <span>{{ connectionTestResult.message }}</span>
+            </div>
             <q-separator dark />
             <q-card-actions align="right" class="connection-form-actions">
-                <span class="connection-test-note"><q-icon name="network_check" size="16px" />{{ editingId ? 'Changes apply the next time you connect.' : 'Test your connection before opening the workspace.' }}</span>
-                <q-btn v-if="editingId" flat no-caps label="Cancel" color="grey-5" :disable="saving" @click="cancelEdit" />
-                <q-btn unelevated no-caps color="primary" text-color="black" :label="editingId ? 'Save changes' : 'Test connection'" :icon="editingId ? 'save' : 'network_check'" type="submit" :loading="saving" :disable="loadingSavedConnection" />
+                <span class="connection-test-note"><q-icon name="network_check" size="16px" />{{ editingId ? 'Test changed settings before saving. Changes apply the next time you connect.' : 'Test your connection before opening the workspace.' }}</span>
+                <q-btn v-if="editingId" flat no-caps label="Cancel" color="grey-5" :disable="saving || testingConnection" @click="cancelEdit" />
+                <q-btn v-if="editingId" outline no-caps color="primary" label="Test connection" icon="network_check" type="button" :loading="testingConnection" :disable="saving || loadingSavedConnection" @click="testEditedConnection" />
+                <q-btn unelevated no-caps color="primary" text-color="black" :label="editingId ? 'Save changes' : 'Test connection'" :icon="editingId ? 'save' : 'network_check'" type="submit" :loading="saving" :disable="loadingSavedConnection || testingConnection" />
             </q-card-actions>
         </q-form>
         </div>
@@ -172,6 +177,9 @@ const route = useRoute();
 const editingId = computed(() => typeof route.query.edit === "string" ? route.query.edit : "");
 const loadingSavedConnection = ref(false);
 const saving = ref(false);
+const testingConnection = ref(false);
+const connectionTestResult = ref<{ok: boolean; message: string} | null>(null);
+let connectionTestVersion = 0;
 const store = useConnectionStore();
 const activeConnectionStore = useActiveConnection();
 
@@ -448,14 +456,37 @@ async function loadSavedConnection() {
 async function cancelEdit() {
     await $router.push({ name: "Welcome", query: {} });
 }
-async function saveConnection() {
-    if (saving.value || !(await formRef.value?.validate())) return;
-    if (form.value.use_ssh && (!sshForm.value.name || !sshForm.value.host || !sshForm.value.username || validPort(sshForm.value.port) !== true || (sshForm.value.auth_method === "private_key" && !sshForm.value.private_key))) {
+async function validateConnectionDetails() {
+    if (!(await formRef.value?.validate())) return false;
+    if (form.value.type !== 'sqlite' && form.value.use_ssh && (!sshForm.value.name || !sshForm.value.host || !sshForm.value.username || validPort(sshForm.value.port) !== true || (sshForm.value.auth_method === "private_key" && !sshForm.value.private_key))) {
         sshDialog.value = true;
-        return;
+        return false;
     }
+    return true;
+}
+async function testEditedConnection() {
+    if (!editingId.value || saving.value || testingConnection.value || loadingSavedConnection.value) return;
+    testingConnection.value = true;
+    connectionTestResult.value = null;
+    const version = connectionTestVersion;
+    try {
+        if (!(await validateConnectionDetails()) || version !== connectionTestVersion) return;
+        const ok = await DbService.PingConfig(parseToConfig());
+        if (!ok) throw new Error('The connection test failed. Check the settings and try again.');
+        if (version === connectionTestVersion) connectionTestResult.value = {ok: true, message: 'Connection successful. Changes have not been saved.'};
+    } catch (error: unknown) {
+        if (version === connectionTestVersion) connectionTestResult.value = {ok: false, message: error instanceof Error ? error.message : String(error)};
+    } finally { testingConnection.value = false; }
+}
+watch([form, sshForm, editingId], () => {
+    connectionTestVersion++;
+    connectionTestResult.value = null;
+}, {deep: true, flush: 'sync'});
+async function saveConnection() {
+    if (saving.value || testingConnection.value || loadingSavedConnection.value) return;
     saving.value = true;
     try {
+        if (!(await validateConnectionDetails())) return;
         await DatabaseService.UpdateConnection(parseToConfig());
         await store.getConnections();
         Notify.create({ message: "Connection updated", type: "positive" });
@@ -513,6 +544,9 @@ h2 { margin: 7px 0 0; color: var(--text-primary); font-size: calc(var(--ui-font-
 .connection-form-body :deep(.q-field--outlined .q-field__control::before) { border-color: var(--border-default); }
 .connection-form-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 24px; }
 .connection-form-actions > .q-btn { margin-left: 0; min-height: 38px; border-radius: 7px; padding: 0 16px; }
+.connection-test-result { display: flex; align-items: flex-start; gap: 9px; margin: 0 24px 16px; padding: 12px 14px; border: 1px solid var(--border-default); border-radius: 7px; background: var(--accent-tint); color: var(--accent-color); overflow-wrap: anywhere; }
+.connection-test-result .q-icon { flex-shrink: 0; }
+.connection-test-failed { background: rgba(239, 83, 80, .08); color: #f28b82; }
 .connection-test-note { display: flex; align-items: center; gap: 7px; flex: 1; font-size: max(10px, calc(var(--ui-font-size) - 1px)); line-height: 1.5; color: var(--text-muted); }
 .ssh-card.q-card { width: 600px; max-width: calc(100vw - 32px); border-radius: 12px; background: var(--surface-panel); }
 .connection-note { background: var(--accent-tint); color: var(--text-muted); }
