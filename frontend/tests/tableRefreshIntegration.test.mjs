@@ -12,7 +12,9 @@ function evaluate(path, overrides = {}) {
     new Function('module', 'exports', 'require', output)(module, module.exports, name => overrides[name] ?? require(name));
     return module.exports;
 }
-const {refreshTable} = evaluate('../src/utils/refreshTable.ts');
+const {refreshTable} = evaluate('../src/utils/refreshTable.ts', {quasar: {Dialog: {create() {
+    return {onOk(callback) {queueMicrotask(callback); return this;}, onDismiss() {return this;}};
+}}}});
 test('refresh works with existing Pinia stores and actually refetches after discarding', async () => {
     setActivePinia(createPinia());
     const editsModule = evaluate('../src/stores/tableEditsStore.ts', {'@bindings/db-lens/internal/app': {DbService: {}}});

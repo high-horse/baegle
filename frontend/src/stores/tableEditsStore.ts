@@ -18,6 +18,7 @@ export interface EditState {
     loading: boolean;
     saving: boolean;
     editing?: boolean;
+    confirmingRefresh?: boolean;
     error: string;
 }
 export const useTableEditsStore = defineStore('tableEdits', () => {

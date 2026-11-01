@@ -46,14 +46,19 @@ test('pending edits do not block Ctrl+R', () => {
 const refreshSource = readFileSync(new URL('../src/utils/refreshTable.ts', import.meta.url), 'utf8');
 const refreshCompiled = ts.transpileModule(refreshSource, {compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS}}).outputText;
 const refreshModule = {exports: {}};
-new Function('exports', refreshCompiled)(refreshModule.exports);
+let confirmation = true;
+let dialogCount = 0;
+new Function('exports', 'require', refreshCompiled)(refreshModule.exports, () => ({Dialog: {create() {
+    dialogCount++;
+    return {onOk(callback) {if (confirmation) queueMicrotask(callback); return this;}, onDismiss(callback) {queueMicrotask(callback); return this;}};
+}}}));
 function refreshTable(overrides = {}, saving = false) {
     const calls = [];
     const drafts = [{operation: 'insert'}, {operation: 'update'}, {operation: 'delete'}];
     const state = {drafts, editing: true};
     const queries = {tabs: [{id: 'table', executedSql: 'SELECT * FROM items', ...overrides}],
         async execute(id, sql) {calls.push(['execute', id, sql]); assert.deepEqual(state.drafts, []); assert.equal(state.editing, false);} };
-    const edits = {isSaving: () => saving, discard(id) {calls.push(['discard', id]); state.drafts = []; state.editing = false;}};
+    const edits = {states: {table: state}, hasPending: () => state.editing || state.drafts.length > 0, isSaving: () => saving, discard(id) {calls.push(['discard', id]); state.drafts = []; state.editing = false;}};
     const refresh = id => refreshModule.exports.refreshTable(queries, edits, id);
     return {refresh, calls, state};
 }
@@ -70,4 +75,32 @@ test('refresh cannot discard during saves, loading, or closing', async () => {
         assert.equal(state.drafts.length, 3);
         assert.equal(state.editing, true);
     }
+});
+
+test('cancelling refresh keeps all drafts and the active edit without fetching', async () => {
+    confirmation = false;
+    try {
+        const {refresh, calls, state} = refreshTable();
+        await refresh('table');
+        assert.deepEqual(calls, []);
+        assert.equal(state.drafts.length, 3);
+        assert.equal(state.editing, true);
+        assert.equal(state.confirmingRefresh, false);
+    } finally {confirmation = true;}
+});
+test('repeated refresh requests share the pending confirmation', async () => {
+    const {refresh} = refreshTable();
+    const before = dialogCount;
+    await Promise.all([refresh('table'), refresh('table')]);
+    assert.equal(dialogCount, before + 1);
+});
+
+test('refresh without unsaved edits fetches without confirmation', async () => {
+    const {refresh, calls, state} = refreshTable();
+    state.drafts = [];
+    state.editing = false;
+    const before = dialogCount;
+    await refresh('table');
+    assert.equal(dialogCount, before);
+    assert.deepEqual(calls, [['discard', 'table'], ['execute', 'table', 'SELECT * FROM items']]);
 });

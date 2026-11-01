@@ -1089,7 +1089,6 @@ async function editInlineCell(key: string, column: string, typedText?: string) {
 }
 function refreshResult() {
     if (props.loading || editState.value?.saving) return;
-    cancelInline();
     emit('refresh');
 }
 function commitInline(): boolean {
@@ -1111,6 +1110,7 @@ function commitInline(): boolean {
 }
 function cancelInline() { inlineEdit.value = null; if (editState.value) editState.value.editing = false; }
 function inlineBlur(event: FocusEvent) {
+    if (editState.value?.confirmingRefresh) return;
     if ((event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)) return;
     commitInline();
 }
@@ -1155,6 +1155,9 @@ async function inlineKeydown(event: KeyboardEvent) {
         (dataTable.value?.$el as HTMLElement | undefined)?.focus({ preventScroll: true });
     }
 }
+watch(() => editState.value?.confirmingRefresh, confirming => {
+    if (confirming === false && inlineEdit.value) void focusInline();
+});
 watch(() => editState.value?.editing, editing => {
     if (!editing && inlineEdit.value) cancelInline();
 }, { flush: 'sync' });

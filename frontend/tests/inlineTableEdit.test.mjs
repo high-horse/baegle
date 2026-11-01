@@ -55,7 +55,7 @@ test('numeric, boolean, nullable validation retains large integer precision', ()
 
 const gridSource = readFileSync(new URL('../src/components/workspace/resultGrid/ResultTab.vue', import.meta.url), 'utf8').split('<script setup lang="ts">')[1].split('</script>')[0];
 const gridAst = ts.createSourceFile('grid.ts', gridSource, ts.ScriptTarget.Latest, true);
-const functions = ['inlineTarget', 'inlineMetadata', 'canEditInline', 'focusInline', 'editInlineCell', 'commitInline', 'cancelInline', 'editInlineRow', 'addInlineRow', 'inlineKeydown', 'handleResultKeydown', 'refreshResult'];
+const functions = ['inlineTarget', 'inlineMetadata', 'canEditInline', 'focusInline', 'editInlineCell', 'commitInline', 'cancelInline', 'editInlineRow', 'addInlineRow', 'inlineKeydown', 'handleResultKeydown', 'refreshResult', 'inlineBlur'];
 const gridFunctions = ts.transpileModule(gridAst.statements.filter(node => ts.isFunctionDeclaration(node) && functions.includes(node.name?.text)).map(node => node.getText(gridAst)).join('\n'), {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
 function grid() {
     const state = {info: {driver: 'sqlite', keys: ['id'], canInsert: true, canModify: true, columns: [
@@ -88,7 +88,7 @@ function grid() {
         inlineValueText: value => value == null ? '' : String(value), HTMLSelectElement: class {}, handleGridKeydown() {},
         async saveChanges() { if (api.commitInline()) state.saved = true; },
     };
-    const api = new Function(...Object.keys(globals), gridFunctions + ';return {editInlineCell,commitInline,cancelInline,addInlineRow,inlineKeydown,handleResultKeydown,refreshResult};')(...Object.values(globals));
+    const api = new Function(...Object.keys(globals), gridFunctions + ';return {editInlineCell,commitInline,cancelInline,addInlineRow,inlineKeydown,handleResultKeydown,refreshResult,inlineBlur};')(...Object.values(globals));
     return {api, inline, state, props, active, events};
 }
 test('grid editing stages on commit, skips protected cells with Tab, and Escape preserves prior drafts', async () => {
@@ -183,14 +183,25 @@ test('Ctrl+S saves the value still being typed in a new row', async () => {
 });
 
 
-test('refresh cancels an invalid active cell before emitting instead of committing it', async () => {
+test('refresh preserves invalid active input until confirmation is accepted', async () => {
     const {api, inline, state, events} = grid();
     await api.editInlineCell('one', 'column-2');
     inline.value.text = 'invalid number';
     assert.equal(api.commitInline(), false);
     api.refreshResult();
-    assert.equal(inline.value, null);
-    assert.equal(state.editing, false);
+    assert.equal(inline.value.text, 'invalid number');
+    assert.equal(state.editing, true);
     assert.deepEqual(state.drafts, []);
     assert.deepEqual(events, [['refresh']]);
+});
+
+test('opening refresh confirmation does not commit or erase active cell input', async () => {
+    const {api, inline, state} = grid();
+    await api.editInlineCell('one', 'column-1');
+    inline.value.text = 'still typing';
+    state.confirmingRefresh = true;
+    api.inlineBlur({});
+    assert.equal(inline.value.text, 'still typing');
+    assert.equal(state.editing, true);
+    assert.deepEqual(state.drafts, []);
 });
