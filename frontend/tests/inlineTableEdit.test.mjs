@@ -12,6 +12,7 @@ function load(path, overrides = {}) {
 }
 const clipboard = load('../src/utils/resultClipboard.ts');
 const {inlineColumnEditable, stageInlineValue} = load('../src/utils/inlineTableEdit.ts', {'./resultClipboard': clipboard});
+const {duplicateRowValues} = load('../src/utils/gridConvenience.ts');
 const name = {name: 'name', databaseType: 'TEXT', nullable: true};
 const target = {key: 'one', keys: {id: 1}, original: {id: 1, name: 'before', note: null}};
 test('inline edits coalesce and reverting a cell removes just that column change', () => {
@@ -55,7 +56,7 @@ test('numeric, boolean, nullable validation retains large integer precision', ()
 
 const gridSource = readFileSync(new URL('../src/components/workspace/resultGrid/ResultTab.vue', import.meta.url), 'utf8').split('<script setup lang="ts">')[1].split('</script>')[0];
 const gridAst = ts.createSourceFile('grid.ts', gridSource, ts.ScriptTarget.Latest, true);
-const functions = ['inlineTarget', 'inlineMetadata', 'canEditInline', 'focusInline', 'editInlineCell', 'commitInline', 'cancelInline', 'editInlineRow', 'addInlineRow', 'inlineKeydown', 'handleResultKeydown', 'refreshResult', 'inlineBlur'];
+const functions = ['inlineTarget', 'inlineMetadata', 'canEditInline', 'focusInline', 'editInlineCell', 'commitInline', 'cancelInline', 'editInlineRow', 'addInlineRow', 'inlineKeydown', 'handleResultKeydown', 'refreshResult', 'inlineBlur', 'canDuplicateRow', 'duplicateInlineRow'];
 const gridFunctions = ts.transpileModule(gridAst.statements.filter(node => ts.isFunctionDeclaration(node) && functions.includes(node.name?.text)).map(node => node.getText(gridAst)).join('\n'), {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
 function grid() {
     const state = {info: {driver: 'sqlite', keys: ['id'], canInsert: true, canModify: true, columns: [
@@ -79,7 +80,7 @@ function grid() {
     const events = [];
     const globals = {
         emit: (...args) => events.push(args),
-        props, editState: {value: state}, displayedColumns: {value: columns}, sourceRowIndexes: {value: new Map([['one', 0]])},
+        Notify: {create() {}}, duplicateRowValues, props, editState: {value: state}, displayedColumns: {value: columns}, sourceRowIndexes: {value: new Map([['one', 0]])},
         inlineEdit: inline, activeCell: active, selectedRowKey: selected, tableEdits: edits,
         mappedRows: {get value() { return [{id: 'one'}, ...state.drafts.filter(draft => draft.operation === 'insert').map(draft => ({id: draft.key}))]; }},
         dataTable: {value: null}, rowEditor: {value: null},
@@ -88,7 +89,7 @@ function grid() {
         inlineValueText: value => value == null ? '' : String(value), HTMLSelectElement: class {}, handleGridKeydown() {},
         async saveChanges() { if (api.commitInline()) state.saved = true; },
     };
-    const api = new Function(...Object.keys(globals), gridFunctions + ';return {editInlineCell,commitInline,cancelInline,addInlineRow,inlineKeydown,handleResultKeydown,refreshResult,inlineBlur};')(...Object.values(globals));
+    const api = new Function(...Object.keys(globals), gridFunctions + ';return {editInlineCell,commitInline,cancelInline,addInlineRow,inlineKeydown,handleResultKeydown,refreshResult,inlineBlur,duplicateInlineRow};')(...Object.values(globals));
     return {api, inline, state, props, active, events};
 }
 test('grid editing stages on commit, skips protected cells with Tab, and Escape preserves prior drafts', async () => {
@@ -204,4 +205,27 @@ test('opening refresh confirmation does not commit or erase active cell input', 
     assert.equal(inline.value.text, 'still typing');
     assert.equal(state.editing, true);
     assert.deepEqual(state.drafts, []);
+});
+
+test('Duplicate stages a new editable insert using pending cell values without changing the original', async () => {
+    const {api, state, props, inline} = grid();
+    await api.editInlineCell('one', 'column-1');
+    inline.value.text = 'Edited before duplicate';
+    await api.duplicateInlineRow('one');
+    const draft = state.drafts.find(row => row.operation === 'insert');
+    assert.deepEqual(draft.values, {name: 'Edited before duplicate', age: 20});
+    assert.deepEqual(draft.keys, {});
+    assert.equal(Object.hasOwn(draft.values, 'id'), false);
+    assert.equal(props.result.Rows[0][1], 'original');
+    assert.equal(inline.value.key, draft.key);
+});
+test('Duplicate does not stage deleted rows or run while saving', async () => {
+    const {api, state} = grid();
+    state.saving = true;
+    await api.duplicateInlineRow('one');
+    assert.deepEqual(state.drafts, []);
+    state.saving = false;
+    state.drafts.push({key: 'one', operation: 'delete', keys: {id: 1}, values: {}});
+    await api.duplicateInlineRow('one');
+    assert.equal(state.drafts.length, 1);
 });

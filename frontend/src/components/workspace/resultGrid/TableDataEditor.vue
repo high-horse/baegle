@@ -19,6 +19,9 @@
                 @click="openRow(selectedKey)"
                 ><q-icon name="edit" size="14px" /> {{ state.info.driver === 'mongodb' ? 'Edit document' : 'Edit cell' }}</q-btn
             >
+            <q-btn flat dense no-caps type="button" title="Duplicate selected row as a new draft" :disable="busy || !selectedKey || selectedDraft?.operation === 'delete'" @click="emit('duplicateRow', selectedKey)">
+                <q-icon name="content_copy" size="14px" /> Duplicate
+            </q-btn>
             <q-btn
                 flat
                 dense
@@ -200,7 +203,7 @@ const props = defineProps<{
     loading?: boolean;
     prepareSave?: () => boolean;
 }>();
-const emit = defineEmits<{ editCell: [key: string]; addRow: []; cancelEdit: [] }>();
+const emit = defineEmits<{ editCell: [key: string]; addRow: []; duplicateRow: [key: string]; cancelEdit: [] }>();
 const edits = useTableEditsStore();
 const queries = useQueryTabsStore();
 const state = computed(() => edits.states[props.tabId]);

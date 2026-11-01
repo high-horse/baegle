@@ -42,7 +42,8 @@ test('different schemas, databases, connections, consoles, and closing tabs are 
         const {calls, handle} = setup([tab]);
         await handle();
         assert.equal(calls[0][0], 'create');
-        assert.deepEqual(calls.slice(1), [['execute', 'new'], ['load', 'new']]);
+        // executeTableResult owns metadata loading before fetching ordered rows.
+        assert.deepEqual(calls.slice(1), [['execute', 'new']]);
     }
 });
 test('repeated navigation reuses a newly opened table tab', async () => {

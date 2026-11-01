@@ -48,7 +48,7 @@
             <span class="filter-count">{{ serverExpressions ? workingRows.length : `${filteredRows.length}/${workingRows.length}` }} <span class="filter-scope">on this page</span></span>
         </q-form>
 
-        <TableDataEditor v-if="tableTabId" ref="rowEditor" :tab-id="tableTabId" :result="result" :selected-key="selectedRowKey" :row-indexes="sourceRowIndexes" :loading="loading" :prepare-save="commitInline" @edit-cell="editInlineRow" @add-row="addInlineRow" @cancel-edit="cancelInline" />
+        <TableDataEditor v-if="tableTabId" ref="rowEditor" :tab-id="tableTabId" :result="result" :selected-key="selectedRowKey" :row-indexes="sourceRowIndexes" :loading="loading" :prepare-save="commitInline" @edit-cell="editInlineRow" @add-row="addInlineRow" @duplicate-row="duplicateInlineRow" @cancel-edit="cancelInline" />
 
         <!-- =========================================================
              TABLE
@@ -357,6 +357,9 @@
                     <q-item clickable v-close-popup :disable="contextCell.status === 'delete' || !rowEditor?.canEditRow(contextCell.rowKey)" @click="editInlineCell(contextCell.rowKey, contextCell.column)">
                         <q-item-section avatar><q-icon name="edit" size="17px" /></q-item-section><q-item-section>{{ isMongoResult ? 'Edit document' : 'Edit cell' }}</q-item-section>
                     </q-item>
+                    <q-item clickable v-close-popup :disable="!canDuplicateRow(contextCell.rowKey)" @click="duplicateInlineRow(contextCell.rowKey)">
+                        <q-item-section avatar><q-icon name="content_copy" size="17px" /></q-item-section><q-item-section>Duplicate row</q-item-section>
+                    </q-item>
                     <q-item clickable v-close-popup :disable="!rowEditor?.canEditRow(contextCell.rowKey)" @click="rowEditor?.deleteRow(contextCell.rowKey)">
                         <q-item-section avatar><q-icon :name="contextCell.status === 'delete' ? 'undo' : 'delete_outline'" size="17px" /></q-item-section>
                         <q-item-section>{{ contextCell.status === 'delete' ? 'Undo delete' : 'Delete row' }}</q-item-section>
@@ -364,6 +367,9 @@
                     <q-separator v-if="contextCell.column !== 'sn'" />
                 </template>
                 <template v-if="contextCell.column !== 'sn'">
+                <q-item clickable v-close-popup @click="openAdvancedCopy">
+                    <q-item-section avatar><q-icon name="content_copy" size="17px" /></q-item-section><q-item-section>Advanced copy…</q-item-section>
+                </q-item>
                 <q-item clickable v-close-popup @click="copyColumnName(contextCell.label)">
                     <q-item-section avatar><q-icon name="content_copy" size="17px" /></q-item-section>
                     <q-item-section>Copy column name</q-item-section>
@@ -388,6 +394,7 @@
             :selected-column="activeCell?.column ?? 0" @close="closeRecordView" @move="moveRecordRow"
             @select-column="column => selectCell(String(recordRow!.id), `column-${column}`, false)" />
 
+        <AdvancedCopy v-model="advancedCopyOpen" :selection="copySelection" :driver="copyDriver" :table="copyTable" />
         <CellValueViewer v-model="documentDialog" :value="selectedDocument" :type="documentType" :column="documentColumn" />
 
         <!-- =========================================================
@@ -398,7 +405,7 @@
             class="data-grid-footer absolute bottom-0 left-0 right-0 z-[100] flex h-[36px] items-center justify-between border-t border-[var(--border-default)] bg-[var(--surface-panel)] px-2"
         >
             <!-- Left side -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 min-w-0 overflow-hidden">
                 <q-btn v-if="result.IsQuery" flat dense no-caps type="button" class="pagination-button"
                     :disable="!mappedRows.length || !result.Columns.length" :title="recordViewOpen ? 'Back to grid (Tab)' : 'Row details (Tab)'"
                     :aria-label="recordViewOpen ? 'Show result grid' : 'Show row details'" :aria-pressed="recordViewOpen"
@@ -409,6 +416,7 @@
                     :title="tableTabId ? 'Refresh table and discard unsaved changes (Ctrl+R)' : 'Run this query again'" :aria-label="tableTabId ? 'Refresh table and discard unsaved changes' : 'Run this query again'" @mousedown.prevent @click="refreshResult">
                     <q-icon name="refresh" size="16px" />
                 </q-btn>
+                <q-btn v-if="result.IsQuery" flat dense no-caps type="button" class="pagination-button" icon="content_copy" title="Advanced copy selected cells" aria-label="Advanced copy selected cells" :disable="!selectionRange" @mousedown.prevent @click="openAdvancedCopy" />
                 <DataTransfer v-if="result.IsQuery" action="export" :result="result" :table-tab-id="tableTabId"
                     :disabled="loading || navigationBlocked" />
                 <span class="font-mono text-[length:var(--ui-font-size)] text-gray-500">
@@ -416,6 +424,20 @@
                     <template v-else>{{ result.IsQuery ? 'No rows' : 'Statement completed' }}</template>
                     <span v-if="result.IsQuery && !result.CanSort && totalRows != null"> · {{ totalRows.toLocaleString() }} rows total</span>
                 </span>
+                <q-btn v-if="selectionStats.cells" flat dense no-caps type="button" class="selection-stats" icon="functions"
+                    :label="selectionStats.count ? `${selectionStats.cells} cells · Σ ${selectionStats.sum}` : `${selectionStats.cells} cells`"
+                    title="Selection statistics · loaded rows" aria-label="Show selection statistics">
+                    <q-menu dark class="selection-statistics-menu">
+                        <div class="statistics-heading">Selection statistics</div>
+                        <dl class="statistics-values">
+                            <template v-for="item in [['Selected cells', selectionStats.cells], ['Non-NULL', selectionStats.filled], ['Numeric values', selectionStats.count], ['Sum', selectionStats.count ? selectionStats.sum : '—'], ['Average', selectionStats.average || '—'], ['Minimum', selectionStats.min || '—'], ['Maximum', selectionStats.max || '—']]" :key="String(item[0])">
+                                <dt>{{ item[0] }}</dt><dd>{{ item[1] }}</dd>
+                            </template>
+                        </dl>
+                        <p v-if="selectionStats.excluded" class="statistics-note">{{ selectionStats.excluded }} unsupported numeric values excluded.</p>
+                        <p class="statistics-note">Selected cells in loaded rows. NULLs are excluded from numeric calculations.</p>
+                    </q-menu>
+                </q-btn>
                 <template v-if="result.IsQuery && result.CanSort">
                     <q-btn v-if="countingRows" flat dense no-caps type="button" size="sm" color="primary"
                         :disable="stoppingCount" :label="stoppingCount ? 'Cancelling…' : 'Counting… Cancel'"
@@ -492,6 +514,8 @@ import {
 
 import { copyToClipboard, Notify, type QMenu, type QTable, type QTableColumn } from "quasar";
 
+import AdvancedCopy from "./AdvancedCopy.vue";
+import { duplicateRowValues, selectionStatistics, type CopySelection } from "@/utils/gridConvenience";
 import TableDataEditor from "./TableDataEditor.vue";
 import ResultFilterInput from "./ResultFilterInput.vue";
 import ResultRecordView from "./ResultRecordView.vue";
@@ -1129,6 +1153,35 @@ async function addInlineRow() {
     scrollToRow(mappedRows.value.findIndex(row => String(row.id) === key));
     await editInlineRow(key);
 }
+function canDuplicateRow(key: string) {
+    const state = editState.value;
+    return !!props.tableTabId && !!state?.info?.canInsert && !props.loading && !state.loading && !state.saving
+        && state.drafts.find(row => row.key === key)?.operation !== 'delete'
+        && mappedRows.value.some(row => String(row.id) === key);
+}
+async function duplicateInlineRow(key = selectedRowKey.value) {
+    if (!canDuplicateRow(key) || !commitInline()) return;
+    try {
+        const info = editState.value!.info!;
+        const target = inlineTarget(key);
+        const original = info.driver === 'mongodb'
+            ? JSON.parse(props.result.Documents?.[sourceRowIndexes.value.get(key) ?? -1] ?? '{}') : target.original;
+        const source = JSON.parse(JSON.stringify({...original, ...target.draft?.values}));
+        const values = duplicateRowValues(info.columns ?? [], info.keys ?? [], source);
+        // Document fields need not appear in the collection's sampled columns.
+        if (info.driver === 'mongodb') {
+            for (const [name, value] of Object.entries(source)) if (name !== '_id') values[name] = value;
+        }
+        const newKey = `new-${crypto.randomUUID()}`;
+        tableEdits.stage(props.tableTabId!, {key: newKey, operation: 'insert', keys: {}, values, original: {}});
+        await nextTick();
+        selectedRowKey.value = newKey;
+        scrollToRow(mappedRows.value.findIndex(row => String(row.id) === newKey));
+        await editInlineRow(newKey);
+    } catch (error) {
+        Notify.create({type: 'negative', message: error instanceof Error ? error.message : String(error)});
+    }
+}
 async function inlineKeydown(event: KeyboardEvent) {
     if (event.isComposing || !inlineEdit.value) return;
     if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 's') {
@@ -1197,6 +1250,30 @@ const { activeCell, activeCellId, cellId, selectCell, selectContextCell, startCe
     navigationTable, mappedRows, computed(() => displayedColumns.value.map(column => column.Name)), selectedRowKey,
 );
 watch(visibleRows, async () => { await nextTick(); onVirtualScroll(); });
+
+const advancedCopyOpen = ref(false);
+const copySelection = ref<CopySelection>({columns: [], rows: []});
+const copyDriver = computed(() => editState.value?.info?.driver ?? useConnectionStore().activeConnection?.driver ?? 'pgx');
+const copyTable = computed(() => !['mongodb', 'redis', 'couchdb'].includes(copyDriver.value) ? editState.value?.info?.table : undefined);
+const selectedCells = computed(() => {
+    const range = selectionRange.value;
+    if (!range) return {columns: [], rows: [], keys: []};
+    const columns = displayedColumns.value.slice(range.fromColumn, range.toColumn + 1);
+    const rows = mappedRows.value.slice(range.fromRow, range.toRow + 1);
+    return {columns: columns.map(column => column.Name),
+        rows: rows.map(row => columns.map((_column, offset) => row[`column-${range.fromColumn + offset}`])),
+        keys: rows.map(row => props.tableTabId ? inlineTarget(String(row.id)).keys : {})};
+});
+const selectionStats = computed(() => {
+    const range = selectionRange.value;
+    const columns = range ? displayedColumns.value.slice(range.fromColumn, range.toColumn + 1) : [];
+    return selectionStatistics(selectedCells.value.rows, columns.map(column => /(?:int|numeric|decimal|real|double|float|number|money)/i.test(column.Type ?? '')));
+});
+function openAdvancedCopy() {
+    if (!commitInline() || !selectionRange.value) return;
+    copySelection.value = selectedCells.value;
+    advancedCopyOpen.value = true;
+}
 
 async function copyColumnName(name: string) {
     try {
@@ -1893,4 +1970,16 @@ const mappedColumns =
     color: #fff;
 }
 .data-explorer-grid :deep(thead th[data-pinned]) { z-index: 55 !important; background: var(--surface-panel) !important; }
+</style>
+
+<style scoped>
+.selection-stats { max-width: 220px; min-width: 0; color: var(--text-muted); font-family: monospace; font-size: var(--ui-font-size); }
+.selection-stats :deep(.q-btn__content) { flex-wrap: nowrap; }
+.selection-stats :deep(.block) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:global(.selection-statistics-menu) { max-width: min(420px, calc(100vw - 24px)); background: var(--surface-panel); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: 4px; font-family: monospace; }
+.statistics-heading { padding: 10px 12px; color: var(--accent-color); border-bottom: 1px solid var(--border-default); font-weight: 600; }
+.statistics-values { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 20px; margin: 12px; }
+.statistics-values dt { color: var(--text-muted); }
+.statistics-values dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.statistics-note { margin: 10px 12px; max-width: 320px; color: var(--text-muted); font-size: var(--ui-font-size); }
 </style>
