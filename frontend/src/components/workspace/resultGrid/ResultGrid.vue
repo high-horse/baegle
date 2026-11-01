@@ -99,6 +99,7 @@
 
             <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
                 <ResultTab
+                    ref="resultTabRef"
                     v-if="activeSubTab === 'data'"
                     :result="result"
                     :table-tab-id="tableTabId"
@@ -162,6 +163,9 @@ import type { QueryResult } from "@/types/queryTab";
 import ResultTab from "./ResultTab.vue";
 import IndexSchema from "./Schema/Index.vue";
 import QueryElapsedTime from "../QueryElapsedTime.vue";
+
+const resultTabRef = ref<InstanceType<typeof ResultTab> | null>(null);
+defineExpose({ saveChanges: () => resultTabRef.value?.saveChanges() });
 
 const props = defineProps<{
     result: QueryResult | null;

@@ -408,8 +408,9 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       ? Math.floor((tab.result.StartRow - 1) / tab.result.PageSize) + 1 : 1;
     const defaultPageSize = useResultSettingsStore().settings.rowsPerPage;
     const pageSize = afterSave ? tab.result?.PageSize ?? defaultPageSize : defaultPageSize;
-    const refreshSortColumn = afterSave ? tab.sortColumn ?? 0 : 0;
-    const refreshSortDirection = afterSave ? tab.sortDirection : undefined;
+    const preserveOrder = afterSave || (!!tab.tableRef && tab.executedSql === sql);
+    const refreshSortColumn = preserveOrder ? tab.sortColumn ?? 0 : 0;
+    const refreshSortDirection = preserveOrder ? tab.sortDirection : undefined;
     tab.loading = true;
     tab.error = null;
     tab.pageError = undefined;
@@ -417,7 +418,7 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     tab.fetchingLast = false;
     tab.sortColumn = refreshSortColumn;
     tab.sortDirection = refreshSortDirection;
-    if (!afterSave) { tab.resultWhere = ''; tab.resultOrder = ''; tab.resultOrderSQL = ''; }
+    if (!preserveOrder) { tab.resultWhere = ''; tab.resultOrder = ''; tab.resultOrderSQL = ''; }
     tab.streamNextPage = 2;
     if (!afterSave) tab.result = null;
     tab.pages = [];

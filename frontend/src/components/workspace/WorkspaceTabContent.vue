@@ -65,7 +65,7 @@
                                         :can-previous="tab.result?.CanNavigate ? tab.result.StartRow > 1 : (tab.pageIndex ?? 0) > 0"
                                         :can-next="tab.result?.CanNavigate ? tab.result.HasMore : (tab.pageIndex ?? 0) < (tab.pages?.length ?? 0) - 1 || !!tab.cursor"
                                         :page-error="tab.pageError"
-                                        @refresh="executeQuery(tab.id, tab.executedSql ?? '')"
+                                        @refresh="refreshTable(queryTabsStore, tableEdits, tab.id)"
                                         @previous="queryTabsStore.navigate(tab.id, 'previous')"
                                         @next="queryTabsStore.navigate(tab.id, 'next')"
                                                 :result="
@@ -97,6 +97,7 @@
                                     class="h-full w-full min-w-0 min-h-0 overflow-hidden"
                                 >
                                     <ResultGrid
+                                        ref="tableGridRef"
                                         :query-started-at="tab.queryStartedAt"
                                         :table-tab-id="tab.id"
                                         :key="tab.id"
@@ -121,7 +122,7 @@
                                         :can-previous="tab.result?.CanNavigate ? tab.result.StartRow > 1 : (tab.pageIndex ?? 0) > 0"
                                         :can-next="tab.result?.CanNavigate ? tab.result.HasMore : (tab.pageIndex ?? 0) < (tab.pages?.length ?? 0) - 1 || !!tab.cursor"
                                         :page-error="tab.pageError"
-                                        @refresh="executeQuery(tab.id, tab.executedSql ?? '')"
+                                        @refresh="refreshTable(queryTabsStore, tableEdits, tab.id)"
                                         @previous="queryTabsStore.navigate(tab.id, 'previous')"
                                         @next="queryTabsStore.navigate(tab.id, 'next')"
                                         :result="
@@ -146,6 +147,8 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { refreshTable } from "@/utils/refreshTable";
+import { useTableEditsStore } from "@/stores/tableEditsStore";
 import type { QueryTab } from "@/types/queryTab";
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
 import QueryConsole from "./QueryConsole.vue";
@@ -159,7 +162,10 @@ const emit = defineEmits<{
     openTable: [node: { id: string; label: string; type: string; schema: string; database: string }];
 }>();
 const queryTabsStore = useQueryTabsStore();
+const tableEdits = useTableEditsStore();
 const queryConsoleRef = ref<InstanceType<typeof QueryConsole> | null>(null);
+const tableGridRef = ref<InstanceType<typeof ResultGrid> | null>(null);
+defineExpose({ saveTableChanges: () => tableGridRef.value?.saveChanges() });
 const editorHeight = ref(45);
 function executeQuery(id: string, sql: string) { emit("execute", id, sql); }
 function hideResults() { emit("hideResults"); }

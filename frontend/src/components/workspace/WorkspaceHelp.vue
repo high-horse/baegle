@@ -10,8 +10,8 @@
             <div class="help-sections">
             <section>
                 <h3><q-icon name="edit_note" size="18px" /> Edit table data</h3>
-                <p>Double-click a row to edit it. You can also select a row and press <kbd>F2</kbd> or choose <strong>Edit row</strong>.</p>
-                <p>Use <strong>Add row</strong> for a new record. Choose <strong>Stage changes</strong> in the editor, then <strong>Save</strong> above the grid to write to the database. <strong>Cancel</strong> above the grid discards staged changes.</p>
+                <p>Double-click a cell, press <kbd>Enter</kbd> or <kbd>F2</kbd>, or choose <strong>Edit cell</strong> to edit in the grid. <kbd>Tab</kbd> stages the value and moves to the next editable cell; <kbd>Esc</kbd> cancels that cell edit.</p>
+                <p>Use <strong>Add row</strong> to insert a draft directly in the grid. Choose Value, NULL, or Default in the cell editor. <strong>Save</strong> or <kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>S</kbd> writes staged changes to the database; <strong>Cancel</strong> discards them. MongoDB uses the document editor for nested fields.</p>
                 <p>Existing IDs and primary keys are read-only. Generated fields are always read-only. Existing rows need a primary key and write permission to be edited.</p>
             </section>
             <section>
@@ -22,7 +22,7 @@
             </section>
             <section>
                 <h3><q-icon name="filter_alt" size="18px" /> Filter &amp; export</h3>
-                <p>Right-click a table cell or row number for Edit row and Delete row. Deletions are staged until you choose Save. Cell menus also offer quick filters and related records. Apply <strong>WHERE</strong> and <strong>ORDER BY</strong> with <kbd>Enter</kbd>; <kbd>Esc</kbd> resets the focused expression.</p>
+                <p>Right-click a table cell or row number for editing and deleting. Deletions are staged until you choose Save. Cell menus also offer quick filters and related records. Apply <strong>WHERE</strong> and <strong>ORDER BY</strong> with <kbd>Enter</kbd>; <kbd>Esc</kbd> resets the focused expression.</p>
                 <p>In Export, choose the source scope and the columns to include. A current-page export includes the fetched values before local filters and staged edits.</p>
             </section>
             </div>

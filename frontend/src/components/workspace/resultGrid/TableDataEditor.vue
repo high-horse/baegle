@@ -17,7 +17,7 @@
                 type="button"
                 :disable="busy || !selectedKey || !canEditSelected"
                 @click="openRow(selectedKey)"
-                ><q-icon name="edit" size="14px" /> Edit row</q-btn
+                ><q-icon name="edit" size="14px" /> {{ state.info.driver === 'mongodb' ? 'Edit document' : 'Edit cell' }}</q-btn
             >
             <q-btn
                 flat
@@ -40,7 +40,8 @@
                 no-caps
                 type="button"
                 class="save"
-                :disable="busy || !state.drafts.length"
+                title="Save changes (Ctrl+S)" aria-keyshortcuts="Control+S Meta+S"
+                :disable="busy || (!state.drafts.length && !state.editing)"
                 @click="save"
                 ><q-icon name="save" size="14px" />
                 {{ state.saving ? "Saving…" : "Save" }}</q-btn
@@ -50,8 +51,8 @@
                 dense
                 no-caps
                 type="button"
-                :disable="busy || !state.drafts.length"
-                @click="edits.discard(tabId)"
+                :disable="busy || (!state.drafts.length && !state.editing)"
+                @click="discard"
                 ><q-icon name="undo" size="14px" /> Cancel</q-btn
             >
             <span v-if="state.drafts.length" class="ml-auto text-gray-500">{{ state.drafts.length }} pending</span>
@@ -85,7 +86,7 @@
         {{ state.error }}
     </div>
     <q-dialog v-model="dialog" persistent :transition-duration="0">
-        <q-card class="row-editor-card" :style="{ '--editor-control-height': `${fieldRowHeight - 12}px` }">
+        <q-card class="row-editor-card">
             <header class="row-editor-header">
                 <div class="row-editor-heading">
                     <q-icon
@@ -155,48 +156,6 @@
                             aria-label="MongoDB document fields"
                         />
                     </template>
-                    <q-virtual-scroll v-else ref="fieldScroller" :items="fields" :virtual-scroll-item-size="fieldRowHeight"
-                        :virtual-scroll-slice-size="16" :virtual-scroll-slice-ratio-before="0.5" :virtual-scroll-slice-ratio-after="0.5"
-                        class="row-editor-fields">
-                        <template #default="{ item: field, index }">
-                        <div
-                            :key="field.name"
-                            v-memo="[field, field.text, field.mode]"
-                            class="row-editor-field"
-                        >
-                            <label class="field-label" :for="`row-field-${index}`">
-                                <span class="field-name" :title="field.name">{{ field.name }}</span>
-                                <span class="field-type" :title="field.type">{{ field.type }}</span>
-                            </label>
-                            <q-input
-                                :for="`row-field-${index}`" v-model="field.text"
-                                class="editor-input" :class="{ 'locked-input': field.locked || field.generated }"
-                                outlined dense dark hide-bottom-space color="primary"
-                                autocomplete="off" spellcheck="false" :autofocus="index === firstEditableField"
-                                :readonly="field.locked || field.generated"
-                                :disable="!field.locked && !field.generated && field.mode !== 'value'"
-                                :placeholder="field.mode === 'default' ? 'Database default' : field.mode === 'null' ? 'NULL' : ''"
-                            />
-                            <span
-                                v-if="field.locked || field.generated"
-                                class="field-lock"
-                                ><q-icon name="lock" size="12px" />
-                                {{
-                                    field.generated
-                                        ? "Generated"
-                                        : field.autoIncrement && isInsert
-                                          ? "Auto ID"
-                                          : "Read-only"
-                                }}</span
-                            >
-                            <q-select v-else v-model="field.mode" :for="`row-mode-${index}`"
-                                :aria-label="`${field.name} value mode`" class="value-mode"
-                                outlined dense dark hide-bottom-space color="primary" emit-value map-options
-                                :options="valueModes(field)" options-dense behavior="menu"
-                                popup-content-class="bg-[var(--surface-panel)] text-gray-300" />
-                        </div>
-                        </template>
-                    </q-virtual-scroll>
                     <p v-if="dialogError" class="dialog-error" role="alert">
                         {{ dialogError }}
                     </p>
@@ -228,11 +187,10 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Notify, type QVirtualScroll } from "quasar";
+import { Notify } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 import { useQueryTabsStore } from "@/stores/queryTabsStore";
 import type { QueryResult } from "@/types/queryTab";
-import { useResultSettingsStore } from "@/stores/resultSettingsStore";
 
 const props = defineProps<{
     tabId: string;
@@ -240,7 +198,9 @@ const props = defineProps<{
     selectedKey: string;
     rowIndexes?: ReadonlyMap<string, number>;
     loading?: boolean;
+    prepareSave?: () => boolean;
 }>();
+const emit = defineEmits<{ editCell: [key: string]; addRow: []; cancelEdit: [] }>();
 const edits = useTableEditsStore();
 const queries = useQueryTabsStore();
 const state = computed(() => edits.states[props.tabId]);
@@ -266,29 +226,7 @@ const editingKey = ref("");
 const isInsert = ref(false);
 const documentText = ref("{}");
 const lockedDocumentId = ref<unknown>(null);
-const fields = ref<
-    Array<{
-        name: string;
-        text: string;
-        mode: string;
-        type: string;
-        nullable: boolean;
-        generated: boolean;
-        autoIncrement: boolean;
-        locked: boolean;
-    }>
->([]);
-const fieldScroller = ref<QVirtualScroll | null>(null);
-const resultSettings = useResultSettingsStore();
-const fieldRowHeight = computed(() => Math.max(40, resultSettings.settings.fontSize + 24) + 12);
-const firstEditableField = computed(() => fields.value.findIndex(field => !field.locked && !field.generated && field.mode === 'value'));
 let original: Record<string, unknown> = {};
-const valueOption = { label: 'Value', value: 'value' };
-const nullOption = { label: 'NULL', value: 'null' };
-const defaultOption = { label: 'Default', value: 'default' };
-const editModes = [[valueOption], [valueOption, nullOption]];
-const insertModes = [[valueOption, defaultOption], [valueOption, nullOption, defaultOption]];
-const valueModes = (field: { nullable: boolean }) => (isInsert.value ? insertModes : editModes)[Number(field.nullable)];
 const asText = (value: unknown) =>
     value == null
         ? ""
@@ -297,6 +235,11 @@ const asText = (value: unknown) =>
           : String(value);
 function openRow(key = "") {
     if (busy.value || !state.value?.info?.canInsert) return;
+    if (state.value.info.driver !== 'mongodb') {
+        if (key) emit('editCell', key);
+        else emit('addRow');
+        return;
+    }
     const draft = draftsByKey.value.get(key);
     if (key && draft?.operation !== "insert" && !state.value.info.canModify)
         return;
@@ -327,38 +270,6 @@ function openRow(key = "") {
         lockedDocumentId.value = document._id ?? null;
         const { _id, ...editableFields } = document;
         documentText.value = JSON.stringify(editableFields, null, 2);
-    } else {
-        fields.value = (state.value.info.columns ?? []).map((column) => {
-            const present = draft && Object.hasOwn(draft.values, column.name);
-            const value = present
-                ? draft.values[column.name]
-                : original[column.name];
-            const optional =
-                column.autoIncrement ||
-                column.generated ||
-                column.nullable ||
-                column.defaultValue != null;
-            return {
-                name: column.name,
-                text: asText(value),
-                type: column.databaseType,
-                nullable: column.nullable && !column.primaryKey,
-                generated: column.generated,
-                autoIncrement: column.autoIncrement,
-                locked:
-                    (!isInsert.value &&
-                        (column.primaryKey ||
-                            state.value?.info?.keys?.includes(column.name) ||
-                            column.name.toLowerCase() === "id")) ||
-                    (isInsert.value && column.autoIncrement),
-                mode:
-                    isInsert.value && !present && optional
-                        ? "default"
-                        : value === null
-                          ? "null"
-                          : "value",
-            };
-        });
     }
     dialogError.value = "";
     dialog.value = true;
@@ -404,49 +315,6 @@ function stageRow() {
                 JSON.stringify(values._id) !== JSON.stringify(original._id)
             )
                 throw new Error("The existing _id cannot be changed");
-        } else {
-            for (const field of fields.value) {
-                if (field.locked || field.generated || field.mode === "default")
-                    continue;
-                let value: unknown = field.mode === "null" ? null : field.text;
-                if (
-                    field.mode === "value" &&
-                    /^(boolean|bool)$/i.test(field.type)
-                ) {
-                    if (!/^(true|false|0|1)$/i.test(field.text))
-                        throw new Error(`${field.name}: enter true or false`);
-                    value = /^(true|1)$/i.test(field.text);
-                }
-                if (
-                    field.mode === "value" &&
-                    /(int|numeric|decimal|real|double|float)/i.test(
-                        field.type,
-                    ) &&
-                    !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(
-                        field.text,
-                    )
-                )
-                    throw new Error(
-                        `${field.name}: enter a number or select NULL / Default`,
-                    );
-                if (
-                    isInsert.value ||
-                    (value === null
-                        ? original[field.name] != null
-                        : original[field.name] == null ||
-                          asText(value) !== asText(original[field.name]))
-                )
-                    values[field.name] = value;
-            }
-        }
-        if (
-            !isInsert.value &&
-            info.driver !== "mongodb" &&
-            !Object.keys(values).length
-        ) {
-            edits.remove(props.tabId, editingKey.value);
-            dialog.value = false;
-            return;
         }
         const index = rowIndexes.value.get(editingKey.value) ?? -1;
         const existing = draftsByKey.value.get(editingKey.value);
@@ -477,7 +345,7 @@ function stageRow() {
     }
 }
 function deleteRow(key = props.selectedKey) {
-    if (!canEditRow(key)) return;
+    if (!canEditRow(key) || props.prepareSave?.() === false) return;
     const draft = draftsByKey.value.get(key);
     if (draft?.operation === "insert" || draft?.operation === "delete") {
         edits.remove(props.tabId, key);
@@ -493,9 +361,14 @@ function deleteRow(key = props.selectedKey) {
         original: draft?.original,
     });
 }
+function discard() {
+    emit('cancelEdit');
+    edits.discard(props.tabId);
+}
 async function save() {
     const tab = queries.tabs.find((tab) => tab.id === props.tabId);
-    if (!tab || busy.value) return;
+    if (!tab || busy.value || props.prepareSave?.() === false) return;
+    if (!state.value?.drafts.length) return;
     const saved = await edits.save(props.tabId, tab.cursor);
     tab.cursor = "";
     tab.streamNextPage = undefined;
@@ -509,7 +382,7 @@ async function save() {
         await queries.execute(props.tabId, tab.executedSql ?? tab.sql, true);
     }
 }
-defineExpose({ openRow, deleteRow, canEditRow });
+defineExpose({ openRow, deleteRow, canEditRow, save });
 </script>
 
 <style scoped>

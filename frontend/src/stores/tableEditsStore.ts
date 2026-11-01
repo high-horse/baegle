@@ -17,13 +17,14 @@ export interface EditState {
     drafts: DraftRow[];
     loading: boolean;
     saving: boolean;
+    editing?: boolean;
     error: string;
 }
 export const useTableEditsStore = defineStore('tableEdits', () => {
     const states = ref<Record<string, EditState>>({});
-    const hasPending = (id?: string) => !!id && !!states.value[id]?.drafts.length;
+    const hasPending = (id?: string) => !!id && !!(states.value[id]?.drafts.length || states.value[id]?.editing);
     const isSaving = (id?: string) => !!id && !!states.value[id]?.saving;
-    const anyPending = computed(() => Object.values(states.value).some(state => state.drafts.length || state.saving));
+    const anyPending = computed(() => Object.values(states.value).some(state => state.drafts.length || state.saving || state.editing));
     async function load(id: string, table: TableRef) {
         states.value[id] = { table, info: null, drafts: [], loading: true, saving: false, error: '' };
         try {
@@ -67,7 +68,7 @@ export const useTableEditsStore = defineStore('tableEdits', () => {
     }
     function discard(id: string) {
         const state = states.value[id];
-        if (state && !state.saving) { state.drafts = []; state.error = ''; }
+        if (state && !state.saving) { state.drafts = []; state.editing = false; state.error = ''; }
     }
     async function save(id: string, cursor = ""): Promise<boolean> {
         const state = states.value[id];

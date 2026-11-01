@@ -40,6 +40,7 @@
                         <div ref="tabContentHost" tabindex="-1" class="flex-grow min-h-0 min-w-0 overflow-hidden outline-none">
                             <KeepAlive :max="8">
                                 <WorkspaceTabContent
+                                    ref="activeTabContent"
                                     v-if="queryTabsStore.activeTab"
                                     :key="queryTabsStore.activeTab.id"
                                     :tab="queryTabsStore.activeTab"
@@ -87,6 +88,7 @@
 </template>
 
 <script setup lang="ts">
+import { refreshTable } from "@/utils/refreshTable";
 import { consoleExtension } from "@/utils/databaseDialect";
 import { nextTick, ref, watch, onMounted, onBeforeMount, onBeforeUnmount } from "vue";
 
@@ -114,6 +116,7 @@ const $router = useRouter();
 
 const queryTabsStore = useQueryTabsStore();
 const tabContentHost = ref<HTMLElement | null>(null);
+const activeTabContent = ref<InstanceType<typeof WorkspaceTabContent> | null>(null);
 const connectionStore = useConnectionStore();
 const tableEdits = useTableEditsStore();
 
@@ -171,10 +174,6 @@ async function handleTableSelect(node: {
     const tab = queryTabsStore.createResultTab(node.label, connectionId, tableRef);
 
     await executeTableResult(tab.id, node);
-    if (activeConnection.value) {
-        await tableEdits.load(tab.id, { connectionId: await DbService.GetActiveConnection(), name: node.label,
-            schema: node.schema ?? "", database: node.database ?? activeConnection.value.dbname });
-    }
 }
 
 async function executeTableResult(
@@ -186,6 +185,11 @@ async function executeTableResult(
         schema?: string;
     },
 ) {
+    const connection = activeConnection.value;
+    if (connection) {
+        await tableEdits.load(id, { connectionId: await DbService.GetActiveConnection(), name: node.label,
+            schema: node.schema ?? "", database: queryTabsStore.tabs.find(tab => tab.id === id)?.tableRef?.database ?? connection.dbname });
+    }
     if (["couchdb", "redis"].includes(activeConnection.value?.driver ?? "")) {
         const command = JSON.stringify(activeConnection.value?.driver === "redis" ? ["SCAN", "0", "MATCH", "*"] : { method: "GET", path: "/_all_docs?include_docs=true" }, null, 2);
         queryTabsStore.updateSql(id, command);
@@ -193,14 +197,16 @@ async function executeTableResult(
         return;
     }
     if (activeConnection.value?.driver === "mongodb") {
-        const command = JSON.stringify({ find: node.label, filter: {} }, null, 2);
+        const command = JSON.stringify({ find: node.label, filter: {}, sort: { _id: 1 } }, null, 2);
         queryTabsStore.updateSql(id, command);
         await executeQuery(id, command);
         return;
     }
     const tableName = [node.schema, node.label].filter((part): part is string => !!part)
         .map(part => quoteIdentifier(part, activeConnection.value?.driver)).join(".");
-    const sql = `SELECT * FROM ${tableName};`;
+    const keys = tableEdits.states[id]?.info?.keys ?? [];
+    const order = keys.length ? ` ORDER BY ${keys.map(key => quoteIdentifier(key, connection?.driver)).join(", ")}` : "";
+    const sql = `SELECT * FROM ${tableName}${order};`;
     queryTabsStore.updateSql(id, sql);
     await executeQuery(id, sql);
 }
@@ -228,12 +234,6 @@ watch(() => queryTabsStore.activeTab, tab => {
     tab.needsTableRestore = false;
     const table = tab.tableRef;
     void executeTableResult(tab.id, { id: tab.id, label: table.name, schema: table.schema });
-    const connection = activeConnection.value?.id;
-    void DbService.GetActiveConnection().then(connectionId => {
-        if (activeConnection.value?.id === connection && queryTabsStore.tabs.includes(tab)) {
-            return tableEdits.load(tab.id, { ...table, connectionId });
-        }
-    }).catch(error => Notify.create({ type: "negative", message: `Could not restore table details: ${String(error)}` }));
 }, { immediate: true });
 
 function flushWorkspace() { void queryTabsStore.flushAutosave(); }
@@ -274,7 +274,7 @@ function handleDisconnectShortcut(event: KeyboardEvent) {
         return;
     }
     // Escape should dismiss dialogs, menus and editor completions normally.
-    if (event.repeat || document.querySelector(".q-dialog, .q-menu, .cm-tooltip-autocomplete")) {
+    if (event.repeat || document.querySelector(".q-dialog, .q-menu, .cm-tooltip-autocomplete, .inline-cell-editor")) {
         resetEscapeShortcut();
         return;
     }
@@ -317,8 +317,11 @@ function handleSaveConsoleShortcut(event: KeyboardEvent) {
     if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && !event.isComposing && event.key.toLowerCase() === "s") {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat && queryTabsStore.activeTab?.type === "query") {
+        if (event.repeat) return;
+        if (queryTabsStore.activeTab?.type === "query") {
             void queryTabsStore.saveConsole(queryTabsStore.activeTab.id);
+        } else if (queryTabsStore.activeTab?.type === "result" && !document.querySelector('.q-dialog')) {
+            void activeTabContent.value?.saveTableChanges();
         }
     }
 }
@@ -354,9 +357,9 @@ function handleRefreshTableShortcut(event: KeyboardEvent) {
     // Consume reload even when refresh is blocked, preserving the workspace.
     event.preventDefault();
     event.stopPropagation();
-    if (event.repeat || tab.loading || tab.closing || tableEdits.hasPending(tab.id) || tableEdits.isSaving(tab.id)
+    if (event.repeat || tab.loading || tab.closing || tableEdits.isSaving(tab.id)
         || document.querySelector('.q-dialog[aria-modal="true"]')) return;
-    void executeQuery(tab.id, tab.executedSql ?? tab.sql);
+    void refreshTable(queryTabsStore, tableEdits, tab.id);
 }
 
 function handleCloseTabShortcut(event: KeyboardEvent) {
