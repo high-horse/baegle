@@ -22,10 +22,11 @@ function identifier(text: string): string {
 
 // Read the query block containing the cursor. CTE bodies and subqueries are
 // Parens nodes rather than Statement nodes in CodeMirror's SQL syntax tree.
-export function getSQLTableReferences(state: EditorState, pos: number): SQLTableReference[] {
+function queryScope(state: EditorState, pos: number): SyntaxNode | null {
     const tree = ensureSyntaxTree(state, state.doc.length, 100) ?? syntaxTree(state);
-    const statement = tree.topNode.getChildren("Statement").find(node => pos >= node.from && pos <= node.to);
-    if (!statement) return [];
+    const statement = tree.topNode.getChildren("Statement").find(node => pos >= node.from &&
+        (pos <= node.to || (!state.sliceDoc(node.to, pos).trim() && !state.sliceDoc(node.from, node.to).trimEnd().endsWith(";"))));
+    if (!statement) return null;
     let scope = statement;
     for (let node: SyntaxNode | null = tree.resolveInner(pos, -1); node && node.from >= statement.from; node = node.parent) {
         if (node.name === "Parens") {
@@ -40,6 +41,12 @@ export function getSQLTableReferences(state: EditorState, pos: number): SQLTable
         }
         if (node.name === "Statement") break;
     }
+    return scope;
+}
+
+export function getSQLTableReferences(state: EditorState, pos: number): SQLTableReference[] {
+    const scope = queryScope(state, pos);
+    if (!scope) return [];
     const nodes: SyntaxNode[] = [];
     for (let node = scope.firstChild; node; node = node.nextSibling) {
         if (!/Comment/.test(node.name)) nodes.push(node);
@@ -98,7 +105,7 @@ export function completeSQLColumns(context: CompletionContext, tables: readonly 
     let node: SyntaxNode | null = syntaxTree(context.state).resolveInner(context.pos, -1);
     if (/Comment|String/.test(node.name)) return null;
     while (node && node.name !== "CompositeIdentifier") node = node.parent;
-    if (!node) return null;
+    if (!node) return completeUnqualifiedColumns(context, references, tables, driver, getColumns);
     let dot: SyntaxNode | null = null;
     for (let child = node.firstChild; child && child.to <= context.pos; child = child.nextSibling) {
         if (child.name === ".") { dot = child; }
@@ -123,6 +130,43 @@ export function completeSQLColumns(context: CompletionContext, tables: readonly 
         label: column.name, type: "property", detail: column.databaseType,
         apply: quoteIdentifier(column.name, driver),
     })) };
+}
+
+// Use only the current query block: nested queries and other statements must
+// not contribute tables or change the clause at the cursor.
+function completeUnqualifiedColumns(context: CompletionContext, references: SQLTableReference[],
+    tables: readonly TableMetadata[], driver: string,
+    getColumns: (table: TableMetadata) => readonly ColumnMetadata[]): CompletionResult | null {
+    const scope = queryScope(context.state, context.pos);
+    if (!scope) return null;
+    let clause = "";
+    for (let child = scope.firstChild; child && child.from < context.pos; child = child.nextSibling) {
+        if (child.name !== "Keyword") continue;
+        const word = context.state.sliceDoc(child.from, child.to).toLowerCase();
+        if (["select", "from", "join", "into", "update", "where", "on", "having", "group", "order", "set", "returning", "limit", "offset", "values", "using"].includes(word)) clause = word;
+    }
+    if (!["select", "where", "on", "having", "group", "order", "set", "returning"].includes(clause)) return null;
+    const token = context.matchBefore(/[\p{L}\p{N}_$]*/u);
+    if (!token) return null;
+    const entries = references.flatMap(reference => {
+        const table = matchingSQLTable(tables, reference.path);
+        return table ? getColumns(table).map(column => ({ reference, table, column })) : [];
+    });
+    const counts = new Map<string, number>();
+    for (const { column } of entries) counts.set(column.name.toLowerCase(), (counts.get(column.name.toLowerCase()) ?? 0) + 1);
+    const options: Completion[] = entries.map(({ reference, table, column }) => {
+        const ambiguous = counts.get(column.name.toLowerCase())! > 1;
+        const qualifier = reference.alias ?? table.name;
+        return {
+            label: column.name,
+            displayLabel: ambiguous ? `${qualifier}.${column.name}` : column.name,
+            type: "property",
+            detail: `${reference.alias ?? [table.schema, table.name].filter(Boolean).join(".")} · ${column.databaseType}`,
+            boost: 5,
+            apply: (ambiguous ? quoteIdentifier(qualifier, driver) + "." : "") + quoteIdentifier(column.name, driver),
+        };
+    });
+    return options.length ? { from: token.from, options, validFor: /^[\p{L}\p{N}_$]*$/u } : null;
 }
 
 export function tableAlias(name: string, used: readonly string[] = []): string {
@@ -165,8 +209,9 @@ export function buildSQLCompletionSchema(tables: readonly TableMetadata[], drive
     const key = (name: string) => name.replace(/\./g, "\\.");
     for (const table of sqlTables) {
         const qualified = table.schema ? `${table.schema}.${table.name}` : table.name;
-        const insert = [table.schema, table.name].filter((part): part is string => !!part)
-            .map(part => quoteIdentifier(part, driver)).join(".");
+        // Qualify duplicate names so selecting a different schema stays unambiguous.
+        const insert = (counts.get(table.name)! > 1 ? [table.schema, table.name] : [table.name])
+            .filter((part): part is string => !!part).map(part => quoteIdentifier(part, driver)).join(".");
         const label = counts.get(table.name)! > 1 ? qualified : table.name;
         const children: Completion[] = getColumns(table).map(column => ({ label: column.name, type: "property",
             detail: column.databaseType, apply: quoteIdentifier(column.name, driver) }));

@@ -51,22 +51,22 @@ function applyTable(doc, label, metadata = tables, driver = 'pgx') {
     return state.doc.toString();
 }
 test('FROM and JOIN selection inserts table initials', () => {
-    assert.equal(applyTable('select * from tab','table_one'), 'select * from "public"."table_one" AS to2');
-    assert.equal(applyTable('select * from table_one t join tab','table_view'), 'select * from table_one t join "public"."table_view" AS tv');
+    assert.equal(applyTable('select * from tab','table_one'), 'select * from "table_one" AS to2');
+    assert.equal(applyTable('select * from table_one t join tab','table_view'), 'select * from table_one t join "table_view" AS tv');
 });
 test('schema-qualified completion inserts only the table identifier and alias', () => {
     assert.equal(applyTable('select * from public.tab','table_one'),'select * from public."table_one" AS to2');
 });
 test('existing aliases are preserved and generated aliases do not collide', () => {
     const doc='select * from table_one to2 join tab';
-    assert.equal(applyTable(doc,'table_one'), 'select * from table_one to2 join "public"."table_one" AS to3');
+    assert.equal(applyTable(doc,'table_one'), 'select * from table_one to2 join "table_one" AS to3');
     const withAlias='select * from tab existing';
     const result=suggestions(withAlias.slice(0,17), tables);
     let state=EditorState.create({doc:withAlias,extensions:[sql({dialect:PostgreSQL})]});
     const view={get state(){return state;},dispatch(spec){state=state.update(spec).state;}};
     const option=result.options.find(item=>item.label==='table_one');
     option.apply(view,option,14,17);
-    assert.equal(state.doc.toString(),'select * from "public"."table_one" existing');
+    assert.equal(state.doc.toString(),'select * from "table_one" existing');
     assert.equal(tableAlias('userAccounts',['ua','ua2']), 'ua3');
     assert.equal(tableAlias('123_table'), 't1t');
 });
@@ -74,7 +74,7 @@ test('duplicate names and unusual identifiers are quoted safely', () => {
     const metadata=[{name:'users',schema:'public',type:'TABLE'},{name:'users',schema:'audit',type:'TABLE'},{name:'a"b',schema:'public',type:'TABLE'}];
     assert.equal(applyTable('select * from us','public.users',metadata),'select * from "public"."users" AS u');
     assert.equal(applyTable('select * from us','audit.users',metadata),'select * from "audit"."users" AS u');
-    assert.equal(applyTable('select * from a','a"b',metadata),'select * from "public"."a""b" AS ab');
+    assert.equal(applyTable('select * from a','a"b',metadata),'select * from "a""b" AS ab');
 });
 test('MySQL and SQLite quoting excludes MongoDB collections', () => {
     const metadata=[{name:'order items',schema:'',type:'TABLE'},{name:'documents',type:'COLLECTION'}];
@@ -99,7 +99,7 @@ test('references are scoped to the current statement and include manually typed 
     assert.equal(suggestions(doc,tables,'pgx',()=>[{name:'id',databaseType:'integer'}]).options[0].label,'id');
 });
 test('INSERT table selection does not insert an inappropriate alias', () => {
-    assert.equal(applyTable('insert into tab','table_one'), 'insert into "public"."table_one"');
+    assert.equal(applyTable('insert into tab','table_one'), 'insert into "table_one"');
 });
 
 test('unqualified aliases use public columns even when other schemas are listed first', () => {
@@ -240,4 +240,50 @@ test('subqueries resolve their own aliases and preserve enclosing aliases outsid
     assert.deepEqual(aliasColumns('SELECT * FROM ag.users AS t WHERE EXISTS (SELECT * FROM ag.events AS t WHERE t.|)').result?.options.map(option => option.label), ['event_id']);
     assert.deepEqual(aliasColumns('SELECT * FROM ag.users AS t WHERE EXISTS (SELECT * FROM ag.events AS t) AND t.|').result?.options.map(option => option.label), ['user_id']);
     assert.deepEqual(aliasColumns('SELECT * FROM (SELECT * FROM ag.users AS t WHERE (t.|)) AS q').result?.options.map(option => option.label), ['user_id']);
+});
+
+test('unqualified columns appear automatically in expression clauses across dialects', () => {
+    for (const driver of ['mysql', 'pgx']) {
+        for (const marked of [
+            'select * from ag.users where |',
+            'select * from ag.users t where us|',
+            'select | from ag.users',
+            'select * from ag.users order by |',
+            'select * from ag.users group by |',
+            'select * from ag.users having |',
+            'select * from ag.users where (|)',
+            'select * from ag.users where user_id = 1 AND |',
+            'update ag.users set |',
+        ]) {
+            const {result, doc} = aliasColumns(marked, driver);
+            assert.deepEqual(result?.options.map(option => option.label), ['user_id'], marked);
+            const quote = driver === 'mysql' ? '`' : '"';
+            const after = doc.slice(0, result.from) + result.options[0].apply + doc.slice(result.to ?? marked.indexOf('|'));
+            assert.ok(after.includes(quote + 'user_id' + quote));
+        }
+    }
+});
+
+test('join columns show their source and qualify ambiguous names', () => {
+    const doc = 'select * from table_one t join table_view v on ';
+    const state = EditorState.create({doc, extensions:[sql({dialect:PostgreSQL})]});
+    const result = completeSQLColumns(new CompletionContext(state, doc.length, false), tables, 'pgx', () => [{name:'id', databaseType:'integer'}]);
+    assert.deepEqual(result.options.map(option => option.displayLabel), ['t.id', 'v.id']);
+    assert.deepEqual(result.options.map(option => option.apply), ['"t"."id"', '"v"."id"']);
+});
+
+test('unqualified completion respects statement and nested query scope', () => {
+    for (const marked of [
+        'select * from ag.events; select * from ag.users where |',
+        'select * from ag.events where exists (select * from ag.users where |)',
+        'with x as (select * from ag.events) select * from ag.users where |',
+    ]) assert.deepEqual(aliasColumns(marked).result?.options.map(option => option.label), ['user_id'], marked);
+    for (const marked of [
+        'select * from |',
+        'select * from ag.users join |',
+        "select * from ag.users where 'us|'",
+        'select * from ag.users where -- user|',
+        'select * from ag.users limit |',
+        'select * from ag.events; select |',
+    ]) assert.equal(aliasColumns(marked).result, null, marked);
 });
