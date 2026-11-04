@@ -39,7 +39,9 @@ Non-pageable SQL (such as mutations with RETURNING) retains execute-once cursor
 streaming, with a ten-minute cursor lifetime, a sixteen-cursor cap, and bounded
 page caching. Each cursor pins a connection until closed or exhausted. Closing a
 cursor cancels it; it does not guarantee rollback. MongoDB retains its existing
-command/cursor pagination behavior.
+command/cursor pagination behavior. Last never drains a streaming cursor; it is
+available for streaming results only after the final page has been fetched, and
+then selects that cached page.
 
 Tests cover bounded reads without counting, connection release, exact counts,
 original query limits, global sorting, empty/final pages, unknown-total navigation,

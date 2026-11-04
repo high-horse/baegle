@@ -360,6 +360,41 @@ test('native cursors advance request pages independently of uneven and empty res
     assert.equal(pages.length, 2, 'cached pages do not reexecute commands');
 });
 
+test('Last never drains a streaming cursor, even with later cached pages', async () => {
+    const { store, backend, calls } = setup();
+    const tab = store.tabs[0];
+    tab.result = { CanNavigate: false, StartRow: 1, PageSize: 100, HasMore: true, Rows: [[1]], Columns: [] };
+    tab.pages = [tab.result, { ...tab.result, StartRow: 101 }];
+    tab.cursor = 'stream';
+    tab.pageIndex = 0;
+    const original = tab.result;
+    let fetched = 0;
+    backend.ExecuteQuery = async () => { fetched++; return null; };
+    await store.navigate(tab.id, 'last');
+    assert.equal(fetched, 0);
+    assert.equal(calls.length, 0);
+    assert.equal(tab.result, original);
+    assert.equal(tab.cursor, 'stream');
+    assert.equal(tab.loading, false);
+});
+
+test('Last jumps directly to a distant known page in one request', async () => {
+    const { store, backend, calls } = setup();
+    const tab = countableTab(store);
+    tab.totalRows = 1000050;
+    const pages = [];
+    backend.ExecuteQuery = async input => {
+        pages.push(input.page);
+        assert.equal(input.type, 4);
+        return { columns: [], rows: [[1000001]], startRow: 1000001, pageSize: 100,
+            hasMore: false, canNavigate: true, totalRows: 1000050, cursor: '', isQuery: true };
+    };
+    await store.navigate(tab.id, 'last');
+    assert.deepEqual(pages, [10001]);
+    assert.equal(calls.length, 0);
+    assert.equal(tab.result.StartRow, 1000001);
+});
+
 function countableTab(store) {
     const tab = store.tabs[0];
     tab.executedSql = 'SELECT id FROM items';

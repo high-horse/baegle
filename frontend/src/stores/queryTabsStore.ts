@@ -618,11 +618,13 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
       await fetchReadPage(tab, target);
       return;
     }
+    // A streaming cursor cannot seek. Last must never drain it page by page.
+    if (direction === "last" && tab.cursor) return;
     const index = tab.pageIndex ?? 0;
     const target = direction === "first"
       ? tab.pages.findIndex(result => result.StartRow === 1)
       : direction === "last"
-      ? tab.pages.length - (tab.cursor ? 0 : 1)
+      ? tab.pages.length - 1
       : index + (direction === "next" ? 1 : -1);
     if (target < 0) return;
     if (target < tab.pages.length) {
@@ -633,27 +635,24 @@ export const useQueryTabsStore = defineStore("queryTabs", () => {
     }
     if (!tab.cursor) return;
     tab.loading = true;
-    tab.fetchingLast = direction === "last";
     tab.pageError = undefined;
     try {
-      do {
-        const last = tab.pages[tab.pages.length - 1];
-        const response = await DbService.ExecuteQuery({ query: "", cursor: tab.cursor, type: QueryExecutionType.QueryExecutionFetchPaged, pageSize: last.PageSize, page: tab.streamNextPage ?? 2, sortColumn: 0, sortDirection: "" });
-        if (!response) throw new Error("No result page returned");
-        if (!tabs.value.includes(tab)) { releaseCursor(response.cursor); return; }
-        const result = mapResult(response);
-        tab.cursor = result.Cursor;
-        if (!result.HasMore) tab.totalRows = result.StartRow - 1 + result.Rows.length;
-        tab.streamNextPage = (tab.streamNextPage ?? 2) + 1;
-        tab.pages.push(result);
-        // Keep navigation memory bounded regardless of the database size.
-        if (tab.pages.length > 10) tab.pages.shift();
-        tab.pageIndex = tab.pages.length - 1;
-        tab.result = markRaw(result);
-      } while (tab.fetchingLast && tab.cursor && tabs.value.includes(tab));
+      const last = tab.pages[tab.pages.length - 1];
+      const response = await DbService.ExecuteQuery({ query: "", cursor: tab.cursor, type: QueryExecutionType.QueryExecutionFetchPaged, pageSize: last.PageSize, page: tab.streamNextPage ?? 2, sortColumn: 0, sortDirection: "" });
+      if (!response) throw new Error("No result page returned");
+      if (!tabs.value.includes(tab)) { releaseCursor(response.cursor); return; }
+      const result = mapResult(response);
+      tab.cursor = result.Cursor;
+      if (!result.HasMore) tab.totalRows = result.StartRow - 1 + result.Rows.length;
+      tab.streamNextPage = (tab.streamNextPage ?? 2) + 1;
+      tab.pages.push(result);
+      // Keep navigation memory bounded regardless of the database size.
+      if (tab.pages.length > 10) tab.pages.shift();
+      tab.pageIndex = tab.pages.length - 1;
+      tab.result = markRaw(result);
     } catch (error) {
       tab.pageError = error instanceof Error ? error.message : String(error);
-    } finally { tab.loading = false; tab.fetchingLast = false; }
+    } finally { tab.loading = false; }
   }
 
   async function fetchReadPage(tab: QueryTab, page: number, sort?: { column: number; direction?: "asc" | "desc"; where?: string; order?: string; orderSQL?: string }) {

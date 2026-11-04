@@ -72,7 +72,7 @@
             <section>
                 <h3><q-icon name="view_column" size="18px" /> Columns, schema &amp; paging</h3>
                 <p>Open <strong>Columns</strong> above the grid to find, hide, pin left, or reorder columns. Drag a header’s resize handle to change its width. <strong>Fit widths</strong> sizes columns to fetched content; <strong>Reset layout</strong> restores the layout. Column choices are remembered for the table.</p>
-                <p>Use the result’s <strong>Schema</strong> tab to inspect its structure. Footer arrows move between pages; <strong>Count rows</strong> calculates the total for supported results. Going to the last page may count or fetch remaining rows; use the available Cancel or Stop control to interrupt it.</p>
+                <p>Use the result’s <strong>Schema</strong> tab to inspect its structure. Footer arrows move between pages; <strong>Count rows</strong> calculates the total for supported results. Last counts rows if needed and jumps directly to the final page; Cancel interrupts the count. For streaming results, Last becomes available after the final page has been fetched.</p>
             </section>
             <section>
                 <h3><q-icon name="import_export" size="18px" /> Import, export &amp; settings</h3>

@@ -488,7 +488,7 @@
 
                 <q-btn flat dense no-caps type="button" class="pagination-button"
                     :disable="loading || countingRows || navigationBlocked || !canLast"
-                    :title="result.CanNavigate ? (totalRows == null ? 'Count rows and go to last page' : 'Go directly to last page') : 'Go to last page (fetches remaining rows)'" aria-label="Go to last page" @click="emit('last')">
+                    :title="result.CanNavigate ? (totalRows == null ? 'Count rows and go to last page' : 'Go directly to last page') : (canLast ? 'Go to last cached page' : 'Direct last-page navigation is unavailable for this result')" aria-label="Go to last page" @click="emit('last')">
                     <q-icon name="last_page" size="16px" />
                 </q-btn>
                 <q-btn flat dense no-caps v-if="fetchingLast" type="button" class="text-[length:var(--ui-font-size)] text-primary px-2"
