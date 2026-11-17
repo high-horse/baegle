@@ -347,7 +347,8 @@ async function exportData() {
         const response = await DbService.ExportData({ connectionId: sourceConnectionId.value, scope: scope.value,
             options: options.value, table: table.value ?? { connectionId: sourceConnectionId.value, name: '', schema: '', database: '' },
             excludedColumns: exportExcludedColumns.value,
-            query: sourceQuery.value, columns: result?.Columns.map(c => c.Name) ?? [], rows: result?.Rows ?? [], documents: result?.Documents ?? [],
+            query: sourceQuery.value, columns: result?.Columns.map(c => c.Name) ?? [],
+            rows: (result?.Rows ?? []).map(row => row.map(value => JSON.stringify(value) as unknown as string)), documents: result?.Documents ?? [],
         } as ExportRequest);
         if (response) success.value = `Exported ${response.rows} rows to ${response.path}`;
     });
