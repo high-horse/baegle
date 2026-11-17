@@ -42,6 +42,7 @@ type ImportRequest struct {
 	Mapping map[string]string    `json:"mapping"`
 }
 type ExportRequest struct {
+	Destination     string               `json:"destination"`
 	ExcludedColumns []string             `json:"excludedColumns"`
 	ConnectionID    string               `json:"connectionId"`
 	Scope           string               `json:"scope"`
@@ -55,6 +56,7 @@ type ExportRequest struct {
 type ExportResult struct {
 	Path string `json:"path"`
 	Rows int    `json:"rows"`
+	Data string `json:"data"`
 }
 
 func (s *DbService) ChooseImportFile() (string, error) {
@@ -358,9 +360,26 @@ func (s *DbService) ExportData(ctx context.Context, input ExportRequest) (*Expor
 		name = "query-result"
 	}
 	name = filepath.Base(strings.ReplaceAll(name, "\\", "_"))
+	if input.Destination == "clipboard" {
+		if input.Options.Format == "xlsx" {
+			return nil, fmt.Errorf("Excel exports cannot be copied to the clipboard; choose CSV, JSON or SQL")
+		}
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+		defer cancel()
+		var data bytes.Buffer
+		count, err := s.writeExport(ctx, &data, input)
+		if err != nil {
+			return nil, err
+		}
+		return &ExportResult{Rows: count, Data: data.String()}, nil
+	}
 	path, err := application.Get().Dialog.SaveFile().SetMessage("Export data").SetFilename(name+"."+input.Options.Format).AddFilter(strings.ToUpper(input.Options.Format), "*."+input.Options.Format).PromptForSingleSelection()
 	if err != nil || path == "" {
 		return nil, err
+	}
+	extension := "." + input.Options.Format
+	if !strings.EqualFold(filepath.Ext(path), extension) {
+		path += extension
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()

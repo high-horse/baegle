@@ -22,6 +22,7 @@
                     </ol>
                     <div v-if="exportStep === 0" class="export-panel">
                         <h3>Choose an output format</h3>
+                        <q-select v-model="destination" :options="destinations" emit-value map-options label="Destination" outlined dense :disable="busy" class="q-mb-md" />
                         <div class="format-list" role="radiogroup" aria-label="Export format">
                             <label v-for="item in formats" :key="item.value" class="format-option" :class="{ selected: format === item.value }">
                                 <input v-model="format" type="radio" name="export-format" :value="item.value" :disabled="busy" />
@@ -69,7 +70,7 @@
                             <template v-if="format === 'csv'"><dt>Delimiter</dt><dd>{{ delimiters.find(item => item.value === delimiter)?.label }}</dd></template>
                             <template v-if="format === 'csv' || format === 'xlsx'"><dt>NULL text</dt><dd>{{ nullToken || '(empty)' }}</dd></template>
                             <template v-if="format === 'sql'"><dt>INSERT target</dt><dd>{{ [table?.schema, table?.name].filter(Boolean).join('.') }}</dd></template>
-                            <dt>Destination</dt><dd>Local file — choose the path when you click Finish.</dd>
+                            <dt>Destination</dt><dd>{{ destination === 'clipboard' ? 'Clipboard' : 'Local file — choose the path when you click Finish.' }}</dd>
                         </dl>
                         <p class="text-caption text-grey-5">{{ scopeHint }}</p>
                     </div>
@@ -145,6 +146,7 @@
 <script setup lang="ts">
 import { isNoSQL } from "@/utils/databaseDialect";
 import { computed, ref, shallowRef, watch } from 'vue';
+import { copyToClipboard } from 'quasar';
 import { DbService } from '@bindings/db-lens/internal/app';
 import type { ImportPreview, ExportRequest } from '@bindings/db-lens/internal/app';
 import type { InspectColumnInfo, TableEditInfo, TableRef } from '@bindings/db-lens/internal/engine/entities';
@@ -167,6 +169,8 @@ const visible = ref(false);
 const mode = ref<'import' | 'export'>('export');
 const scope = ref('table');
 const format = ref('csv');
+const destination = ref('file');
+const destinations = [{ label: 'Export to file', value: 'file' }, { label: 'Copy to clipboard', value: 'clipboard' }];
 const delimiter = ref(',');
 const nullToken = ref('\\N');
 const exportStep = ref(0);
@@ -236,8 +240,12 @@ const table = computed(() => {
 });
 const formats = computed(() => [
     { label: 'CSV (.csv)', value: 'csv' }, { label: 'JSON (.json)', value: 'json' },
-    { label: 'Excel (.xlsx)', value: 'xlsx' }, ...(!isNoSQL(connection.activeConnection?.driver) ? [{ label: mode.value === 'import' ? 'SQL script (.sql)' : 'SQL inserts (.sql)', value: 'sql' }] : []),
+    ...(mode.value === 'export' && destination.value === 'clipboard' ? [] : [{ label: 'Excel (.xlsx)', value: 'xlsx' }]),
+    ...(!isNoSQL(connection.activeConnection?.driver) ? [{ label: mode.value === 'import' ? 'SQL script (.sql)' : 'SQL inserts (.sql)', value: 'sql' }] : []),
 ]);
+watch(destination, value => {
+    if (value === 'clipboard' && format.value === 'xlsx') format.value = 'csv';
+});
 const scopes = computed(() => [
     ...(!nativeNoSQL.value && sourceTable.value && (!isMongo.value || format.value === 'json') ? [{ label: isMongo.value ? 'Entire collection' : 'Entire source table / view', value: 'table' }] : []),
     ...(!isNoSQL(connection.activeConnection?.driver) && sourceQuery.value && sourceResult.value?.IsQuery ? [{ label: 'All query rows (query the database)', value: 'query' }] : []),
@@ -265,6 +273,7 @@ async function task(label: string, run: () => Promise<void>) {
 }
 async function open(value: 'import' | 'export') {
     mode.value = value; preview.value = null; path.value = ''; sheets.value = []; sheet.value = ''; error.value = ''; success.value = '';
+    if (value === 'export') destination.value = 'file';
     const active = props.tableTabId ? queries.tabs.find(tab => tab.id === props.tableTabId) : queries.activeTab;
     const activeTable = edits.states[props.tableTabId ?? active?.id ?? '']?.table ?? null;
     sourceResult.value = props.result ?? active?.result ?? null;
@@ -344,13 +353,16 @@ async function exportData() {
     await task('Exporting data…', async () => {
         if (!canExport.value) throw new Error('Choose an export source and target format');
         const result = sourceResult.value;
-        const response = await DbService.ExportData({ connectionId: sourceConnectionId.value, scope: scope.value,
+        const response = await DbService.ExportData({ destination: destination.value, connectionId: sourceConnectionId.value, scope: scope.value,
             options: options.value, table: table.value ?? { connectionId: sourceConnectionId.value, name: '', schema: '', database: '' },
             excludedColumns: exportExcludedColumns.value,
             query: sourceQuery.value, columns: result?.Columns.map(c => c.Name) ?? [],
             rows: (result?.Rows ?? []).map(row => row.map(value => JSON.stringify(value) as unknown as string)), documents: result?.Documents ?? [],
         } as ExportRequest);
-        if (response) success.value = `Exported ${response.rows} rows to ${response.path}`;
+        if (response && destination.value === 'clipboard') {
+            await copyToClipboard(response.data);
+            success.value = `Copied ${response.rows} rows to the clipboard.`;
+        } else if (response) success.value = `Exported ${response.rows} rows to ${response.path}`;
     });
 }
 </script>
