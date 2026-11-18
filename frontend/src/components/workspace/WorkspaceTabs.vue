@@ -25,6 +25,8 @@
                 >
                     <q-menu context-menu dark class="bg-[var(--surface-panel)] text-gray-300">
                         <q-list dense style="min-width: 210px">
+                            <q-item clickable v-close-popup @click="copyTabName(tab.title)"><q-item-section>Copy tab name</q-item-section></q-item>
+                            <q-separator dark />
                             <q-item clickable v-close-popup :disable="closingTabs || tab.closing" @click="closeTab(tab.id)"><q-item-section>Close tab</q-item-section></q-item>
                             <q-item clickable v-close-popup :disable="closingTabs || tabs.length < 2" @click="closeTabs(tabs.filter(item => item.id !== tab.id))"><q-item-section>Close other tabs</q-item-section></q-item>
                             <q-separator dark />
@@ -124,6 +126,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from "vue";
+import { copyToClipboard, Notify } from "quasar";
 import { useTableEditsStore } from "@/stores/tableEditsStore";
 const edits = useTableEditsStore();
 import type { QueryTab } from "@/types/queryTab";
@@ -226,6 +229,15 @@ function closeTab(id: string) {
 
 function closeTabs(tabs: QueryTab[]) {
     emit('closeTabs', tabs.map(tab => tab.id));
+}
+
+async function copyTabName(name: string) {
+    try {
+        await copyToClipboard(name);
+        Notify.create({ type: "positive", message: "Tab name copied" });
+    } catch (error) {
+        Notify.create({ type: "negative", message: `Could not copy tab name: ${String(error)}` });
+    }
 }
 </script>
 
